@@ -1,65 +1,74 @@
-import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 
 /// 应用主题配置
-/// 使用 FlexColorScheme 提供高质量的亮/暗主题
+/// 使用 Flutter 原生 ThemeData（Material 3）
 class AppTheme {
   AppTheme._();
 
-  /// 主题色板 - 选用深蓝色系，专业感
-  static const FlexScheme _scheme = FlexScheme.blueM3;
+  /// 主色调 - 深蓝色系，专业感
+  static const Color _seedColor = Color(0xFF1565C0);
 
   /// 亮色主题
-  static ThemeData get light => FlexThemeData.light(
-        scheme: _scheme,
+  static ThemeData get light => ThemeData(
         useMaterial3: true,
-        appBarStyle: FlexAppBarStyle.surface,
-        subThemesData: const FlexSubThemesData(
-          interactionEffects: true,
-          tintedDisabledControls: true,
-          blendOnColors: true,
-          blendTextTheme: true,
-          tooltipRadius: 8,
-          tooltipSchemeColor: SchemeColor.inverseSurface,
-          tooltipOpacity: 0.9,
-          drawerIndicatorSchemeColor: SchemeColor.primary,
-          bottomNavigationBarMutedUnselectedLabel: false,
-          bottomNavigationBarMutedUnselectedIcon: false,
-          navigationBarSelectedLabelSchemeColor: SchemeColor.onSurface,
-          navigationBarMutedUnselectedLabel: false,
-          navigationBarMutedUnselectedIcon: false,
-          navigationRailIndicatorSchemeColor: SchemeColor.primaryContainer,
-          navigationRailMutedUnselectedLabel: false,
-          navigationRailMutedUnselectedIcon: false,
+        brightness: Brightness.light,
+        colorSchemeSeed: _seedColor,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        appBarTheme: const AppBarTheme(
+          centerTitle: false,
+          elevation: 0,
+          scrolledUnderElevation: 0.5,
         ),
-        visualDensity: FlexColorScheme.comfortablePlatformDensity,
-        useMaterial3ErrorColors: true,
+        cardTheme: const CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            side: BorderSide(color: Color(0x1F000000)),
+          ),
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
       );
 
   /// 暗色主题
-  static ThemeData get dark => FlexThemeData.dark(
-        scheme: _scheme,
+  static ThemeData get dark => ThemeData(
         useMaterial3: true,
-        darkIsTrueBlack: false,
-        subThemesData: const FlexSubThemesData(
-          interactionEffects: true,
-          tintedDisabledControls: true,
-          blendOnColors: true,
-          blendTextTheme: true,
-          tooltipRadius: 8,
-          tooltipSchemeColor: SchemeColor.inverseSurface,
-          tooltipOpacity: 0.9,
-          drawerIndicatorSchemeColor: SchemeColor.primary,
-          bottomNavigationBarMutedUnselectedLabel: false,
-          bottomNavigationBarMutedUnselectedIcon: false,
-          navigationBarSelectedLabelSchemeColor: SchemeColor.onSurface,
-          navigationBarMutedUnselectedLabel: false,
-          navigationBarMutedUnselectedIcon: false,
-          navigationRailIndicatorSchemeColor: SchemeColor.primaryContainer,
-          navigationRailMutedUnselectedLabel: false,
-          navigationRailMutedUnselectedIcon: false,
+        brightness: Brightness.dark,
+        colorSchemeSeed: _seedColor,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        appBarTheme: const AppBarTheme(
+          centerTitle: false,
+          elevation: 0,
+          scrolledUnderElevation: 0.5,
         ),
-        visualDensity: FlexColorScheme.comfortablePlatformDensity,
-        useMaterial3ErrorColors: true,
+        cardTheme: const CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            side: BorderSide(color: Color(0x33FFFFFF)),
+          ),
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
       );
 }
