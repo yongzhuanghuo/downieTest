@@ -98,7 +98,8 @@ class YtDlpRunner {
       url,
     ];
 
-    final process = await Process.start(ytDlpPath, args);
+    final process =
+        await Process.start(ytDlpPath, args, environment: _processEnv);
     final stdoutBuffer = StringBuffer();
     final stderrBuffer = StringBuffer();
 
@@ -195,12 +196,20 @@ class YtDlpRunner {
 
   // ============== 内部方法 ==============
 
+  /// 子进程环境变量
+  ///
+  /// 禁用 Python 字节码缓存（PYTHONDONTWRITEBYTECODE），
+  /// 避免 brew 版 yt-dlp 运行时写 __pycache__ 到受限目录（如 sandbox）。
+  static Map<String, String> get _processEnv =>
+      {...Platform.environment, 'PYTHONDONTWRITEBYTECODE': '1'};
+
   /// 执行 yt-dlp 命令并等待完成
   static Future<({int exitCode, String stdout, String stderr})> _runCommand(
     List<String> args,
   ) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
-    final result = await Process.run(ytDlpPath, args);
+    final result =
+        await Process.run(ytDlpPath, args, environment: _processEnv);
     return (
       exitCode: result.exitCode,
       stdout: result.stdout.toString(),
