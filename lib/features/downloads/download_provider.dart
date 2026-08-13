@@ -52,17 +52,11 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     final outputTemplate =
         '$outputDir/$titlePart [${videoInfo.videoId}].%(ext)s';
 
-    // 视频流无音频时，自动配最佳音频流（B站等分离流网站）
-    String downloadFormatId = format.formatId;
-    if (!format.audioOnly && format.needsMerge) {
-      downloadFormatId = '${format.formatId}+ba';
-    }
-
     try {
       _update(task.id, status: DownloadStatus.downloading);
       final result = await YtDlpRunner.download(
         url: task.url,
-        formatId: downloadFormatId,
+        formatId: format.formatId,
         outputPath: outputTemplate,
         onProgress: (p) => _updateProgress(task.id, p),
         shouldCancel: () => _cancelled.contains(task.id),

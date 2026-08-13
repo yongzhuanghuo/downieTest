@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -50,56 +48,33 @@ Future<void> _initWindowManager() async {
 
 /// 后台初始化二进制引擎
 ///
-/// 首次运行会从 assets 提取 yt-dlp / FFmpeg 到应用数据目录。
-/// 此操作不阻塞 UI，用户在阶段3点击解析时会等待此初始化完成。
+/// 查找顺序：
+/// 1. 工作目录已有（打包态，首次从 assets 提取过）
+/// 2. assets 提取（打包态首次运行）
+/// 3. 系统 PATH（开发态，复用 brew 安装）
 Future<void> _initBinaries() async {
   try {
-    // 先把 assets 里的二进制复制到工作目录
+    // 1. 尝试从 assets 提取（打包态首次运行）
     final result = await BinaryInitializer.initialize();
     debugPrint('[Engine] Binary init: $result');
-
-    // 验证版本（开发期从 assets/bin/macos 直接复制后调用）
-    if (result.success) {
-      final ytDlpVersion = await _safeRun(() => YtDlpRunner.getVersion());
-      final ffmpegVersion = await _safeRun(() => FFmpegRunner.getVersion());
-      debugPrint('[Engine] yt-dlp: $ytDlpVersion');
-      debugPrint('[Engine] ffmpeg: $ffmpegVersion');
-    } else {
-      // 开发态 fallback：直接从 assets 目录复制
-      await _copyBinariesFromAssetsDirect();
-    }
   } catch (e) {
-    debugPrint('[Engine] 初始化失败: $e');
-    // 尝试开发态 fallback
-    await _copyBinariesFromAssetsDirect();
+    debugPrint('[Engine] assets 提取失败（开发态正常）: $e');
   }
-}
 
-/// 开发态直接从 `assets/bin/<platform>/` 复制二进制到工作目录
-Future<void> _copyBinariesFromAssetsDirect() async {
-  try {
-    final binDir = await BinaryLocator.getBinDirectory();
-    final platformDir = Platform.isMacOS ? 'macos' : 'windows';
+  // 2. 验证 BinaryLocator 能否找到可用二进制（含 PATH fallback）
+  final debugInfo = await BinaryLocator.getDebugInfo();
+  debugPrint('[Engine] === 引擎路径调试 ===\n$debugInfo');
 
-    for (final fileName in [
-      BinaryLocator.ytDlpFileName,
-      BinaryLocator.ffmpegFileName,
-    ]) {
-      final srcPath = 'assets/bin/$platformDir/$fileName';
-      final srcFile = File(srcPath);
-      if (srcFile.existsSync()) {
-        final destPath = '${binDir.path}/$fileName';
-        await srcFile.copy(destPath);
-        if (!Platform.isWindows) {
-          await Process.run('chmod', ['+x', destPath]);
-        }
-        debugPrint('[Engine] 已复制 $fileName -> $destPath');
-      } else {
-        debugPrint('[Engine] 警告: $srcPath 不存在');
-      }
-    }
-  } catch (e) {
-    debugPrint('[Engine] 开发态复制失败: $e');
+  // 3. 验证版本
+  final ytDlpVersion = await _safeRun(() => YtDlpRunner.getVersion());
+  final ffmpegVersion = await _safeRun(() => FFmpegRunner.getVersion());
+  debugPrint('[Engine] yt-dlp: $ytDlpVersion');
+  debugPrint('[Engine] ffmpeg: $ffmpegVersion');
+
+  if (ytDlpVersion == null || ffmpegVersion == null) {
+    debugPrint('[Engine] ⚠️ 引擎未就绪，请确认 yt-dlp / ffmpeg 已安装');
+  } else {
+    debugPrint('[Engine] ✅ 引擎就绪');
   }
 }
 

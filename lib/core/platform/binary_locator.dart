@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 /// 二进制文件路径查找器
 ///
 /// 负责在开发和打包环境下定位 yt-dlp / FFmpeg 可执行文件。
-/// - 开发态：从 `assets/bin/<platform>/` 读取（通过 Flutter assets 机制）
+/// - 开发态：从系统 PATH（brew 安装）或绝对路径查找
 /// - 打包态：从应用支持目录读取（首次启动时从 assets 复制过去）
 class BinaryLocator {
   BinaryLocator._();
@@ -32,7 +32,6 @@ class BinaryLocator {
   static const String _binSubDir = 'bin';
 
   /// 获取二进制工作目录（应用支持目录下的 bin/）
-  /// 首次运行时会把 assets 里的二进制复制到这里，并赋予执行权限。
   static Future<Directory> getBinDirectory() async {
     final supportDir = await getApplicationSupportDirectory();
     final binDir = Directory('${supportDir.path}/$_binSubDir');
@@ -44,23 +43,23 @@ class BinaryLocator {
 
   /// 获取 yt-dlp 可执行文件路径
   ///
-  /// 查找顺序：工作目录 → 系统 PATH（开发态 brew/系统安装）→ 默认路径
+  /// 查找顺序：工作目录 → 系统 PATH → 常见绝对路径 → 默认路径
   static Future<String> getYtDlpPath() async {
     final localPath = await _localPath(ytDlpFileName);
-    if (File(localPath).existsSync()) return localPath;
-    final inPath = await _findInPath(ytDlpFileName);
-    if (inPath != null) return inPath;
+    if (_canExecute(localPath)) return localPath;
+    final found = await _findBinary(ytDlpFileName);
+    if (found != null) return found;
     return localPath;
   }
 
   /// 获取 FFmpeg 可执行文件路径
   ///
-  /// 查找顺序：工作目录 → 系统 PATH（开发态 brew/系统安装）→ 默认路径
+  /// 查找顺序：工作目录 → 系统 PATH → 常见绝对路径 → 默认路径
   static Future<String> getFFmpegPath() async {
     final localPath = await _localPath(ffmpegFileName);
-    if (File(localPath).existsSync()) return localPath;
-    final inPath = await _findInPath(ffmpegFileName);
-    if (inPath != null) return inPath;
+    if (_canExecute(localPath)) return localPath;
+    final found = await _findBinary(ffmpegFileName);
+    if (found != null) return found;
     return localPath;
   }
 
@@ -70,35 +69,60 @@ class BinaryLocator {
     return '${binDir.path}/$fileName';
   }
 
-  /// 在系统 PATH 中查找可执行文件（开发态 fallback）
+  /// 判断路径是否可执行（通过启动进程验证，而非 File.existsSync）
   ///
-  /// 开发期 assets 里通常没有预编译独立二进制，
-  /// 此时直接复用 brew / 系统安装的 yt-dlp / ffmpeg。
-  static Future<String?> _findInPath(String name) async {
+  /// macOS sandbox 下 File.existsSync 可能被拦截，
+  /// 用 Process.run 直接尝试执行更可靠。
+  static bool _canExecute(String path) {
+    try {
+      final result = Process.runSync(path, ['--version']);
+      return result.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 在系统中查找可执行文件
+  ///
+  /// 查找顺序：
+  /// 1. `which` / `where` 命令
+  /// 2. 常见 brew 安装路径（Intel / Apple Silicon / Linux）
+  /// 3. 系统路径
+  static Future<String?> _findBinary(String name) async {
+    // 1. 通过 which/where 查找
     try {
       final cmd = Platform.isWindows ? 'where' : 'which';
       final result = await Process.run(cmd, [name]);
-      if (result.exitCode != 0) return null;
-      final out = (result.stdout as String).trim();
-      if (out.isEmpty) return null;
-      final path = out.split('\n').first.trim();
-      if (path.isNotEmpty && File(path).existsSync()) return path;
+      if (result.exitCode == 0) {
+        final out = (result.stdout as String).trim();
+        if (out.isNotEmpty) {
+          final path = out.split('\n').first.trim();
+          if (path.isNotEmpty && _canExecute(path)) return path;
+        }
+      }
     } catch (_) {}
+
+    // 2. 常见绝对路径
+    final candidates = <String>[
+      '/usr/local/bin/$name',       // Intel Mac brew
+      '/opt/homebrew/bin/$name',    // Apple Silicon brew
+      '/usr/bin/$name',             // 系统自带
+      '/usr/local/bin/$name',       // Linux 自编译
+      'C:\\ProgramData\\chocolatey\\bin\\$name.exe',  // Windows chocolatey
+      'C:\\FFmpeg\\bin\\$name.exe', // Windows FFmpeg 官方
+    ];
+    for (final p in candidates) {
+      if (_canExecute(p)) return p;
+    }
+
     return null;
   }
 
   /// 检查二进制是否已就绪
-  ///
-  /// 工作目录有，或系统 PATH 有，即视为就绪。
   static Future<bool> isReady() async {
-    final ytDlpLocal = await _localPath(ytDlpFileName);
-    final ffmpegLocal = await _localPath(ffmpegFileName);
-    if (File(ytDlpLocal).existsSync() && File(ffmpegLocal).existsSync()) {
-      return true;
-    }
-    final ytInPath = await _findInPath(ytDlpFileName);
-    final ffInPath = await _findInPath(ffmpegFileName);
-    return ytInPath != null && ffInPath != null;
+    final ytPath = await getYtDlpPath();
+    final ffPath = await getFFmpegPath();
+    return _canExecute(ytPath) && _canExecute(ffPath);
   }
 
   /// 平台信息（用于日志/调试）
@@ -116,8 +140,8 @@ class BinaryLocator {
     return [
       platformInfo,
       'BinDir: ${binDir.path}',
-      'yt-dlp: $ytDlpPath (${File(ytDlpPath).existsSync() ? "存在" : "缺失"})',
-      'ffmpeg: $ffmpegPath (${File(ffmpegPath).existsSync() ? "存在" : "缺失"})',
+      'yt-dlp: $ytDlpPath (${_canExecute(ytDlpPath) ? "可执行" : "不可用"})',
+      'ffmpeg: $ffmpegPath (${_canExecute(ffmpegPath) ? "可执行" : "不可用"})',
       'Ready: $ready',
     ].join('\n');
   }

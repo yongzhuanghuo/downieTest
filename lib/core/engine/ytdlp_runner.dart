@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../../data/models/download_progress.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
@@ -87,13 +89,54 @@ class YtDlpRunner {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
 
+    debugPrint('[YtDlp] ytDlpPath: $ytDlpPath');
+    debugPrint('[YtDlp] ffmpegPath: $ffmpegPath');
+    debugPrint('[YtDlp] formatId: $formatId');
+
+    // 验证 ffmpeg 可执行（合并音视频流必需）
+    String actualFfmpegPath = ffmpegPath;
+    if (formatId.contains('+')) {
+      bool ffOk = false;
+      try {
+        final ffCheck = Process.runSync(ffmpegPath, ['-version']);
+        ffOk = ffCheck.exitCode == 0;
+        debugPrint('[YtDlp] ffmpeg 可执行: exitCode=${ffCheck.exitCode}');
+      } catch (e) {
+        debugPrint('[YtDlp] ⚠️ ffmpeg 不可执行: $e');
+      }
+      if (!ffOk) {
+        // 尝试从 PATH 查找
+        try {
+          final which =
+              await Process.run('which', ['ffmpeg']);
+          if (which.exitCode == 0) {
+            actualFfmpegPath = (which.stdout as String).trim();
+            debugPrint('[YtDlp] 从 PATH 找到 ffmpeg: $actualFfmpegPath');
+          }
+        } catch (_) {}
+        // 再次验证
+        try {
+          final recheck = Process.runSync(actualFfmpegPath, ['-version']);
+          if (recheck.exitCode != 0) {
+            throw YtDlpException(
+              'ffmpeg 不可用，无法合并音视频流。路径: $actualFfmpegPath',
+            );
+          }
+        } catch (e) {
+          throw YtDlpException(
+            'ffmpeg 不可用，无法合并音视频流。请确认 ffmpeg 已安装。',
+          );
+        }
+      }
+    }
+
     final args = <String>[
       '--newline', // 每行一个进度，便于解析
       '--no-warnings',
       '--no-playlist',
       '-f', formatId,
       '-o', outputPath,
-      '--ffmpeg-location', ffmpegPath,
+      '--ffmpeg-location', actualFfmpegPath,
       '--merge-output-format', 'mp4',
       url,
     ];
@@ -139,21 +182,61 @@ class YtDlpRunner {
     await stderrSub.cancel();
     cancelTimer?.cancel();
 
+    // 诊断日志：打印 yt-dlp 完整输出
+    final fullStdout = stdoutBuffer.toString();
+    final fullStderr = stderrBuffer.toString();
+    debugPrint('[YtDlp] exitCode=$exitCode');
+    debugPrint('[YtDlp] stdout:\n$fullStdout');
+    if (fullStderr.trim().isNotEmpty) {
+      debugPrint('[YtDlp] stderr:\n$fullStderr');
+    }
+
     if (exitCode != 0) {
-      final stderr = stderrBuffer.toString();
       throw YtDlpException(
-        '下载失败: ${_extractErrorMessage(stderr)}',
+        '下载失败: ${_extractErrorMessage(fullStderr)}',
         exitCode: exitCode,
-        stderr: stderr,
+        stderr: fullStderr,
       );
     }
 
+    // 检查合并是否发生（formatId 含 + 表示需要合并音视频流）
+    final needsMerge = formatId.contains('+');
+    final hasMergeLine = fullStdout.contains('Merging formats into') ||
+        fullStderr.contains('Merging formats into');
+
     // 从 yt-dlp 输出中提取最终文件路径
-    // yt-dlp 最后一行通常是: [download] ... has already been downloaded
-    // 或: [download] Destination: xxx
-    // 或: [ffmpeg] Merging formats into "xxx"
-    final outputPathFinal = _extractOutputPath(stdoutBuffer.toString(), outputPath);
+    final outputPathFinal = _extractOutputPath(fullStdout, outputPath);
+    debugPrint('[YtDlp] 最终路径: $outputPathFinal');
+
+    // 验证文件存在且有内容
+    final outFile = File(outputPathFinal);
+    if (!outFile.existsSync()) {
+      // 尝试从模板推导
+      final derived = _deriveOutputPath(outputPath);
+      if (File(derived).existsSync()) {
+        debugPrint('[YtDlp] 推导路径成功: $derived');
+        return derived;
+      }
+      // 文件不存在 + 需要合并但没合并行 = ffmpeg 合并失败
+      if (needsMerge && !hasMergeLine) {
+        debugPrint('[YtDlp] ❌ 需要合并但未找到合并行，ffmpeg 可能不可用');
+        throw YtDlpException(
+          'ffmpeg 合并失败：音视频流已下载但未合并。'
+          'ffmpeg 路径: $actualFfmpegPath\n'
+          'stderr: $fullStderr',
+        );
+      }
+      debugPrint('[YtDlp] ⚠️ 输出文件不存在: $outputPathFinal');
+    }
     return outputPathFinal;
+  }
+
+  /// 从输出模板推导实际文件路径
+  ///
+  /// yt-dlp 模板 `xxx.%(ext)s` 下载 mp4 后变成 `xxx.mp4`
+  static String _deriveOutputPath(String template) {
+    // 替换 %(ext)s 为 mp4（我们强制 merge-output-format mp4）
+    return template.replaceAll('%(ext)s', 'mp4');
   }
 
   /// 获取可用字幕语言列表
@@ -237,9 +320,16 @@ class YtDlpRunner {
   }
 
   /// 从 JSON 解析格式列表
+  ///
+  /// 为每个视频流自动配对最佳音频流，生成组合 formatId（如 "137+140"）。
+  /// 过滤掉 storyboard / m3u8 等无效格式。
   static List<FormatOption> _parseFormats(Map<String, dynamic> json) {
     final rawFormats = json['formats'] as List? ?? [];
-    final options = <FormatOption>[];
+
+    // 第一轮：分类收集
+    final videoStreams = <Map<String, dynamic>>[];
+    final audioStreams = <Map<String, dynamic>>[];
+    final combinedStreams = <Map<String, dynamic>>[];
 
     for (final f in rawFormats) {
       if (f is! Map) continue;
@@ -248,44 +338,156 @@ class YtDlpRunner {
 
       final vCodec = f['vcodec']?.toString() ?? 'none';
       final aCodec = f['acodec']?.toString() ?? 'none';
+      final protocol = f['protocol']?.toString() ?? '';
+
+      // 过滤 storyboard / mhtml / m3u8
+      if (vCodec == 'images' ||
+          (vCodec == 'none' && aCodec == 'none') ||
+          protocol == 'm3u8') {
+        continue;
+      }
+
       final hasVideo = vCodec != 'none' && vCodec.isNotEmpty;
       final hasAudio = aCodec != 'none' && aCodec.isNotEmpty;
 
-      // 只处理同时有音视频，或纯音频的格式
-      if (!hasVideo && !hasAudio) continue;
+      final mapF = Map<String, dynamic>.from(f);
 
-      final height = (f['height'] as num?)?.toInt() ?? 0;
-      final ext = f['ext']?.toString() ?? 'mp4';
-      final fileSize = (f['filesize'] as num?)?.toInt() ??
-          (f['filesize_approx'] as num?)?.toInt();
-      final fps = (f['fps'] as num?)?.toInt();
-      final vbr = (f['vbr'] as num?)?.toInt();
-      final abr = (f['abr'] as num?)?.toInt();
-
-      // 生成显示标签
-      String label;
-      if (!hasVideo && hasAudio) {
-        label = '纯音频 $ext'.toUpperCase();
-      } else {
-        label = '${height}p $ext'.toUpperCase();
+      if (hasVideo && hasAudio) {
+        // 组合格式（如 18 = 360p mp4 自带音视频）
+        combinedStreams.add(mapF);
+      } else if (hasVideo) {
+        videoStreams.add(mapF);
+      } else if (hasAudio) {
+        audioStreams.add(mapF);
       }
+    }
+
+    // 按音频质量排序（码率越高越好）
+    audioStreams.sort((a, b) {
+      final abrA = (a['abr'] as num?)?.toInt() ?? 0;
+      final abrB = (b['abr'] as num?)?.toInt() ?? 0;
+      return abrB.compareTo(abrA);
+    });
+
+    // 提取最佳 m4a 和 webm 音频流（用于配对）
+    String? bestM4aAudioId;
+    String? bestWebmAudioId;
+    for (final a in audioStreams) {
+      final ext = a['ext']?.toString() ?? '';
+      if (ext == 'm4a' && bestM4aAudioId == null) {
+        bestM4aAudioId = a['format_id']?.toString();
+      }
+      if (ext == 'webm' && bestWebmAudioId == null) {
+        bestWebmAudioId = a['format_id']?.toString();
+      }
+    }
+    // 兜底：取第一个音频流
+    if (bestM4aAudioId == null && audioStreams.isNotEmpty) {
+      bestM4aAudioId = audioStreams.first['format_id']?.toString();
+    }
+
+    final options = <FormatOption>[];
+    final seenHeights = <int>{};
+
+    // 第二轮：处理视频流（自适应，需配音频）
+    for (final v in videoStreams) {
+      final height = (v['height'] as num?)?.toInt() ?? 0;
+      if (height <= 0) continue;
+
+      // 同一清晰度只取最佳编码（优先 h264/mp4）
+      if (seenHeights.contains(height)) continue;
+
+      final ext = v['ext']?.toString() ?? 'mp4';
+      final vCodec = v['vcodec']?.toString() ?? '';
+      final formatId = v['format_id']?.toString() ?? '';
+
+      // 配对兼容的音频流
+      String? audioId;
+      if (ext == 'mp4' || vCodec.contains('avc') || vCodec.contains('h264')) {
+        audioId = bestM4aAudioId;
+      } else if (ext == 'webm' || vCodec.contains('vp9') || vCodec.contains('av01')) {
+        audioId = bestWebmAudioId ?? bestM4aAudioId;
+      } else {
+        audioId = bestM4aAudioId;
+      }
+
+      // 组合 formatId
+      final combinedId = (audioId != null && audioId.isNotEmpty)
+          ? '$formatId+$audioId'
+          : formatId;
+
+      final fileSize = (v['filesize'] as num?)?.toInt() ??
+          (v['filesize_approx'] as num?)?.toInt();
+      final fps = (v['fps'] as num?)?.toInt();
+      final vbr = (v['vbr'] as num?)?.toInt();
+
+      options.add(FormatOption(
+        formatId: combinedId,
+        label: '${height}p ${ext.toUpperCase()}',
+        height: height,
+        ext: ext,
+        audioOnly: false,
+        fileSize: fileSize,
+        needsMerge: true,
+        vbr: vbr,
+        fps: fps,
+      ));
+      seenHeights.add(height);
+    }
+
+    // 第三轮：处理组合格式（自带音视频）
+    for (final c in combinedStreams) {
+      final height = (c['height'] as num?)?.toInt() ?? 0;
+      if (height <= 0) continue;
+
+      final ext = c['ext']?.toString() ?? 'mp4';
+      final formatId = c['format_id']?.toString() ?? '';
+      final fileSize = (c['filesize'] as num?)?.toInt() ??
+          (c['filesize_approx'] as num?)?.toInt();
+      final fps = (c['fps'] as num?)?.toInt();
+      final vbr = (c['vbr'] as num?)?.toInt();
 
       options.add(FormatOption(
         formatId: formatId,
-        label: label,
+        label: '${height}p ${ext.toUpperCase()}',
         height: height,
         ext: ext,
-        audioOnly: !hasVideo && hasAudio,
+        audioOnly: false,
         fileSize: fileSize,
-        needsMerge: hasVideo && !hasAudio,
+        needsMerge: false,
         vbr: vbr,
-        abr: abr,
         fps: fps,
       ));
     }
 
-    // 按清晰度从高到低排序
-    options.sort((a, b) => b.height.compareTo(a.height));
+    // 第四轮：纯音频选项
+    if (audioStreams.isNotEmpty) {
+      // 取最佳 m4a 音频作为 MP3 选项
+      final bestAudio = audioStreams.first;
+      final audioId = bestAudio['format_id']?.toString() ?? '';
+      final fileSize = (bestAudio['filesize'] as num?)?.toInt() ??
+          (bestAudio['filesize_approx'] as num?)?.toInt();
+      final abr = (bestAudio['abr'] as num?)?.toInt();
+
+      options.add(FormatOption(
+        formatId: '$audioId/bestaudio/best',
+        label: 'MP3 纯音频',
+        height: 0,
+        ext: 'mp3',
+        audioOnly: true,
+        fileSize: fileSize,
+        needsMerge: false,
+        abr: abr,
+      ));
+    }
+
+    // 按清晰度从高到低排序（0=音频排最后）
+    options.sort((a, b) {
+      if (a.height == 0 && b.height == 0) return 0;
+      if (a.height == 0) return 1;
+      if (b.height == 0) return -1;
+      return b.height.compareTo(a.height);
+    });
 
     return options;
   }
@@ -313,8 +515,9 @@ class YtDlpRunner {
     );
     final match = progressRegex.firstMatch(line);
     if (match == null) {
-      // 检测合并阶段
-      if (line.contains('[ffmpeg]') && line.contains('Merging')) {
+      // 检测合并阶段（yt-dlp 新版用 [Merger]，旧版用 [ffmpeg]）
+      if ((line.contains('[Merger]') || line.contains('[ffmpeg]')) &&
+          line.contains('Merging')) {
         return const DownloadProgress(
           downloadedBytes: 0,
           speed: 0,
@@ -385,8 +588,10 @@ class YtDlpRunner {
 
   /// 从 yt-dlp 输出提取最终文件路径
   static String _extractOutputPath(String stdout, String template) {
-    // 查找 "[ffmpeg] Merging formats into "xxx"" 行
-    final mergeRegex = RegExp(r'\[ffmpeg\] Merging formats into "(.+)"');
+    // 查找合并行（yt-dlp 新版 [Merger]，旧版 [ffmpeg]）
+    // [Merger] Merging formats into "xxx.mp4"
+    final mergeRegex =
+        RegExp(r'\[(?:Merger|ffmpeg)\] Merging formats into "(.+)"');
     final mergeMatch = mergeRegex.firstMatch(stdout);
     if (mergeMatch != null) {
       return mergeMatch.group(1)!;
@@ -406,7 +611,7 @@ class YtDlpRunner {
     if (delMatch != null) {
       return delMatch.group(1)!.trim();
     }
-    // 降级：返回模板路径（不带 .part）
-    return template.replaceAll('.part', '');
+    // 降级：从模板推导（替换 %(ext)s 为 mp4）
+    return template.replaceAll('%(ext)s', 'mp4');
   }
 }
