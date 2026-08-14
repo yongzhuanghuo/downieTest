@@ -1,19 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/storage/downloads_dao.dart';
+import '../../core/storage/settings_storage.dart';
 import '../../data/models/download_progress.dart';
 import '../../data/models/download_task.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
-
-/// 最大同时下载数（并发队列）
-const int _kMaxConcurrent = 3;
 
 /// 失败自动重试最大次数
 const int _kMaxRetry = 3;
@@ -24,7 +22,7 @@ const int _kRetryBaseMs = 1000;
 /// 下载列表 Notifier
 ///
 /// 管理所有下载任务的生命周期：
-/// - 并发队列（默认同时 3 个，多余等待）
+/// - 并发队列（数量从设置读取，默认 3，多余等待）
 /// - 失败自动重试（最多 3 次，指数退避）
 /// - SQLite 持久化（所有状态字段实时写库）
 /// - 断点续传（yt-dlp --continue + 应用重启恢复 pending 任务）
@@ -37,6 +35,10 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   final Set<String> _cancelled = {};
   final Set<String> _activeIds = {}; // 正在执行中的任务 ID（避免并发重复启动）
   bool _initialized = false;
+
+  /// 当前并发上限（实时从设置读取）
+  int get _maxConcurrent =>
+      SettingsStorage.instance.current.maxConcurrent;
 
   // ==================== 初始化（加载DB + 恢复未完成任务） ====================
 
@@ -89,7 +91,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           .toList()
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-      final available = _kMaxConcurrent - _activeIds.length;
+      final available = _maxConcurrent - _activeIds.length;
       if (available > 0 && pending.isNotEmpty) {
         final toStart = pending.take(available);
         for (final t in toStart) {
@@ -136,14 +138,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     _activeIds.add(task.id);
 
     try {
-      // 确定输出目录
-      String outputDir;
-      try {
-        final dir = await getDownloadsDirectory();
-        outputDir = dir?.path ?? '.';
-      } catch (_) {
-        outputDir = '.';
-      }
+      // 确定输出目录（从设置读取，空则用系统默认 Downloads）
+      final outputDir =
+          await SettingsStorage.instance.current.resolveDownloadDir();
       final safeTitle =
           task.title.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_').trim();
       final videoId = task.url.hashCode.abs().toString();
@@ -191,6 +188,10 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   stage: DownloadStage.downloading,
                 ),
               ));
+          // 下载完成自动打开文件夹（按设置）
+          if (SettingsStorage.instance.current.autoOpenFolder) {
+            unawaited(_revealFile(result));
+          }
           return;
         } on YtDlpException catch (e) {
           attempt++;
@@ -280,6 +281,19 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   }
 
   // ==================== 内部工具方法 ====================
+
+  /// 在文件管理器中显示文件（macOS=Finder, Windows=资源管理器）
+  Future<void> _revealFile(String path) async {
+    try {
+      if (Platform.isMacOS) {
+        await Process.run('open', ['-R', path]);
+      } else if (Platform.isWindows) {
+        await Process.run('explorer', ['/select,', path]);
+      }
+    } catch (e) {
+      debugPrint('[DownloadList] 打开文件夹失败: $e');
+    }
+  }
 
   DownloadTask? _find(String id) {
     for (final t in state) {

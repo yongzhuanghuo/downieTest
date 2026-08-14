@@ -32,6 +32,9 @@ dependencies:
   # 工具
   uuid: ^4.4.0
 
+  # 文件/目录选择器（设置下载目录）
+  file_picker: ^8.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

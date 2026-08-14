@@ -7,6 +7,7 @@ import 'core/engine/ytdlp_runner.dart';
 import 'core/ffmpeg/ffmpeg_runner.dart';
 import 'core/platform/binary_initializer.dart';
 import 'core/platform/binary_locator.dart';
+import 'core/storage/settings_storage.dart';
 
 /// 窗口配置常量
 const Size _defaultWindowSize = Size(1100, 750);
@@ -17,6 +18,9 @@ void main() async {
 
   // 初始化窗口管理器（桌面端）
   await _initWindowManager();
+
+  // 初始化设置存储（Hive KV）—— 必须在 runApp 前完成，UI/下载层都依赖
+  await SettingsStorage.instance.init();
 
   // 初始化 yt-dlp / FFmpeg 二进制（后台执行，不阻塞 UI）
   _initBinaries();
