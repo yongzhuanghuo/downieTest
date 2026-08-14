@@ -106,10 +106,8 @@ class DownloadsPage extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 状态图标
             _buildStatusIcon(theme, task),
             const SizedBox(width: 12),
-            // 主体
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,7 +120,8 @@ class DownloadsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${task.extractor} · ${task.formatLabel}',
+                    '${task.extractor} · ${task.formatLabel}'
+                    '${task.fileSize > 0 ? ' · ${_formatBytes(task.fileSize)}' : ''}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -132,18 +131,12 @@ class DownloadsPage extends ConsumerWidget {
                   if (task.status == DownloadStatus.completed &&
                       task.outputPath != null)
                     _buildCompletedInfo(theme, task),
-                  if (task.status == DownloadStatus.failed)
-                    Text(
-                      '失败：${task.error ?? '未知错误'}',
-                      style: TextStyle(
-                        color: theme.colorScheme.error,
-                        fontSize: 12,
-                      ),
-                    ),
+                  if (task.status == DownloadStatus.failed ||
+                      task.status == DownloadStatus.cancelled)
+                    _buildErrorInfo(theme, task),
                 ],
               ),
             ),
-            // 操作按钮
             _buildActions(theme, ref, task),
           ],
         ),
@@ -186,14 +179,16 @@ class DownloadsPage extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         LinearProgressIndicator(
-          value: task.percentValue / 100,
+          value: task.status == DownloadStatus.merging
+              ? null
+              : task.percentValue / 100,
           minHeight: 6,
           borderRadius: BorderRadius.circular(3),
         ),
         const SizedBox(height: 4),
         Text(
           '${task.statusText} · ${task.percentValue}%'
-          '${p != null && p.speed > 0 ? ' · ${p.speedText}' : ''}'
+          '${task.speed > 0 ? ' · ${_formatSpeed(task.speed)}' : ''}'
           '${p != null && p.eta != null ? ' · 剩余 ${p.etaText}' : ''}',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
@@ -206,8 +201,7 @@ class DownloadsPage extends ConsumerWidget {
   Widget _buildCompletedInfo(ThemeData theme, DownloadTask task) {
     return Row(
       children: [
-        Icon(Icons.check_circle,
-            size: 14, color: theme.colorScheme.primary),
+        Icon(Icons.check_circle, size: 14, color: theme.colorScheme.primary),
         const SizedBox(width: 4),
         Expanded(
           child: Text(
@@ -231,34 +225,87 @@ class DownloadsPage extends ConsumerWidget {
     );
   }
 
+  Widget _buildErrorInfo(ThemeData theme, DownloadTask task) {
+    final msg = task.error ??
+        (task.status == DownloadStatus.cancelled ? '已取消' : '未知错误');
+    return Text(
+      '${task.statusText}：$msg',
+      style: TextStyle(
+        color: task.isFailed
+            ? theme.colorScheme.error
+            : theme.colorScheme.onSurfaceVariant,
+        fontSize: 12,
+      ),
+    );
+  }
+
   Widget _buildActions(
     ThemeData theme,
     WidgetRef ref,
     DownloadTask task,
   ) {
+    final notifier = ref.read(downloadListProvider.notifier);
+
     if (task.isRunning) {
       return IconButton(
         icon: const Icon(Icons.stop_circle_outlined),
         tooltip: '取消下载',
         color: theme.colorScheme.error,
-        onPressed: () =>
-            ref.read(downloadListProvider.notifier).cancel(task.id),
+        onPressed: () => notifier.cancel(task.id),
       );
     }
-    return IconButton(
-      icon: const Icon(Icons.delete_outline),
-      tooltip: '移除',
-      onPressed: () =>
-          ref.read(downloadListProvider.notifier).remove(task.id),
+
+    // 已结束：显示重试 + 删除
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (task.isFailed || task.status == DownloadStatus.cancelled)
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: '重试',
+            color: theme.colorScheme.primary,
+            onPressed: () => notifier.retry(task.id),
+          ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline),
+          tooltip: '移除',
+          onPressed: () => notifier.remove(task.id),
+        ),
+      ],
     );
   }
 
+  // ==================== 工具方法 ====================
+
   Future<void> _openFile(String path) async {
-    // macOS 用 open 打开文件所在位置
     if (Platform.isMacOS) {
       await Process.run('open', ['-R', path]);
     } else if (Platform.isWindows) {
       await Process.run('explorer', ['/select,', path]);
     }
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return '';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    double v = bytes.toDouble();
+    int i = 0;
+    while (v >= 1024 && i < units.length - 1) {
+      v /= 1024;
+      i++;
+    }
+    return '${v.toStringAsFixed(i == 0 ? 0 : 1)}${units[i]}';
+  }
+
+  String _formatSpeed(int bps) {
+    if (bps <= 0) return '';
+    const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    double v = bps.toDouble();
+    int i = 0;
+    while (v >= 1024 && i < units.length - 1) {
+      v /= 1024;
+      i++;
+    }
+    return '${v.toStringAsFixed(i == 0 ? 0 : 1)}${units[i]}';
   }
 }
