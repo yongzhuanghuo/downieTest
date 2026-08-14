@@ -1,6 +1,8 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'settings_storage.dart';
+
 /// SQLite 数据库封装
 ///
 /// 桌面端 (macOS/Windows/Linux) 使用 sqflite_common_ffi，
@@ -25,7 +27,9 @@ class AppDatabase {
       // 非桌面平台忽略
     }
 
-    final dbPath = p.join(await getDatabasesPath(), _dbName);
+    // 使用可写的存储目录
+    final dir = await SettingsStorage.getStorageDir();
+    final dbPath = p.join(dir.path, _dbName);
     _instance = await openDatabase(
       dbPath,
       version: _dbVersion,

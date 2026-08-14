@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../license/license_card.dart';
 import 'settings_provider.dart';
 
 /// 设置页
@@ -144,18 +145,9 @@ class SettingsPage extends ConsumerWidget {
                 title: const Text('版本'),
                 subtitle: const Text('1.0.0'),
               ),
-              ListTile(
-                leading: const Icon(Icons.workspace_premium),
-                title: const Text('许可证'),
-                subtitle: const Text('免费版 - 每日 5 次下载'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('会员体系即将上线，敬请期待')),
-                  );
-                },
-              ),
             ]),
+            const SizedBox(height: 8),
+            const LicenseCard(),
           ],
         ),
       ),

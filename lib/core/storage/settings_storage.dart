@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
@@ -103,13 +104,13 @@ class SettingsStorage {
     _initialized = true;
 
     try {
-      final dir = await getApplicationSupportDirectory();
+      final dir = await getStorageDir();
       Hive.init('${dir.path}/hive');
-    } catch (_) {
-      // 退化到内存模式
+      _box = await Hive.openBox(_boxName);
+    } catch (e) {
+      debugPrint('[Settings] 存储初始化失败，退化到内存模式: $e');
     }
 
-    _box = await Hive.openBox(_boxName);
     final raw = _box?.get(_key);
     if (raw is Map) {
       _cache = AppSettings(
@@ -125,6 +126,27 @@ class SettingsStorage {
   }
 
   AppSettings get current => _cache;
+
+  /// 获取可写的存储目录
+  /// 优先使用系统 Application Support，失败则回退到 ~/.downie_test
+  static Future<Directory> getStorageDir() async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      // 测试是否可写
+      final testFile = File('${dir.path}/.write_test');
+      await testFile.writeAsString('test');
+      await testFile.delete();
+      return dir;
+    } catch (_) {
+      // 回退到用户主目录
+      final home = Platform.environment['HOME'] ?? '.';
+      final fallback = Directory('$home/.downie_test');
+      if (!await fallback.exists()) {
+        await fallback.create(recursive: true);
+      }
+      return fallback;
+    }
+  }
 
   /// 保存（覆盖）
   Future<void> save(AppSettings settings) async {

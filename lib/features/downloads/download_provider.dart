@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/storage/downloads_dao.dart';
 import '../../core/storage/settings_storage.dart';
+import '../license/license_provider.dart';
 import '../../data/models/download_progress.dart';
 import '../../data/models/download_task.dart';
 import '../../data/models/format_option.dart';
@@ -27,10 +28,11 @@ const int _kRetryBaseMs = 1000;
 /// - SQLite 持久化（所有状态字段实时写库）
 /// - 断点续传（yt-dlp --continue + 应用重启恢复 pending 任务）
 class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
-  DownloadListNotifier() : super(const []) {
+  DownloadListNotifier(this._ref) : super(const []) {
     _init();
   }
 
+  final Ref _ref;
   final DownloadsDao _dao = DownloadsDao.instance;
   final Set<String> _cancelled = {};
   final Set<String> _activeIds = {}; // 正在执行中的任务 ID（避免并发重复启动）
@@ -188,6 +190,16 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   stage: DownloadStage.downloading,
                 ),
               ));
+          // 记录今日限额 + 触发 UI 刷新限额横幅
+          try {
+            await LicenseStorage.instance.recordSuccess();
+            // 使用 StateProvider.state = 直接更新，避免 invalidate 导致的依赖冲突
+            _ref.read(todayUsedProvider.notifier).state = LicenseStorage.instance.todayUsed;
+            _ref.read(todayRemainingProvider.notifier).state = LicenseStorage.instance.todayRemaining;
+            _ref.read(isQuotaReachedProvider.notifier).state = LicenseStorage.instance.isQuotaReached;
+          } catch (e) {
+            debugPrint('[DownloadList] 写入限额失败: $e');
+          }
           // 下载完成自动打开文件夹（按设置）
           if (SettingsStorage.instance.current.autoOpenFolder) {
             unawaited(_revealFile(result));
@@ -333,7 +345,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
 
 final downloadListProvider =
     StateNotifierProvider<DownloadListNotifier, List<DownloadTask>>(
-        (ref) => DownloadListNotifier());
+        (ref) => DownloadListNotifier(ref));
 
 /// 只返回正在进行中的任务（用于展示角标数字）
 final pendingCountProvider = Provider<int>((ref) {

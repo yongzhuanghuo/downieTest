@@ -1,0 +1,16 @@
+name = "downie-license-api"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 数据库绑定（部署后在 Cloudflare 后台创建，然后把 database_id 填进来）
+# 创建命令: wrangler d1 create downie-license-db
+[[d1_databases]]
+binding = "DB"
+database_name = "downie-license-db"
+# 首次创建后把下面这行注释打开，填入实际的 database_id
+# database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# 密钥（和 Flutter 客户端保持一致）
+[vars]
+HMAC_SECRET = "downie_pro_license_2026_secret_key"

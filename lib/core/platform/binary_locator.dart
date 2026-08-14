@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+
+import '../storage/settings_storage.dart';
 
 /// 二进制文件路径查找器
 ///
@@ -31,9 +32,9 @@ class BinaryLocator {
   /// 应用数据目录中存放二进制的子目录
   static const String _binSubDir = 'bin';
 
-  /// 获取二进制工作目录（应用支持目录下的 bin/）
+  /// 获取二进制工作目录（存储目录下的 bin/）
   static Future<Directory> getBinDirectory() async {
-    final supportDir = await getApplicationSupportDirectory();
+    final supportDir = await SettingsStorage.getStorageDir();
     final binDir = Directory('${supportDir.path}/$_binSubDir');
     if (!await binDir.exists()) {
       await binDir.create(recursive: true);
@@ -89,30 +90,44 @@ class BinaryLocator {
   /// 2. 常见 brew 安装路径（Intel / Apple Silicon / Linux）
   /// 3. 系统路径
   static Future<String?> _findBinary(String name) async {
-    // 1. 通过 which/where 查找
+    // 1. 通过 which/where 查找（并手动补 PATH 避免 macOS GUI 应用 PATH 不全）
     try {
       final cmd = Platform.isWindows ? 'where' : 'which';
-      final result = await Process.run(cmd, [name]);
+      // macOS 下 GUI 应用的 PATH 通常不包含 brew，手动拼接
+      final env = Map<String, String>.from(Platform.environment);
+      if (Platform.isMacOS) {
+        final origPath = env['PATH'] ?? '';
+        const extras = '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+        env['PATH'] = origPath.isEmpty ? extras : '$origPath:$extras';
+      }
+      final result = await Process.run(cmd, [name], environment: env);
       if (result.exitCode == 0) {
         final out = (result.stdout as String).trim();
         if (out.isNotEmpty) {
           final path = out.split('\n').first.trim();
-          if (path.isNotEmpty && _canExecute(path)) return path;
+          if (path.isNotEmpty && _canExecute(path)) {
+            debugPrint('[BinaryLocator] 通过 which 找到 $name: $path');
+            return path;
+          }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[BinaryLocator] which $name 异常: $e');
+    }
 
     // 2. 常见绝对路径
     final candidates = <String>[
+      '/opt/homebrew/bin/$name',    // Apple Silicon brew (优先)
       '/usr/local/bin/$name',       // Intel Mac brew
-      '/opt/homebrew/bin/$name',    // Apple Silicon brew
       '/usr/bin/$name',             // 系统自带
-      '/usr/local/bin/$name',       // Linux 自编译
       'C:\\ProgramData\\chocolatey\\bin\\$name.exe',  // Windows chocolatey
       'C:\\FFmpeg\\bin\\$name.exe', // Windows FFmpeg 官方
     ];
     for (final p in candidates) {
-      if (_canExecute(p)) return p;
+      if (_canExecute(p)) {
+        debugPrint('[BinaryLocator] 在常见路径找到 $name: $p');
+        return p;
+      }
     }
 
     return null;
