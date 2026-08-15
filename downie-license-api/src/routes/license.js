@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { normalizeCode } from '../license.js';
 
-const MONTHLY_UNBIND_LIMIT = 2;
-
 /**
  * 授权相关路由。
  * 所有接口都返回统一结构：{ ok: boolean, error?, message?, ... }
@@ -136,20 +134,6 @@ export function registerLicenseRoutes(app, pool) {
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();
-
-        // 月限检查：近 30 天解绑次数
-        const [monthUnbinds] = await conn.execute(
-          'SELECT * FROM unbind_log WHERE code = ? AND unbound_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)',
-          [normalized],
-        );
-        if (monthUnbinds.length >= MONTHLY_UNBIND_LIMIT) {
-          await conn.rollback();
-          return res.status(429).json({
-            ok: false,
-            error: 'UNBIND_LIMIT_EXCEEDED',
-            message: '本月解绑次数已用完（2/2），下月可继续操作',
-          });
-        }
 
         const [devRows] = await conn.execute(
           "SELECT device_name FROM device_bindings WHERE code = ? AND device_fp = ? AND status = 'active'",

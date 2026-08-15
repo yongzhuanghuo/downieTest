@@ -561,3 +561,18 @@ pm2 save && pm2 startup
 - **并发安全**：激活用事务 + `SELECT ... FOR UPDATE` 防止设备数超绑
 - **部署**：pm2 守护 + 阿里云安全组放行 3000 端口，详见 [DEPLOY.md](DEPLOY.md)
 - **暂用 IP + HTTP**，后续域名备案后接 Nginx + HTTPS
+
+### 阶段 9：二进制内嵌（yt-dlp / FFmpeg）⏳ 待开始
+
+- 下载 yt-dlp / FFmpeg 预编译二进制，放入 `assets/bin/macos/` 和 `assets/bin/windows/`
+- `BinaryInitializer` 已支持首次运行自动提取到应用目录（代码已就绪，缺二进制文件）
+
+### 阶段 10：免费版配额 / 画质限制后端化 ⏳ 待开始
+
+- 每日 5 次 + 1080P 限制从「客户端本地 Hive 判定」改为「服务端校验」
+- 新增配额表 + `quota/check` + `quota/report` 接口；客户端下载前检查、成功后上报
+
+### 阶段 11：版本更新（方案 A）⏳ 待开始
+
+- 后端加版本接口（最新版本号 + 下载地址 + 更新说明）
+- 客户端启动时检查，有新版本弹窗提示用户下载
