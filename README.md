@@ -464,6 +464,25 @@ flutter build windows --release
 
 打包前需将 yt-dlp 和 FFmpeg 二进制放入 `assets/bin/macos/` 和 `assets/bin/windows/`，应用首次启动时自动提取到应用支持目录。
 
+#### macOS 二进制架构说明（universal binary）
+
+- macOS 有两种 CPU 架构：Intel（`x86_64`）和 Apple Silicon（`arm64`，M1/M2/M3 芯片）。
+- **Universal（通用）二进制** = 一个文件同时包含 `x86_64` + `arm64` 两套机器码，运行时 macOS 自动选对应架构，无需用户装 Rosetta。
+- yt-dlp 官方 `yt-dlp_macos` 本身就是 universal；ffmpeg 需要自己合成。
+
+**合成 universal ffmpeg（用 `lipo`）**：
+
+```bash
+# 分别下载 x86_64 和 arm64 两个版本（同一版本号），解压得到两个单架构二进制
+lipo -create ffmpeg-x86_64 ffmpeg-arm64 -output ffmpeg
+
+# 验证：应显示 "universal binary with 2 architectures: [x86_64] [arm64]"
+file ffmpeg
+lipo -info ffmpeg   # 输出 Architectures ... x86_64 arm64
+```
+
+> 判断标准：`file` / `lipo -info` 显示 `x86_64 arm64` 两个架构就是 universal；只显示一个架构则不支持另一种 CPU。
+
 ### 5.3 后端部署
 
 ```bash
