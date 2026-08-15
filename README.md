@@ -22,8 +22,7 @@
 | **sqflite** | ^2.3.3+1 | SQLite 访问接口层，提供 SQL 查询、事务、Batch 批量操作等 API |
 | **path** | ^1.9.0 | 跨平台路径拼接工具，处理不同操作系统的路径分隔符差异 |
 | **uuid** | ^4.4.0 | UUID v4 生成器，为每个下载任务生成唯一标识 ID |
-| **crypto** | ^3.0.5 | 加密哈希库，用于实现 HMAC-SHA256 激活码签名验证 |
-| **http** | ^1.2.0 | HTTP 客户端库，与 Cloudflare Workers 后端通信（激活/解绑/心跳/状态查询） |
+| **http** | ^1.2.0 | HTTP 客户端库，与自建授权后端通信（激活/解绑/心跳/状态查询） |
 | **file_picker** | ^8.1.2 | 原生文件/目录选择器，用于用户自定义下载保存目录 |
 | **meta** | ^1.15.0 | Dart 核心注解库，提供 `@immutable` 等注解 |
 
@@ -34,14 +33,15 @@
 | **yt-dlp** | 开源视频下载命令行工具，支持 1000+ 网站。应用通过子进程调用，负责视频解析（`--dump-json`）和下载（`-f formatId`），支持断点续传（`--continue`） |
 | **FFmpeg** | 多媒体处理工具，用于合并独立下载的视频流和音频流为 MP4 文件（`-c:v copy -c:a aac`）、MP3 转换、字幕嵌入等后处理 |
 
-### 3. 后端（Cloudflare Workers）
+### 3. 后端（自建服务器）
 
 | 技术 | 用途 |
 |------|------|
-| **Cloudflare Workers** | Serverless 边缘计算平台，运行许可证 API 服务，全球低延迟，免费额度足够 |
-| **Cloudflare D1** | 基于 SQLite 的 Serverless 数据库，存储激活码记录、设备绑定关系、解绑日志 |
-| **Web Crypto API** | 浏览器/Worker 标准 API，用于 HMAC-SHA256 签名验证（`crypto.subtle.sign`） |
-| **Wrangler** | Cloudflare CLI 工具，用于本地开发调试和部署 |
+| **Node.js 20 LTS** | 服务端运行时，跑授权 API |
+| **Express** | Web 框架，处理 HTTP 路由与 CORS |
+| **MySQL 8.0** | 关系型数据库，存储激活码、设备绑定、解绑日志 |
+| **mysql2** | MySQL 驱动（连接池 + 参数化 SQL） |
+| **pm2** | 进程守护，崩溃自启、开机自启 |
 
 ### 4. 开发工具
 
@@ -58,8 +58,7 @@
 ```
 downieTest/
 ├── lib/                          # Flutter 应用主代码
-├── downie-license-api/           # Cloudflare Workers 后端
-├── tools/                        # 开发工具脚本
+├── downie-license-api/           # 自建授权后端（Node.js + MySQL）
 ├── assets/                       # 打包资源
 ├── macos/                        # macOS 平台配置
 ├── windows/                      # Windows 平台配置
@@ -96,13 +95,8 @@ lib/
 │   ├── license/
 │   │   ├── license.dart          # 许可证核心逻辑
 │   │   │                          #   - LicenseType: 枚举（free / perpetual）
-│   │   │                          #   - LicensePayload: 激活码负载（类型、设备数、过期时间、nonce）
+│   │   │                          #   - LicensePayload: 许可证负载（类型、设备数、过期时间）
 │   │   │                          #   - ActivatedLicense: 已激活许可证（含绑定设备列表）
-│   │   │                          #   - LicenseActivation: 激活码生成/验证/格式化
-│   │   │                          #     · 20位激活码 XXXXX-XXXXX-XXXXX-XXXXX
-│   │   │                          #     · 自定义 Base32 编码（去除易混字符 0/1/I/O）
-│   │   │                          #     · HMAC-SHA256 签名验证（前4字节）
-│   │   │                          #     · 易混字符容错映射（0/O→8, 1/I→L）
 │   │   │                          #   - DeviceFingerprint: 设备指纹生成
 │   │   │                          #     · macOS: IOPlatformUUID
 │   │   │                          #     · Windows: 注册表 MachineGuid
@@ -241,44 +235,34 @@ lib/
                                    #   - 220px 宽侧边栏，Logo + 导航项 + 版本号
 ```
 
-### 2.2 downie-license-api/ — Cloudflare Workers 后端
+### 2.2 downie-license-api/ — 自建授权后端（Node.js + MySQL）
 
 ```
 downie-license-api/
 ├── src/
-│   └── worker.js                 # Workers 主代码（纯 Web 标准 JS，零依赖）
-│                                  #   - verifyLicenseCode(): HMAC-SHA256 验签
-│                                  #     · 自定义 Base32 解码（与客户端完全一致）
-│                                  #     · 从 payload 反推：类型/设备数/过期时间/nonce
-│                                  #   - handleActivate(): 激活（验签→查码→设备数检查→绑定）
-│                                  #   - handleUnbind(): 解绑（验签→月限检查→更新状态→记日志）
-│                                  #   - handleStatus(): 查询状态（设备列表+剩余名额+解绑次数）
-│                                  #   - handleHeartbeat(): 心跳保活（更新 last_seen）
-│                                  #   - handleVerify(): 离线验证（签名+绑定状态）
-│
-├── schema.sql                    # D1 数据库建表语句
-│                                  #   - licenses: 激活码记录（code/type/max_devices/status）
-│                                  #   - device_bindings: 设备绑定（code+device_fp 唯一约束）
-│                                  #   - unbind_log: 解绑日志（月限2次）
-│
-├── wrangler.toml                 # Cloudflare Workers 配置
-│                                  #   - D1 数据库绑定（binding = "DB"）
-│                                  #   - HMAC 密钥环境变量
-│
-└── package.json                  # 项目配置（wrangler 部署命令）
+│   ├── index.js                  # Express 入口 + 启动（监听 3000 端口）
+│   ├── config.js                 # 读 .env（端口 + MySQL 连接）
+│   ├── db.js                     # mysql2 连接池 + 启动 ping 验证
+│   ├── license.js                # 激活码工具（随机码生成/规范化/格式化）
+│   └── routes/
+│       └── license.js            # 5 个接口：激活/解绑/状态/心跳/验证
+│                                  #   - activate: 查码→设备数检查(事务+FOR UPDATE)→绑定
+│                                  #   - unbind: 月限2次检查→解绑→记日志
+│                                  #   - status: 设备列表 + 剩余名额
+│                                  #   - heartbeat: 更新 last_seen
+│                                  #   - verify: 离线降级验证
+├── sql/
+│   └── schema.sql                # MySQL 建表语句（licenses/device_bindings/unbind_log）
+├── scripts/
+│   ├── init-db.js                # 建表脚本
+│   └── generate-licenses.js      # 生成激活码（写库 + 导出 CSV）
+├── .env.example                  # 环境变量模板（DB 连接 + PORT）
+├── ecosystem.config.cjs          # pm2 启动配置
+├── nginx.conf.example            # 后续 HTTPS 反向代理参考
+└── package.json                  # 依赖：express / mysql2 / dotenv / cors
 ```
 
-### 2.3 tools/ — 开发工具
-
-```
-tools/
-└── generate_licenses.dart        # 激活码生成脚本
-                                   #   - 命令行参数：-t 类型 -d 设备数 -e 过期天数 -c 数量 -o 输出
-                                   #   - 示例: dart run tools/generate_licenses.dart -c 10 -t perpetual
-                                   #   - 输出 CSV 格式，含自校验
-```
-
-### 2.4 平台配置
+### 2.3 平台配置
 
 ```
 macos/
@@ -371,28 +355,26 @@ licenseNotifierProvider (激活/解绑操作)
 客户端:
 
 用户输入激活码 → LicenseNotifier.activate()
-  1. 本地验签: LicenseActivation.verify()
-     → Base32 解码 → 拆分 HMAC+Payload
-     → 重算 HMAC-SHA256 对比 → 检查过期
-  2. 获取设备指纹: DeviceFingerprint.get()
+  1. 获取设备指纹: DeviceFingerprint.get()
      → macOS: ioreg IOPlatformUUID
      → Windows: reg query MachineGuid
-  3. 请求后端绑定: LicenseClient.activate()
+  2. 请求后端绑定: LicenseClient.activate()
      → 多代理探测 (7897/7890/1087, PROXY+SOCKS)
      → 成功后缓存可用代理
+  3. 信任服务端返回的负载 (type/max_devices/expire_at)
   4. 保存到本地 Hive: LicenseStorage.save()
   5. 更新 StateProvider.state 刷新 UI
 
-后端 (Cloudflare Workers):
+后端 (Node.js + MySQL):
 
 POST /api/license/activate
-  1. 验签: verifyLicenseCode() (Web Crypto API HMAC-SHA256)
-  2. 查激活码: SELECT FROM licenses
+  1. 规范化激活码 → 查 licenses 表
+  2. 检查码状态（revoked → 拒绝）
   3. 查已绑设备: SELECT FROM device_bindings WHERE status='active'
   4. 幂等检查: 设备已绑定 → 直接返回成功
   5. 设备数检查: bound.length >= max_devices → 返回设备列表
-  6. 写入绑定: INSERT OR IGNORE INTO device_bindings
-  7. 更新码状态: UPDATE licenses SET status='activated'
+  6. 事务 + SELECT ... FOR UPDATE 串行化，防止并发超绑
+  7. 写入绑定 + 更新码状态为 activated
 ```
 
 ### 3.5 数据持久化
@@ -414,8 +396,8 @@ SQLite 数据库 (downlo_pro.db):
       ├── 时间: created_at, started_at, completed_at
       └── 索引: created_at DESC, status
 
-Cloudflare D1 数据库:
-  ├── licenses 表 (激活码记录)
+MySQL 数据库 (downie_license):
+  ├── licenses 表 (激活码：code/type/max_devices/expire_at/status)
   ├── device_bindings 表 (设备绑定，code+device_fp 唯一)
   └── unbind_log 表 (解绑日志，月限2次)
 ```
@@ -427,14 +409,11 @@ Cloudflare D1 数据库:
 ### 4.1 激活码体系
 
 - **格式**: `XXXXX-XXXXX-XXXXX-XXXXX`（20位，5位一组）
-- **编码**: 自定义 Base32（字母表 `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`，去除 0/1/I/O）
-- **结构**: `[4字节 HMAC-SHA256签名] + [8字节 Payload]` = 12字节
-- **Payload 布局**:
-  - Byte 0: bit4=类型(1=PRO), bits0-3=最大设备数
-  - Bytes 1-4: 过期时间戳（big-endian 32-bit, 0=永久）
-  - Bytes 5-7: 随机 nonce（24-bit）
-- **验签**: HMAC-SHA256 取前4字节对比，碰撞率 ≈ 1/2³²
-- **容错**: 易混字符自动映射（0/O→8, 1/I→L）
+- **生成**: 服务端用 `crypto.randomBytes` 从 32 字符字母表（`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`，去除 0/1/I/O）随机生成，约 100 bit 熵
+- **存储**: 激活码直接写入 MySQL `licenses` 表，激活时查库命中才算有效
+- **生命周期**: `unused`（未用）→ `activated`（已激活）→ `revoked`（已吊销）
+- **过期**: `expire_at`（毫秒时间戳，NULL=永久）；永久版默认 NULL
+- **防伪**: 客户端不持有任何密钥/签名逻辑，无法离线伪造激活码
 
 ### 4.2 设备绑定
 
@@ -445,10 +424,10 @@ Cloudflare D1 数据库:
 
 ### 4.3 网络安全
 
-- macOS Release 版启用 App Sandbox，仅允许网络客户端权限
+- 激活码由服务端生成、数据库校验，客户端不持有任何密钥/签名逻辑，无法离线伪造
 - HTTP 客户端支持多代理自动探测（用户代理 7897 优先）
 - 后端 CORS 开放（`Access-Control-Allow-Origin: *`）
-- 激活码 HMAC 密钥客户端和服务端保持一致
+- 暂用 IP + HTTP，后续接入域名 + HTTPS（Nginx + Let's Encrypt）后改为加密传输
 
 ---
 
@@ -469,8 +448,8 @@ flutter run -d macos
 # 4. 代码分析
 flutter analyze
 
-# 5. 生成激活码
-dart run tools/generate_licenses.dart -c 10 -t perpetual
+# 5. 生成激活码 → 后端脚本（服务器上执行，见 DEPLOY.md）
+#    node downie-license-api/scripts/generate-licenses.js -c 10 -t perpetual
 ```
 
 ### 5.2 打包发布
@@ -488,17 +467,14 @@ flutter build windows --release
 ### 5.3 后端部署
 
 ```bash
+# 详见 DEPLOY.md 完整步骤
 cd downie-license-api
-
-# 创建 D1 数据库
-wrangler d1 create downie-license-db
-# 将返回的 database_id 填入 wrangler.toml
-
-# 初始化表结构
-wrangler d1 execute downie-license-db --file=schema.sql
-
-# 部署
-wrangler deploy
+npm install
+cp .env.example .env          # 填 MySQL 连接信息
+npm run init-db               # 建表
+npm run generate -- -c 10 -t perpetual -o pro.csv   # 生成激活码
+pm2 start ecosystem.config.cjs
+pm2 save && pm2 startup
 ```
 
 ---
@@ -575,3 +551,13 @@ wrangler deploy
 - **二进制内嵌**：yt-dlp + FFmpeg 预编译二进制打包到 assets
 - **GitHub Actions CI/CD**：自动化构建 + 发布
 - **Gitee 仓库**：https://gitee.com/huoyongzhuang/downie_test.git
+
+### 阶段 8：后端迁移到自建服务器（MySQL + Node.js）✅ 已完成
+
+> 原阶段 5 的 Cloudflare Workers + D1 后端已废弃（`*.workers.dev` 国内无法访问）。
+
+- **后端重写**：Cloudflare Workers + D1 → Node.js 20 + Express + MySQL 8.0
+- **激活码改为数据库随机码**：服务端生成随机码入库、激活时查库；客户端不再持有 HMAC 密钥/验签逻辑，堵住「无限生成激活码」漏洞
+- **并发安全**：激活用事务 + `SELECT ... FOR UPDATE` 防止设备数超绑
+- **部署**：pm2 守护 + 阿里云安全组放行 3000 端口，详见 [DEPLOY.md](DEPLOY.md)
+- **暂用 IP + HTTP**，后续域名备案后接 Nginx + HTTPS

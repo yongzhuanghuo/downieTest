@@ -163,13 +163,10 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
     }
     // 注意：不设置 state = loading，避免触发 watch 重建导致依赖冲突
     try {
-      // 1. 本地验签
-      final payload = LicenseActivation.verify(code);
-
-      // 2. 当前设备指纹
+      // 1. 当前设备指纹
       final fp = await DeviceFingerprint.get();
 
-      // 3. 请求后端绑定设备
+      // 2. 请求后端绑定设备（服务端验签，返回已验证的许可证负载）
       final result = await LicenseClient.instance.activate(
         code: code,
         deviceFp: fp,
@@ -178,6 +175,7 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
 
       if (!result.ok) {
         // 设备数已满 → 返回已绑设备列表信息
+        final maxDevices = result.license?.maxDevices ?? 1;
         if (result.error == 'DEVICE_LIMIT_REACHED' &&
             result.boundDevices != null) {
           final devices = result.boundDevices!
@@ -188,14 +186,25 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
               .join('、');
           return (
             false,
-            '设备数已达上限（${result.boundDevices!.length}/${payload.maxDevices}）\n'
+            '设备数已达上限（${result.boundDevices!.length}/$maxDevices）\n'
                 '已绑设备: $devices\n请先在设置中解绑旧设备',
           );
         }
         return (false, result.message ?? result.error ?? '激活失败');
       }
 
-      // 4. 后端绑定成功 → 保存到本地
+      // 3. 服务端已验签 → 用返回的负载构造本地许可证
+      final licenseInfo = result.license;
+      if (licenseInfo == null) {
+        return (false, '服务器未返回许可证信息，请稍后重试');
+      }
+      final payload = LicensePayload(
+        type: LicenseType.fromCode(licenseInfo.type),
+        maxDevices: licenseInfo.maxDevices,
+        expireAt: licenseInfo.expireAt,
+      );
+
+      // 4. 保存到本地
       final storage = LicenseStorage.instance;
       final existing = storage.current;
       List<String> boundDevices;

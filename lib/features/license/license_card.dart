@@ -8,138 +8,150 @@ import 'license_provider.dart';
 /// 在首页「升级 PRO」、设置页「激活」、清晰度超限提示等多处调用
 /// ===================================================================
 Future<void> showProUpgradeDialog(BuildContext context, WidgetRef ref) async {
-  final ctrl = TextEditingController();
-  bool obscure = true;
-  bool activating = false;
   final notifier = ref.read(licenseNotifierProvider.notifier);
-
   await showDialog<void>(
     context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setSt) {
-        final theme = Theme.of(ctx);
-        return AlertDialog(
-          title: Row(
+    builder: (ctx) => _UpgradeDialog(notifier: notifier),
+  );
+}
+
+/// PRO 升级对话框（StatefulWidget，controller 生命周期由框架管理）
+class _UpgradeDialog extends StatefulWidget {
+  final LicenseNotifier notifier;
+  const _UpgradeDialog({required this.notifier});
+
+  @override
+  State<_UpgradeDialog> createState() => _UpgradeDialogState();
+}
+
+class _UpgradeDialogState extends State<_UpgradeDialog> {
+  final _ctrl = TextEditingController();
+  bool _obscure = true;
+  bool _activating = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _activate() async {
+    setState(() => _activating = true);
+    final (ok, msg) = await widget.notifier.activate(_ctrl.text);
+    if (!mounted) return;
+    setState(() => _activating = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: ok
+            ? Colors.amber.shade700
+            : Theme.of(context).colorScheme.error,
+      ),
+    );
+    if (ok) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Icon(Icons.workspace_premium, color: Colors.amber),
+          const SizedBox(width: 8),
+          const Text('升级 PRO 永久版'),
+          const Spacer(),
+          Text(
+            '¥30 买断',
+            style: TextStyle(
+              color: Colors.amber.shade700,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.workspace_premium, color: Colors.amber),
-              const SizedBox(width: 8),
-              const Text('升级 PRO 永久版'),
-              const Spacer(),
+              // ==================== 功能对比表 ====================
+              _buildComparisonTable(theme),
+              const SizedBox(height: 20),
+              // ==================== 激活码输入 ====================
               Text(
-                '¥30 买断',
-                style: TextStyle(
-                  color: Colors.amber.shade700,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                '输入激活码',
+                style: theme.textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _ctrl,
+                obscureText: _obscure,
+                autocorrect: false,
+                enableSuggestions: false,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: '激活码',
+                  hintText: 'XXXXX-XXXXX-XXXXX-XXXXX',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.vpn_key, size: 20),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscure ? Icons.visibility_off : Icons.visibility,
+                      size: 20,
+                    ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
                 ),
               ),
-            ],
-          ),
-          content: SizedBox(
-            width: 460,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 8),
+              Row(
                 children: [
-                  // ==================== 功能对比表 ====================
-                  _buildComparisonTable(theme),
-                  const SizedBox(height: 20),
-                  // ==================== 激活码输入 ====================
-                  Text(
-                    '输入激活码',
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  StatefulBuilder(
-                    builder: (ctx, setSt2) => TextField(
-                      controller: ctrl,
-                      obscureText: obscure,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: InputDecoration(
-                        labelText: '激活码',
-                        hintText: 'XXXXX-XXXXX-XXXXX-XXXXX',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.vpn_key, size: 20),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscure
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            size: 20,
-                          ),
-                          onPressed: () => setSt2(() => obscure = !obscure),
-                        ),
+                  Icon(Icons.payment, size: 14,
+                      color: theme.colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '支持微信 / 支付宝 ¥30 买断，付款后获取激活码',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.payment, size: 14,
-                          color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          '支持微信 / 支付宝 ¥30 买断，付款后获取激活码',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
-            ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('取消'),
-            ),
-            FilledButton.icon(
-              icon: activating
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.bolt, size: 18),
-              label: Text(activating ? '激活中...' : '立即激活'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.amber.shade700,
-              ),
-              onPressed: activating
-                  ? null
-                  : () async {
-                      setSt(() => activating = true);
-                      final (ok, msg) = await notifier.activate(ctrl.text);
-                      if (ctx.mounted) {
-                        setSt(() => activating = false);
-                        if (ok) Navigator.of(ctx).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(msg),
-                            backgroundColor: ok
-                                ? Colors.amber.shade700
-                                : Theme.of(ctx).colorScheme.error,
-                          ),
-                        );
-                      }
-                    },
-            ),
-          ],
-        );
-      },
-    ),
-  );
-  ctrl.dispose();
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton.icon(
+          icon: _activating
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.bolt, size: 18),
+          label: Text(_activating ? '激活中...' : '立即激活'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.amber.shade700,
+          ),
+          onPressed: _activating ? null : _activate,
+        ),
+      ],
+    );
+  }
 }
 
 /// 功能对比表

@@ -65,3 +65,10 @@ flutter_*.log
 
 # 安装脚本
 setup_macos_env.sh
+
+# Node（授权后端）
+node_modules/
+.wrangler/
+
+# 生成的激活码 CSV（含真实激活码，勿提交）
+downie-license-api/*.csv

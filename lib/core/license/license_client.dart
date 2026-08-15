@@ -3,17 +3,24 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 
 /// ===================================================================
-/// 许可证后端客户端（Cloudflare Workers API）
+/// 许可证后端客户端（自建服务器 API）
 ///
 /// 负责与远程服务器通信：激活/解绑/查询状态/心跳/验证
-/// 客户端始终先本地验签，再请求后端绑定设备
+/// 直连后端，不做本地验签（授权由服务端校验）
 /// ===================================================================
 
 /// 后端 API 基础地址
-const String _kApiBase = 'https://empty-morning-f9e9.w2865547840.workers.dev';
+///
+/// 自建服务器：默认 http://127.0.0.1:3000（本机调试）。
+/// 发布时改成你的服务器地址，或构建时覆盖：
+///   flutter build macos --dart-define=API_BASE=http://你的服务器IP:3000
+/// 后续上 HTTPS 后改成 https://你的域名 即可。
+const String _kApiBase = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://127.0.0.1:3000',
+);
 
 /// 激活结果
 class ActivateResult {
@@ -167,127 +174,23 @@ class LicenseClient {
   LicenseClient._();
   static final instance = LicenseClient._();
 
-  static const _timeout = Duration(seconds: 15);
-
-  /// 已发现的可用代理（首次成功后缓存，跳过 fallback）
-  String? _workingProxy;
-  String? _workingProxyType; // 'PROXY' or 'SOCKS'
-
-  /// 尝试多协议代理连接
+  /// POST 请求（直连后端）
   Future<http.Response> _post(String path, Map<String, dynamic> body) async {
     final uri = Uri.parse('$_kApiBase$path');
     final headers = {'Content-Type': 'application/json'};
-    final jsonBody = jsonEncode(body);
-
-    // 优先级：已缓存的可用代理 → 用户配置的端口 → 常见端口 → 直连
-    final attempts = <_ProxyAttempt>[];
-
-    // 缓存的可用代理放最前
-    if (_workingProxy != null) {
-      attempts.add(_ProxyAttempt(_workingProxy!, _workingProxyType ?? 'PROXY'));
-    }
-
-    // 用户/常见端口（每个端口同时尝试 PROXY 和 SOCKS）
-    const ports = ['127.0.0.1:7897', '127.0.0.1:7890', '127.0.0.1:1087'];
-    for (final port in ports) {
-      attempts.add(_ProxyAttempt(port, 'PROXY'));
-      attempts.add(_ProxyAttempt(port, 'SOCKS'));
-    }
-
-    for (final att in attempts) {
-      try {
-        final client = _createClient(att.host, att.type);
-        final resp = await client
-            .post(uri, headers: headers, body: jsonBody)
-            .timeout(const Duration(seconds: 6));
-        client.close();
-        // 成功 → 缓存
-        _workingProxy = att.host;
-        _workingProxyType = att.type;
-        debugPrint('[LicenseClient] ✅ 代理成功: ${att.type} ${att.host}');
-        return resp;
-      } catch (e) {
-        debugPrint('[LicenseClient] ❌ ${att.type} ${att.host} 失败: ${e.runtimeType}');
-        continue;
-      }
-    }
-
-    // 最后兜底：直连
-    try {
-      final client = _createClient(null, null);
-      final resp = await client
-          .post(uri, headers: headers, body: jsonBody)
-          .timeout(const Duration(seconds: 10));
-      client.close();
-      _workingProxy = null; // 直连成功说明不需要代理
-      debugPrint('[LicenseClient] ✅ 直连成功');
-      return resp;
-    } catch (e) {
-      debugPrint('[LicenseClient] ❌ 直连也失败: ${e.runtimeType}');
-    }
-
-    throw Exception('ALL_FAILED');
+    return http
+        .post(uri, headers: headers, body: jsonEncode(body))
+        .timeout(const Duration(seconds: 15));
   }
 
-  /// GET 请求同样逻辑
+  /// GET 请求（直连后端）
   Future<http.Response> _get(String path,
       [Map<String, String>? queryParams]) async {
     var uri = Uri.parse('$_kApiBase$path');
     if (queryParams != null) {
       uri = uri.replace(queryParameters: queryParams);
     }
-
-    final attempts = <_ProxyAttempt>[];
-    if (_workingProxy != null) {
-      attempts.add(_ProxyAttempt(_workingProxy!, _workingProxyType ?? 'PROXY'));
-    }
-    const ports = ['127.0.0.1:7897', '127.0.0.1:7890', '127.0.0.1:1087'];
-    for (final port in ports) {
-      attempts.add(_ProxyAttempt(port, 'PROXY'));
-      attempts.add(_ProxyAttempt(port, 'SOCKS'));
-    }
-
-    for (final att in attempts) {
-      try {
-        final client = _createClient(att.host, att.type);
-        final resp = await client
-            .get(uri)
-            .timeout(const Duration(seconds: 6));
-        client.close();
-        _workingProxy = att.host;
-        _workingProxyType = att.type;
-        debugPrint('[LicenseClient] ✅ 代理成功: ${att.type} ${att.host}');
-        return resp;
-      } catch (e) {
-        debugPrint('[LicenseClient] ❌ ${att.type} ${att.host} 失败: ${e.runtimeType}');
-        continue;
-      }
-    }
-
-    try {
-      final client = _createClient(null, null);
-      final resp = await client.get(uri).timeout(const Duration(seconds: 10));
-      client.close();
-      _workingProxy = null;
-      debugPrint('[LicenseClient] ✅ 直连成功');
-      return resp;
-    } catch (e) {
-      debugPrint('[LicenseClient] ❌ 直连也失败: ${e.runtimeType}');
-    }
-
-    throw Exception('ALL_FAILED');
-  }
-
-  /// 创建 HTTP Client
-  http.Client _createClient(String? proxyHost, String? proxyType) {
-    final httpClient = HttpClient();
-    httpClient.badCertificateCallback = (cert, host, port) => true;
-
-    if (proxyHost != null && proxyType != null) {
-      httpClient.findProxy = (uri) => '$proxyType $proxyHost';
-    }
-
-    return IOClient(httpClient);
+    return http.get(uri).timeout(const Duration(seconds: 15));
   }
 
   /// 激活（绑定设备）
@@ -378,10 +281,4 @@ class LicenseClient {
       return false;
     }
   }
-}
-
-class _ProxyAttempt {
-  final String host;
-  final String type; // 'PROXY' or 'SOCKS'
-  const _ProxyAttempt(this.host, this.type);
 }
