@@ -78,11 +78,18 @@ export function registerLicenseRoutes(app, pool) {
           });
         }
 
-        // 写入绑定
+        // 写入绑定（若之前解绑过，复用同一行改回 active，避免唯一键冲突）
         const id = randomUUID();
+        const deviceName = device_name || 'Unknown';
         await conn.execute(
-          'INSERT INTO device_bindings (id, code, device_fp, device_name) VALUES (?, ?, ?, ?)',
-          [id, normalized, device_fp, device_name || 'Unknown'],
+          `INSERT INTO device_bindings (id, code, device_fp, device_name, status)
+           VALUES (?, ?, ?, ?, 'active')
+           ON DUPLICATE KEY UPDATE
+             status = 'active',
+             device_name = ?,
+             bound_at = NOW(),
+             last_seen = NOW()`,
+          [id, normalized, device_fp, deviceName, deviceName],
         );
         await conn.execute(
           "UPDATE licenses SET status = 'activated' WHERE code = ? AND status = 'unused'",
