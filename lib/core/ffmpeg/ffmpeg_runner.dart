@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../platform/binary_locator.dart';
+import '../../data/models/watermark_segment.dart';
 
 /// FFmpeg 异常
 class FFmpegException implements Exception {
@@ -48,7 +49,7 @@ class FFmpegRunner {
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
 
     // 获取视频时长用于进度计算
-    final duration = await _getMediaDuration(videoPath);
+    final duration = await getMediaDuration(videoPath);
 
     final args = <String>[
       '-y', // 覆盖输出
@@ -157,10 +158,85 @@ class FFmpegRunner {
     return outputPath;
   }
 
+  /// 提取视频某一秒的画面帧（用于去水印预览）
+  static Future<String> extractFrame({
+    required String inputPath,
+    required double timestamp,
+    required String outputPath,
+  }) async {
+    final ffmpegPath = await BinaryLocator.getFFmpegPath();
+    final args = [
+      '-ss', timestamp.toStringAsFixed(2),
+      '-i', inputPath,
+      '-frames:v', '1',
+      '-y',
+      outputPath,
+    ];
+    final result = await Process.run(ffmpegPath, args);
+    if (result.exitCode != 0) {
+      throw FFmpegException('抽帧失败: ${result.stderr}', exitCode: result.exitCode);
+    }
+    return outputPath;
+  }
+
+  /// 获取视频分辨率（宽, 高）
+  static Future<(int, int)> getVideoDimensions(String inputPath) async {
+    final ffmpegPath = await BinaryLocator.getFFmpegPath();
+    final result = await Process.run(ffmpegPath, ['-i', inputPath]);
+    final stderr = result.stderr.toString();
+    for (final line in stderr.split('\n')) {
+      if (line.contains('Video:')) {
+        final match = RegExp(r'(\d{2,5})x(\d{2,5})').firstMatch(line);
+        if (match != null) {
+          return (int.parse(match.group(1)!), int.parse(match.group(2)!));
+        }
+      }
+    }
+    return (1920, 1080); // 兜底
+  }
+
+  /// 多段去水印：按时间轴对多段位置做 delogo 抹除
+  static Future<String> removeWatermark({
+    required String inputPath,
+    required String outputPath,
+    required List<WatermarkSegment> segments,
+    required double duration,
+    required int videoWidth,
+    required int videoHeight,
+  }) async {
+    if (segments.isEmpty) throw const FFmpegException('没有水印段');
+    final sorted = [...segments]..sort((a, b) => a.time.compareTo(b.time));
+    final filters = <String>[];
+    for (int i = 0; i < sorted.length; i++) {
+      final seg = sorted[i];
+      final start = seg.time;
+      final end = (i + 1 < sorted.length) ? sorted[i + 1].time : duration;
+      final px = (seg.x * videoWidth).round().clamp(0, videoWidth - 1);
+      final py = (seg.y * videoHeight).round().clamp(0, videoHeight - 1);
+      final pw = (seg.w * videoWidth).round().clamp(1, videoWidth - px);
+      final ph = (seg.h * videoHeight).round().clamp(1, videoHeight - py);
+      filters.add(
+        "delogo=x=$px:y=$py:w=$pw:h=$ph:enable='between(t,$start,$end)'",
+      );
+    }
+    final ffmpegPath = await BinaryLocator.getFFmpegPath();
+    final args = [
+      '-i', inputPath,
+      '-vf', filters.join(','),
+      '-c:a', 'copy',
+      '-y', outputPath,
+    ];
+    final result = await Process.run(ffmpegPath, args);
+    if (result.exitCode != 0) {
+      throw FFmpegException('去水印失败: ${result.stderr}', exitCode: result.exitCode);
+    }
+    return outputPath;
+  }
+
   // ============== 内部方法 ==============
 
   /// 获取媒体时长（秒）
-  static Future<double> _getMediaDuration(String filePath) async {
+  static Future<double> getMediaDuration(String filePath) async {
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
     final result = await Process.run(
       ffmpegPath,
