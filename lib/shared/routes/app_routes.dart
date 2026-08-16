@@ -6,7 +6,6 @@ import '../../features/downloads/downloads_page.dart';
 import '../../features/history/history_page.dart';
 import '../../features/home/home_page.dart';
 import '../../features/settings/settings_page.dart';
-import '../../features/tools/watermark_tool_page.dart';
 import '../widgets/app_shell.dart';
 
 /// 路由名称常量
@@ -16,7 +15,6 @@ class AppRoutes {
   static const String home = '/';
   static const String downloads = '/downloads';
   static const String history = '/history';
-  static const String watermark = '/watermark';
   static const String settings = '/settings';
 }
 
@@ -47,13 +45,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             name: 'history',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: HistoryPage(),
-            ),
-          ),
-          GoRoute(
-            path: AppRoutes.watermark,
-            name: 'watermark',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: WatermarkToolPage(),
             ),
           ),
           GoRoute(
@@ -91,12 +82,6 @@ final navItemsProvider = Provider<List<NavigationItem>>((ref) {
       selectedIcon: Icons.download,
       label: '下载',
       route: AppRoutes.downloads,
-    ),
-    NavigationItem(
-      icon: Icons.cleaning_services_outlined,
-      selectedIcon: Icons.cleaning_services,
-      label: '去水印',
-      route: AppRoutes.watermark,
     ),
     NavigationItem(
       icon: Icons.history_outlined,

@@ -2,10 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-
 import '../platform/binary_locator.dart';
-import '../../data/models/watermark_segment.dart';
 
 /// FFmpeg 异常
 class FFmpegException implements Exception {
@@ -156,107 +153,6 @@ class FFmpegRunner {
         '嵌入字幕失败: ${result.stderr}',
         exitCode: result.exitCode,
       );
-    }
-    return outputPath;
-  }
-
-  /// 提取视频某一秒的画面帧（用于去水印预览）
-  static Future<String> extractFrame({
-    required String inputPath,
-    required double timestamp,
-    required String outputPath,
-  }) async {
-    final ffmpegPath = await BinaryLocator.getFFmpegPath();
-    // 精确 seek（-ss 放 -i 之后）：逐帧解码到目标时间，比输入 seek 更稳，
-    // 避免部分容器（moov 在末尾的 mp4 等）快进失败或抽到错误帧。
-    final args = [
-      '-loglevel', 'error',
-      '-i', inputPath,
-      '-ss', timestamp.toStringAsFixed(2),
-      '-frames:v', '1',
-      '-y',
-      outputPath,
-    ];
-    debugPrint('[去水印] ffmpeg=$ffmpegPath args=$args');
-    final result = await Process.run(ffmpegPath, args);
-    if (result.exitCode != 0) {
-      final err = result.stderr.toString().trim();
-      debugPrint('[去水印] 抽帧失败 stderr:\n$err');
-      throw FFmpegException(
-        '抽帧失败: ${err.isEmpty ? '退出码 ${result.exitCode}' : err}',
-        exitCode: result.exitCode,
-      );
-    }
-    return outputPath;
-  }
-
-  /// 获取视频分辨率（宽, 高）
-  static Future<(int, int)> getVideoDimensions(String inputPath) async {
-    final ffmpegPath = await BinaryLocator.getFFmpegPath();
-    final result = await Process.run(ffmpegPath, ['-i', inputPath]);
-    final stderr = result.stderr.toString();
-    for (final line in stderr.split('\n')) {
-      if (line.contains('Video:')) {
-        final match = RegExp(r'(\d{2,5})x(\d{2,5})').firstMatch(line);
-        if (match != null) {
-          return (int.parse(match.group(1)!), int.parse(match.group(2)!));
-        }
-      }
-    }
-    return (1920, 1080); // 兜底
-  }
-
-  /// 多段去水印：每段是一个独立时间段 [startTime, endTime]，按区间做 delogo 抹除。
-  /// [onProgress] 进度回调（0.0~1.0），基于 ffmpeg 输出的 time= 计算。
-  static Future<String> removeWatermark({
-    required String inputPath,
-    required String outputPath,
-    required List<WatermarkSegment> segments,
-    required double duration,
-    required int videoWidth,
-    required int videoHeight,
-    void Function(double)? onProgress,
-  }) async {
-    if (segments.isEmpty) throw const FFmpegException('没有水印段');
-    final filters = <String>[];
-    for (final seg in segments) {
-      final start = seg.startTime;
-      final end = seg.endTime;
-      final px = (seg.x * videoWidth).round().clamp(0, videoWidth - 1);
-      final py = (seg.y * videoHeight).round().clamp(0, videoHeight - 1);
-      final pw = (seg.w * videoWidth).round().clamp(1, videoWidth - px);
-      final ph = (seg.h * videoHeight).round().clamp(1, videoHeight - py);
-      filters.add(
-        "delogo=x=$px:y=$py:w=$pw:h=$ph:enable='between(t,$start,$end)'",
-      );
-    }
-    final ffmpegPath = await BinaryLocator.getFFmpegPath();
-    final args = [
-      '-i', inputPath,
-      '-vf', filters.join(','),
-      '-c:a', 'copy',
-      '-y', outputPath,
-    ];
-
-    // 流式读取 stderr 解析进度（同 mergeVideoAudio）
-    final process = await Process.start(ffmpegPath, args);
-    final stderrBuffer = StringBuffer();
-    final stderrSub = process.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((line) {
-      stderrBuffer.writeln(line);
-      if (onProgress != null && duration > 0) {
-        final p = _parseFFmpegProgress(line, duration);
-        if (p != null) onProgress(p);
-      }
-    });
-
-    final exitCode = await process.exitCode;
-    await stderrSub.cancel();
-
-    if (exitCode != 0) {
-      throw FFmpegException('去水印失败: ${stderrBuffer.toString()}', exitCode: exitCode);
     }
     return outputPath;
   }
