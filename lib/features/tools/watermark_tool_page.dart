@@ -99,6 +99,9 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
     setState(() => _extractingFrame = true);
     try {
       final dir = await getTemporaryDirectory();
+      // path_provider 返回的临时目录可能不存在（macOS 会清理 Caches），
+      // ffmpeg 不会自建父目录，这里先确保目录存在，否则抽帧报“Could not open file”。
+      await dir.create(recursive: true);
       final out = p.join(
         dir.path,
         'watermark_${DateTime.now().millisecondsSinceEpoch}.jpg',
