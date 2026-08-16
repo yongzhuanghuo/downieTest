@@ -5,7 +5,20 @@ import { createPool } from './db.js';
 import { registerLicenseRoutes } from './routes/license.js';
 
 const config = loadConfig();
-const pool = await createPool();
+
+// 启动时连不上数据库要给出清晰提示并退出，避免 pm2 反复拉起产生一堆 unhandledRejection
+let pool;
+try {
+  pool = await createPool();
+} catch (e) {
+  console.error('[license-api] 数据库连接失败，请检查：');
+  console.error('  1. MySQL 是否已启动：systemctl status mysql');
+  console.error('  2. 数据库/用户是否已创建（见 DEPLOY.md 第一步）：');
+  console.error('     CREATE DATABASE downie_license ...  /  CREATE USER downie ...');
+  console.error('  3. .env 的 DB_NAME / DB_USER / DB_PASSWORD 是否与上面一致');
+  console.error('原始错误:', e.message || e);
+  process.exit(1);
+}
 
 const app = express();
 app.use(cors());          // 桌面应用无浏览器同源限制，开放 CORS 无妨
