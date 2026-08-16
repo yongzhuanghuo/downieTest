@@ -45,6 +45,9 @@ class DownloadTask {
   /// 是否纯音频
   final bool audioOnly;
 
+  /// 下载时导出的字幕语言（null=不导出）
+  final String? subtitleLang;
+
   /// 当前状态
   final DownloadStatus status;
 
@@ -89,6 +92,7 @@ class DownloadTask {
     required this.height,
     required this.ext,
     required this.audioOnly,
+    this.subtitleLang,
     this.status = DownloadStatus.pending,
     this.progress,
     this.fileSize = 0,
@@ -125,6 +129,7 @@ class DownloadTask {
       height: height,
       ext: ext,
       audioOnly: audioOnly,
+      subtitleLang: subtitleLang,
       status: status ?? this.status,
       progress: progress ?? this.progress,
       fileSize: fileSize ?? this.fileSize,

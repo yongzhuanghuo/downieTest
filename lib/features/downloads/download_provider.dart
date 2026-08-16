@@ -109,6 +109,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   Future<void> startDownload({
     required VideoInfo videoInfo,
     required FormatOption format,
+    String? subtitleLang,
   }) async {
     final task = DownloadTask(
       id: const Uuid().v4(),
@@ -122,6 +123,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       ext: format.ext,
       fileSize: format.fileSize ?? 0,
       audioOnly: format.audioOnly,
+      subtitleLang: subtitleLang,
       createdAt: DateTime.now(),
     );
 
@@ -174,6 +176,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             onProgress: (p) => _applyProgress(task.id, p),
             shouldCancel: () => _cancelled.contains(task.id),
             audioOnly: task.audioOnly,
+            subtitleLang: task.subtitleLang,
           );
           if (_cancelled.contains(task.id)) {
             await _finishStatus(task.id, DownloadStatus.cancelled);

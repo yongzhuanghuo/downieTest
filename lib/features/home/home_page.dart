@@ -20,6 +20,7 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   final _urlController = TextEditingController();
   FormatOption? _selectedFormat;
+  String? _selectedSubtitle; // 下载时导出的字幕语言（null=不导出）
 
   @override
   void dispose() {
@@ -47,6 +48,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Future<void> _parse() async {
     _selectedFormat = null;
+    _selectedSubtitle = null;
     ref.read(parseProvider.notifier).parse(_urlController.text);
   }
 
@@ -152,6 +154,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     ref.read(downloadListProvider.notifier).startDownload(
           videoInfo: info,
           format: format,
+          subtitleLang: _selectedSubtitle,
         );
     if (mounted) {
       final rem = storage.todayRemaining;
@@ -466,6 +469,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
             const SizedBox(height: 16),
             _buildFormatSelector(theme, info),
+            const SizedBox(height: 12),
+            _buildSubtitleSelector(theme, info),
             const SizedBox(height: 16),
             _buildDownloadButton(theme),
           ],
@@ -540,6 +545,27 @@ class _HomePageState extends ConsumerState<HomePage> {
   String _formatLabel(FormatOption f) {
     final size = f.fileSizeText == '未知' ? '' : ' · ${f.fileSizeText}';
     return '${f.label}$size';
+  }
+
+  Widget _buildSubtitleSelector(ThemeData theme, VideoInfo info) {
+    if (info.subtitleLangs.isEmpty) return const SizedBox.shrink();
+    return DropdownButtonFormField<String?>(
+      key: ValueKey('subtitle_${info.videoId}'),
+      initialValue: _selectedSubtitle,
+      decoration: const InputDecoration(
+        labelText: '字幕',
+        border: OutlineInputBorder(),
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('不下载字幕'),
+        ),
+        ...info.subtitleLangs
+            .map((l) => DropdownMenuItem<String?>(value: l, child: Text(l))),
+      ],
+      onChanged: (v) => setState(() => _selectedSubtitle = v),
+    );
   }
 
   Widget _chip(String text) {
