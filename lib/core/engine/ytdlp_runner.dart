@@ -86,7 +86,7 @@ class YtDlpRunner {
     required void Function(DownloadProgress) onProgress,
     bool Function()? shouldCancel,
     bool audioOnly = false,
-    String? subtitleLang,
+    bool downloadSubtitles = false,
   }) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
@@ -141,8 +141,7 @@ class YtDlpRunner {
       '--ffmpeg-location', actualFfmpegPath,
       if (audioOnly) ...['-x', '--audio-format', 'mp3'],
       if (!audioOnly) ...['--merge-output-format', 'mp4'],
-      if (subtitleLang != null)
-        ...['--write-subs', '--write-auto-subs', '--sub-langs', subtitleLang],
+      if (downloadSubtitles) ...['--write-subs', '--write-auto-subs'],
       url,
     ];
 

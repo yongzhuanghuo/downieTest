@@ -32,7 +32,8 @@ mkdir -p "$MACOS_DIR" "$WINDOWS_DIR"
 download() {
   local url="$1" out="$2"
   echo "⬇️  下载 $out"
-  curl -fL --retry 3 --retry-delay 2 --connect-timeout 30 -o "$out" "$url"
+  # --http1.1 避免 GFW 干扰 HTTP/2 导致的 PROTOCOL_ERROR；--retry-all-errors 让它遇到协议错误也重试
+  curl -fL --http1.1 --retry 3 --retry-all-errors --retry-delay 2 --connect-timeout 30 -o "$out" "$url"
 }
 
 # 从 zip 里提取指定文件名的二进制（zip 内部常带版本号目录）

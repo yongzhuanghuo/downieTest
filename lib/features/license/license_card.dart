@@ -158,7 +158,7 @@ class _UpgradeDialogState extends State<_UpgradeDialog> {
 Widget _buildComparisonTable(ThemeData theme) {
   const rows = <_CompareRow>[
     _CompareRow(icon: Icons.hd, label: '最高画质', free: '1080P', pro: '4K', proHighlight: true),
-    _CompareRow(icon: Icons.download, label: '每日下载', free: '5 次', pro: '不限', proHighlight: true),
+    _CompareRow(icon: Icons.download, label: '每日下载', free: '2 个', pro: '不限', proHighlight: true),
     _CompareRow(icon: Icons.devices, label: '设备绑定', free: '1 台', pro: '4 台', proHighlight: true),
     _CompareRow(icon: Icons.queue, label: '并发下载', free: '1 个', pro: '3 个', proHighlight: true),
     _CompareRow(icon: Icons.subtitles, label: '字幕下载', free: '✓', pro: '✓'),

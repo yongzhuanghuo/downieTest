@@ -20,7 +20,7 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   final _urlController = TextEditingController();
   FormatOption? _selectedFormat;
-  String? _selectedSubtitle; // 下载时导出的字幕语言（null=不导出）
+  bool _downloadSubtitles = false; // 下载时是否导出字幕
 
   @override
   void dispose() {
@@ -48,7 +48,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Future<void> _parse() async {
     _selectedFormat = null;
-    _selectedSubtitle = null;
+    _downloadSubtitles = false;
     ref.read(parseProvider.notifier).parse(_urlController.text);
   }
 
@@ -132,7 +132,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '今日免费下载次数已用完 (${storage.todayUsed}/5)，'
+                  '今日免费下载次数已用完 (${storage.todayUsed}/2)，'
                   '请明日再来或升级 PRO 解锁无限下载',
                 ),
               ),
@@ -154,7 +154,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     ref.read(downloadListProvider.notifier).startDownload(
           videoInfo: info,
           format: format,
-          subtitleLang: _selectedSubtitle,
+          downloadSubtitles: _downloadSubtitles,
         );
     if (mounted) {
       final rem = storage.todayRemaining;
@@ -249,7 +249,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
     }
     // 免费版限额提示
-    final limit = 5;
+    final limit = 2;
     final pct = (used / limit).clamp(0.0, 1.0);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -470,7 +470,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 16),
             _buildFormatSelector(theme, info),
             const SizedBox(height: 12),
-            _buildSubtitleSelector(theme, info),
+            _buildSubtitleCheckbox(theme, info),
             const SizedBox(height: 16),
             _buildDownloadButton(theme),
           ],
@@ -547,24 +547,16 @@ class _HomePageState extends ConsumerState<HomePage> {
     return '${f.label}$size';
   }
 
-  Widget _buildSubtitleSelector(ThemeData theme, VideoInfo info) {
+  Widget _buildSubtitleCheckbox(ThemeData theme, VideoInfo info) {
     if (info.subtitleLangs.isEmpty) return const SizedBox.shrink();
-    return DropdownButtonFormField<String?>(
-      key: ValueKey('subtitle_${info.videoId}'),
-      initialValue: _selectedSubtitle,
-      decoration: const InputDecoration(
-        labelText: '字幕',
-        border: OutlineInputBorder(),
-      ),
-      items: [
-        const DropdownMenuItem<String?>(
-          value: null,
-          child: Text('不下载字幕'),
-        ),
-        ...info.subtitleLangs
-            .map((l) => DropdownMenuItem<String?>(value: l, child: Text(l))),
-      ],
-      onChanged: (v) => setState(() => _selectedSubtitle = v),
+    return CheckboxListTile(
+      value: _downloadSubtitles,
+      onChanged: (v) => setState(() => _downloadSubtitles = v ?? false),
+      title: const Text('同时下载字幕'),
+      subtitle: const Text('下载所有可用字幕（.srt/.vtt）'),
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      controlAffinity: ListTileControlAffinity.leading,
     );
   }
 

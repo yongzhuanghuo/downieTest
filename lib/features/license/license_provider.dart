@@ -54,8 +54,8 @@ class LicenseStorage {
   /// 当前最大清晰度（免费 1080，PRO 4000+）
   int get maxHeight => isPro ? 10000 : 1080;
 
-  /// 每日限额（免费 5 次，PRO 不限）
-  int? get dailyQuota => isPro ? null : 5;
+  /// 每日限额（免费 2 个，PRO 不限）
+  int? get dailyQuota => isPro ? null : 2;
 
   /// 保存（覆盖）激活信息
   Future<void> save(ActivatedLicense license) async {
