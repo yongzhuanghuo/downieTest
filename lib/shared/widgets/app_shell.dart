@@ -91,10 +91,10 @@ class _SideNavigationBar extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
-          Icon(
-            Icons.video_collection,
-            color: theme.colorScheme.primary,
-            size: 28,
+          Image.asset(
+            'assets/logo.png',
+            width: 32,
+            height: 32,
           ),
           const SizedBox(width: 12),
           Text(

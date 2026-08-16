@@ -281,7 +281,7 @@ class DownloadsPage extends ConsumerWidget {
     if (Platform.isMacOS) {
       await Process.run('open', ['-R', path]);
     } else if (Platform.isWindows) {
-      await Process.run('explorer', ['/select,', path]);
+      await Process.run('explorer', ['/select,${path.replaceAll('/', '\\')}']);
     }
   }
 

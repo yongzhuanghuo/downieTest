@@ -72,3 +72,6 @@ node_modules/
 
 # 生成的激活码 CSV（含真实激活码，勿提交）
 downie-license-api/*.csv
+
+# 源 logo（已生成到 assets/logo.png 和各平台图标，源文件不进库）
+logo.png

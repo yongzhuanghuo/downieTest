@@ -54,5 +54,6 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/logo.png
     - assets/bin/macos/
     - assets/bin/windows/
