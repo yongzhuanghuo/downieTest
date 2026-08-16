@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../platform/binary_locator.dart';
 import '../../data/models/watermark_segment.dart';
 
@@ -165,16 +167,25 @@ class FFmpegRunner {
     required String outputPath,
   }) async {
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
+    // 精确 seek（-ss 放 -i 之后）：逐帧解码到目标时间，比输入 seek 更稳，
+    // 避免部分容器（moov 在末尾的 mp4 等）快进失败或抽到错误帧。
     final args = [
-      '-ss', timestamp.toStringAsFixed(2),
+      '-loglevel', 'error',
       '-i', inputPath,
+      '-ss', timestamp.toStringAsFixed(2),
       '-frames:v', '1',
       '-y',
       outputPath,
     ];
+    debugPrint('[去水印] ffmpeg=$ffmpegPath args=$args');
     final result = await Process.run(ffmpegPath, args);
     if (result.exitCode != 0) {
-      throw FFmpegException('抽帧失败: ${result.stderr}', exitCode: result.exitCode);
+      final err = result.stderr.toString().trim();
+      debugPrint('[去水印] 抽帧失败 stderr:\n$err');
+      throw FFmpegException(
+        '抽帧失败: ${err.isEmpty ? '退出码 ${result.exitCode}' : err}',
+        exitCode: result.exitCode,
+      );
     }
     return outputPath;
   }

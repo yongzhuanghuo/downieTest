@@ -31,6 +31,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
   bool _extractingFrame = false;
   bool _processing = false;
   String? _resultPath;
+  String? _lastError;
 
   @override
   void dispose() {
@@ -67,6 +68,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
       _draftBox = null;
       _dragStart = null;
       _resultPath = null;
+      _lastError = null;
     });
     await _loadVideo(path);
   }
@@ -85,6 +87,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
     } catch (e) {
       debugPrint('[去水印] 读取视频失败: $e');
       if (mounted) {
+        setState(() => _lastError = '读取视频失败: $e');
         _showMsg('读取视频失败: $e');
       }
     }
@@ -111,11 +114,15 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
         _framePath = out;
         _currentTime = t;
         _extractingFrame = false;
+        _lastError = null;
       });
     } catch (e) {
       debugPrint('[去水印] 抽帧失败: $e');
       if (mounted) {
-        setState(() => _extractingFrame = false);
+        setState(() {
+          _extractingFrame = false;
+          _lastError = '抽帧失败: $e';
+        });
         _showMsg('抽帧失败: $e');
       }
     }
@@ -164,12 +171,16 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
       setState(() {
         _processing = false;
         _resultPath = out;
+        _lastError = null;
       });
       _showMsg('去水印完成：$out');
     } catch (e) {
       debugPrint('[去水印] 去水印失败: $e');
       if (!mounted) return;
-      setState(() => _processing = false);
+      setState(() {
+        _processing = false;
+        _lastError = '去水印失败: $e';
+      });
       _showMsg('去水印失败: $e');
     }
   }
@@ -216,6 +227,10 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
               _buildEmpty(theme)
             else ...[
               _buildPreview(theme),
+              if (_lastError != null) ...[
+                const SizedBox(height: 12),
+                _buildError(theme),
+              ],
               const SizedBox(height: 16),
               _buildTimeline(theme),
               const SizedBox(height: 16),
@@ -255,6 +270,35 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildError(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '处理出错',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.onErrorContainer,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SelectableText(
+            _lastError!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onErrorContainer,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
       ),
     );
   }
