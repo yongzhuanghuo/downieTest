@@ -206,7 +206,8 @@ class FFmpegRunner {
     return (1920, 1080); // 兜底
   }
 
-  /// 多段去水印：按时间轴对多段位置做 delogo 抹除
+  /// 多段去水印：每段是一个独立时间段 [startTime, endTime]，按区间做 delogo 抹除。
+  /// [onProgress] 进度回调（0.0~1.0），基于 ffmpeg 输出的 time= 计算。
   static Future<String> removeWatermark({
     required String inputPath,
     required String outputPath,
@@ -214,14 +215,13 @@ class FFmpegRunner {
     required double duration,
     required int videoWidth,
     required int videoHeight,
+    void Function(double)? onProgress,
   }) async {
     if (segments.isEmpty) throw const FFmpegException('没有水印段');
-    final sorted = [...segments]..sort((a, b) => a.time.compareTo(b.time));
     final filters = <String>[];
-    for (int i = 0; i < sorted.length; i++) {
-      final seg = sorted[i];
-      final start = seg.time;
-      final end = (i + 1 < sorted.length) ? sorted[i + 1].time : duration;
+    for (final seg in segments) {
+      final start = seg.startTime;
+      final end = seg.endTime;
       final px = (seg.x * videoWidth).round().clamp(0, videoWidth - 1);
       final py = (seg.y * videoHeight).round().clamp(0, videoHeight - 1);
       final pw = (seg.w * videoWidth).round().clamp(1, videoWidth - px);
@@ -237,9 +237,26 @@ class FFmpegRunner {
       '-c:a', 'copy',
       '-y', outputPath,
     ];
-    final result = await Process.run(ffmpegPath, args);
-    if (result.exitCode != 0) {
-      throw FFmpegException('去水印失败: ${result.stderr}', exitCode: result.exitCode);
+
+    // 流式读取 stderr 解析进度（同 mergeVideoAudio）
+    final process = await Process.start(ffmpegPath, args);
+    final stderrBuffer = StringBuffer();
+    final stderrSub = process.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
+      stderrBuffer.writeln(line);
+      if (onProgress != null && duration > 0) {
+        final p = _parseFFmpegProgress(line, duration);
+        if (p != null) onProgress(p);
+      }
+    });
+
+    final exitCode = await process.exitCode;
+    await stderrSub.cancel();
+
+    if (exitCode != 0) {
+      throw FFmpegException('去水印失败: ${stderrBuffer.toString()}', exitCode: exitCode);
     }
     return outputPath;
   }

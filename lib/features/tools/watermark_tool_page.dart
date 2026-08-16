@@ -32,6 +32,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
   bool _processing = false;
   String? _resultPath;
   String? _lastError;
+  double _progress = 0;
 
   @override
   void dispose() {
@@ -131,12 +132,13 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
     }
   }
 
-  /// 拖框结束 → 用当前时间 + 归一化框坐标生成一个水印段
+  /// 拖框结束 → 用当前时间 + 归一化框坐标生成一个水印段（结束时间默认=视频末尾）
   void _commitSegment(Size size) {
     final b = _draftBox;
     if (b == null || size.width <= 0 || size.height <= 0) return;
     final seg = WatermarkSegment(
-      time: _currentTime,
+      startTime: _currentTime,
+      endTime: _duration > 0 ? _duration : _currentTime,
       x: (b.left / size.width).clamp(0.0, 1.0),
       y: (b.top / size.height).clamp(0.0, 1.0),
       w: (b.width / size.width).clamp(0.0, 1.0),
@@ -144,10 +146,51 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
     );
     setState(() {
       _segments.add(seg);
-      _segments.sort((a, b) => a.time.compareTo(b.time));
+      _segments.sort((a, b) => a.startTime.compareTo(b.startTime));
       _draftBox = null;
       _dragStart = null;
     });
+  }
+
+  /// 右键点框 → 命中当前时间点生效的框则「切断」该水印
+  void _handleRightClick(Offset localPos, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+    final nx = (localPos.dx / size.width).clamp(0.0, 1.0);
+    final ny = (localPos.dy / size.height).clamp(0.0, 1.0);
+    // 从后往前找（后画的框在上层，优先命中）
+    for (int i = _segments.length - 1; i >= 0; i--) {
+      final seg = _segments[i];
+      if (!seg.activeAt(_currentTime)) continue;
+      final inBox = nx >= seg.x && nx <= seg.x + seg.w &&
+          ny >= seg.y && ny <= seg.y + seg.h;
+      if (inBox) {
+        _cutSegmentAt(i);
+        return;
+      }
+    }
+    _showMsg('右键请点在水印框上（当前时间点没有可切断的框）');
+  }
+
+  /// 在当前时间点切断第 [i] 个水印段：结束时间=当前时间，之后不再抹除。
+  /// 若当前时间还在该段的开始处，则视为整个删除。
+  void _cutSegmentAt(int i) {
+    final seg = _segments[i];
+    final cut = _currentTime > seg.startTime;
+    setState(() {
+      if (cut) {
+        _segments[i] = WatermarkSegment(
+          startTime: seg.startTime,
+          endTime: _currentTime,
+          x: seg.x,
+          y: seg.y,
+          w: seg.w,
+          h: seg.h,
+        );
+      } else {
+        _segments.removeAt(i);
+      }
+    });
+    _showMsg(cut ? '已在此时间点切断水印' : '已删除水印框');
   }
 
   Future<void> _startRemove() async {
@@ -155,6 +198,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
     if (path == null || _segments.isEmpty || _duration <= 0) return;
     setState(() {
       _processing = true;
+      _progress = 0;
       _resultPath = null;
     });
     try {
@@ -169,10 +213,14 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
         duration: _duration,
         videoWidth: _videoWidth,
         videoHeight: _videoHeight,
+        onProgress: (p) {
+          if (mounted) setState(() => _progress = p);
+        },
       );
       if (!mounted) return;
       setState(() {
         _processing = false;
+        _progress = 1;
         _resultPath = out;
         _lastError = null;
       });
@@ -323,6 +371,8 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final size = Size(constraints.maxWidth, constraints.maxHeight);
+                  final activeSegments =
+                      _segments.where((s) => s.activeAt(_currentTime)).toList();
                   return GestureDetector(
                     onPanStart: (d) => setState(() {
                       _dragStart = d.localPosition;
@@ -337,13 +387,15 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
                       }
                     }),
                     onPanEnd: (_) => _commitSegment(size),
+                    onSecondaryTapDown: (d) =>
+                        _handleRightClick(d.localPosition, size),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
                         Image.file(File(_framePath!), fit: BoxFit.fill),
                         CustomPaint(
                           painter: _BoxPainter(
-                            segments: _segments,
+                            segments: activeSegments,
                             draftBox: _draftBox,
                           ),
                         ),
@@ -386,8 +438,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
           onChangeEnd: (v) => _extractFrame(v),
         ),
         Text(
-          '拖动时间轴到水印出现的位置，在画面上按住鼠标拖框框住水印；'
-          '水印换位置就再拖到对应时间重新框一次',
+          '左键在画面上拖框 = 框选水印；右键点框 = 在当前时间点切断该水印（之后不再抹除）',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -399,7 +450,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
   Widget _buildSegmentList(ThemeData theme) {
     if (_segments.isEmpty) {
       return Text(
-        '还没框选水印（拖框后这里会列出各段水印位置）',
+        '还没框选水印（左键拖框后这里会列出各段水印的时间段和位置）',
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
@@ -408,7 +459,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('已框选的水印段', style: theme.textTheme.titleSmall),
+        Text('已框选的水印段（时间段）', style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
         ..._segments.asMap().entries.map((e) {
           final i = e.key;
@@ -426,7 +477,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${seg.timeLabel} 起 · ${seg.posLabel}',
+                    '${seg.timeLabel} · ${seg.posLabel}',
                     style: theme.textTheme.bodySmall,
                   ),
                 ),
@@ -444,16 +495,31 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
   }
 
   Widget _buildActionButton(ThemeData theme) {
+    if (_processing) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: _progress,
+              minHeight: 10,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '去水印处理中... ${(_progress * 100).round()}%',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
+      );
+    }
     return FilledButton.icon(
-      onPressed: _processing ? null : _startRemove,
-      icon: _processing
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-            )
-          : const Icon(Icons.auto_fix_high),
-      label: Text(_processing ? '去水印处理中...' : '开始去水印'),
+      onPressed: _startRemove,
+      icon: const Icon(Icons.auto_fix_high),
+      label: const Text('开始去水印'),
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),
       ),
