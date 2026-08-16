@@ -83,6 +83,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
       });
       await _extractFrame(0);
     } catch (e) {
+      debugPrint('[去水印] 读取视频失败: $e');
       if (mounted) {
         _showMsg('读取视频失败: $e');
       }
@@ -112,6 +113,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
         _extractingFrame = false;
       });
     } catch (e) {
+      debugPrint('[去水印] 抽帧失败: $e');
       if (mounted) {
         setState(() => _extractingFrame = false);
         _showMsg('抽帧失败: $e');
@@ -165,6 +167,7 @@ class _WatermarkToolPageState extends State<WatermarkToolPage> {
       });
       _showMsg('去水印完成：$out');
     } catch (e) {
+      debugPrint('[去水印] 去水印失败: $e');
       if (!mounted) return;
       setState(() => _processing = false);
       _showMsg('去水印失败: $e');
