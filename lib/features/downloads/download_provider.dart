@@ -173,6 +173,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             outputPath: outputTemplate,
             onProgress: (p) => _applyProgress(task.id, p),
             shouldCancel: () => _cancelled.contains(task.id),
+            audioOnly: task.audioOnly,
           );
           if (_cancelled.contains(task.id)) {
             await _finishStatus(task.id, DownloadStatus.cancelled);

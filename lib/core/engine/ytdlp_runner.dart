@@ -85,6 +85,7 @@ class YtDlpRunner {
     required String outputPath,
     required void Function(DownloadProgress) onProgress,
     bool Function()? shouldCancel,
+    bool audioOnly = false,
   }) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
@@ -137,7 +138,8 @@ class YtDlpRunner {
       '-f', formatId,
       '-o', outputPath,
       '--ffmpeg-location', actualFfmpegPath,
-      '--merge-output-format', 'mp4',
+      if (audioOnly) ...['-x', '--audio-format', 'mp3'],
+      if (!audioOnly) ...['--merge-output-format', 'mp4'],
       url,
     ];
 
