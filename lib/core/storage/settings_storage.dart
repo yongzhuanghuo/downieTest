@@ -15,9 +15,6 @@ class AppSettings {
   /// 并行下载数（1-10）
   final int maxConcurrent;
 
-  /// 自动下载字幕
-  final bool downloadSubtitles;
-
   /// 主题模式：0=跟随系统, 1=浅色, 2=深色
   final int themeMode;
 
@@ -30,7 +27,6 @@ class AppSettings {
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
-    required this.downloadSubtitles,
     required this.themeMode,
     required this.autoStart,
     required this.autoOpenFolder,
@@ -39,7 +35,6 @@ class AppSettings {
   static const defaults = AppSettings(
     downloadDir: '', // 空=系统默认
     maxConcurrent: 3,
-    downloadSubtitles: false,
     themeMode: 0, // 跟随系统
     autoStart: false,
     autoOpenFolder: false,
@@ -48,7 +43,6 @@ class AppSettings {
   AppSettings copyWith({
     String? downloadDir,
     int? maxConcurrent,
-    bool? downloadSubtitles,
     int? themeMode,
     bool? autoStart,
     bool? autoOpenFolder,
@@ -56,7 +50,6 @@ class AppSettings {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
       maxConcurrent: maxConcurrent ?? this.maxConcurrent,
-      downloadSubtitles: downloadSubtitles ?? this.downloadSubtitles,
       themeMode: themeMode ?? this.themeMode,
       autoStart: autoStart ?? this.autoStart,
       autoOpenFolder: autoOpenFolder ?? this.autoOpenFolder,
@@ -80,7 +73,7 @@ class AppSettings {
 
   @override
   String toString() =>
-      'AppSettings(dir=$downloadDir, concurrent=$maxConcurrent, subs=$downloadSubtitles, theme=$themeMode)';
+      'AppSettings(dir=$downloadDir, concurrent=$maxConcurrent, theme=$themeMode)';
 }
 
 /// Hive KV 设置存储
@@ -116,7 +109,6 @@ class SettingsStorage {
       _cache = AppSettings(
         downloadDir: (raw['downloadDir'] as String?) ?? '',
         maxConcurrent: (raw['maxConcurrent'] as num?)?.toInt() ?? 3,
-        downloadSubtitles: (raw['downloadSubtitles'] as bool?) ?? false,
         themeMode: (raw['themeMode'] as num?)?.toInt() ?? 0,
         autoStart: (raw['autoStart'] as bool?) ?? false,
         autoOpenFolder: (raw['autoOpenFolder'] as bool?) ?? false,
@@ -154,7 +146,6 @@ class SettingsStorage {
     await _box?.put(_key, {
       'downloadDir': settings.downloadDir,
       'maxConcurrent': settings.maxConcurrent,
-      'downloadSubtitles': settings.downloadSubtitles,
       'themeMode': settings.themeMode,
       'autoStart': settings.autoStart,
       'autoOpenFolder': settings.autoOpenFolder,

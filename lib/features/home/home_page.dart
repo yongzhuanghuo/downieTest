@@ -470,7 +470,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 16),
             _buildFormatSelector(theme, info),
             const SizedBox(height: 12),
-            _buildSubtitleCheckbox(theme, info),
+            _buildSubtitleCheckbox(theme),
             const SizedBox(height: 16),
             _buildDownloadButton(theme),
           ],
@@ -547,8 +547,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     return '${f.label}$size';
   }
 
-  Widget _buildSubtitleCheckbox(ThemeData theme, VideoInfo info) {
-    if (info.subtitleLangs.isEmpty) return const SizedBox.shrink();
+  Widget _buildSubtitleCheckbox(ThemeData theme) {
     return CheckboxListTile(
       value: _downloadSubtitles,
       onChanged: (v) => setState(() => _downloadSubtitles = v ?? false),

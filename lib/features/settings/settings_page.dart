@@ -97,12 +97,6 @@ class SettingsPage extends ConsumerWidget {
                 ),
               ),
               SwitchListTile(
-                title: const Text('下载字幕'),
-                subtitle: const Text('自动下载视频字幕（如有）'),
-                value: settings.downloadSubtitles,
-                onChanged: notifier.setDownloadSubtitles,
-              ),
-              SwitchListTile(
                 title: const Text('下载完成自动打开文件夹'),
                 subtitle: const Text('下载完成后在文件管理器中显示文件'),
                 value: settings.autoOpenFolder,

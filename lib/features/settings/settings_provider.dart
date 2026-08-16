@@ -23,12 +23,6 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
-  Future<void> setDownloadSubtitles(bool v) async {
-    final next = state.copyWith(downloadSubtitles: v);
-    await SettingsStorage.instance.save(next);
-    state = next;
-  }
-
   Future<void> setThemeMode(int mode) async {
     final next = state.copyWith(themeMode: mode);
     await SettingsStorage.instance.save(next);
