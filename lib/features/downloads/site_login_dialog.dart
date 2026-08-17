@@ -1,38 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-import '../../core/storage/youtube_cookies.dart';
+import '../../core/storage/site_cookies.dart';
+import '../../core/storage/site_registry.dart';
 
-/// YouTube 登录弹窗
+/// 站点登录弹窗（通用）
 ///
-/// 内置浏览器打开 youtube.com，用户登录后点「完成登录」，
-/// 抓取 youtube.com 的 cookie 存成 cookies.txt（Netscape 格式）。
-class YoutubeLoginDialog extends StatefulWidget {
-  const YoutubeLoginDialog({super.key});
+/// 内置浏览器打开 [SiteConfig.loginUrl]，用户登录后点「完成登录」，
+/// 抓取该站 cookie 存成 cookies/{siteId}.txt。
+class SiteLoginDialog extends StatefulWidget {
+  final SiteConfig site;
+
+  const SiteLoginDialog({super.key, required this.site});
 
   /// 弹出登录框；返回 true 表示登录成功并已保存 cookie
-  static Future<bool> show(BuildContext context) async {
+  static Future<bool> show(BuildContext context, SiteConfig site) async {
     final ok = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const YoutubeLoginDialog(),
+      builder: (_) => SiteLoginDialog(site: site),
     );
     return ok ?? false;
   }
 
   @override
-  State<YoutubeLoginDialog> createState() => _YoutubeLoginDialogState();
+  State<SiteLoginDialog> createState() => _SiteLoginDialogState();
 }
 
-class _YoutubeLoginDialogState extends State<YoutubeLoginDialog> {
+class _SiteLoginDialogState extends State<SiteLoginDialog> {
   bool _saving = false;
 
   Future<void> _finish() async {
     setState(() => _saving = true);
     try {
       final cookies = await CookieManager.instance()
-          .getCookies(url: WebUri('https://www.youtube.com'));
-      await YoutubeCookies.saveCookies(cookies);
+          .getCookies(url: WebUri(widget.site.loginUrl));
+      await SiteCookies.saveCookies(widget.site.id, cookies);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -53,7 +56,6 @@ class _YoutubeLoginDialogState extends State<YoutubeLoginDialog> {
         height: 650,
         child: Column(
           children: [
-            // 标题栏
             Container(
               padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
               decoration: BoxDecoration(
@@ -64,7 +66,10 @@ class _YoutubeLoginDialogState extends State<YoutubeLoginDialog> {
                   const Icon(Icons.login, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text('登录 YouTube 账号', style: theme.textTheme.titleMedium),
+                    child: Text(
+                      '登录 ${widget.site.name}',
+                      style: theme.textTheme.titleMedium,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -74,18 +79,12 @@ class _YoutubeLoginDialogState extends State<YoutubeLoginDialog> {
                 ],
               ),
             ),
-            // 内置浏览器
             Expanded(
               child: InAppWebView(
-                initialUrlRequest: URLRequest(
-                  url: WebUri('https://www.youtube.com'),
-                ),
-                initialSettings: InAppWebViewSettings(
-                  javaScriptEnabled: true,
-                ),
+                initialUrlRequest: URLRequest(url: WebUri(widget.site.loginUrl)),
+                initialSettings: InAppWebViewSettings(javaScriptEnabled: true),
               ),
             ),
-            // 底部按钮
             Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
               decoration: BoxDecoration(

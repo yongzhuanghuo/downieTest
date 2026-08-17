@@ -30,6 +30,7 @@ Slogan：拾取全网流媒体，留存每一帧画面
 | **uuid** | ^4.4.0 | UUID v4 生成器，为每个下载任务生成唯一标识 ID |
 | **http** | ^1.2.0 | HTTP 客户端库，与自建授权后端通信（激活/解绑/心跳/状态查询） |
 | **file_picker** | ^8.1.2 | 原生文件/目录选择器，用于用户自定义下载保存目录 |
+| **flutter_inappwebview** | ^6.1.5 | 内置浏览器（WebView），用于站点登录弹窗抓取 Cookie |
 | **meta** | ^1.15.0 | Dart 核心注解库，提供 `@immutable` 等注解 |
 
 ### 2. 外部二进制引擎
@@ -652,3 +653,26 @@ pm2 save && pm2 startup
 
 - 上传音频 / 无字幕视频 → 语音转文字生成字幕
 - 需选 ASR 方案（本地 Whisper / 第三方 API），暂缓
+
+### 阶段 19：站点登录（解决需要 Cookie 的站点）✅ 已完成
+
+- 下载失败且报错为「需要登录 / cookie」时，自动弹「需要登录 XX 站」提示 → 打开该站内置浏览器登录 → 抓取 cookie 按站存成 `cookies/<站点>.txt`
+- 下载时把所有已登录站点的 cookie 文件 `--cookies` 传给 yt-dlp，按域名自动匹配
+- 内置支持的站点（登录页 / 域名已配置）：
+
+| 站点 | 域名 |
+|------|------|
+| YouTube | youtube.com / youtu.be |
+| 抖音 | douyin.com |
+| 哔哩哔哩 | bilibili.com |
+| 小红书 | xiaohongshu.com |
+| 快手 | kuaishou.com |
+| 微博 | weibo.com |
+| Twitter / X | x.com / twitter.com |
+| Vimeo | vimeo.com |
+| Twitch | twitch.tv |
+| Instagram | instagram.com |
+| TikTok | tiktok.com |
+
+- 未列入的站点按域名自动推导登录页，同样支持登录
+- 依赖 `flutter_inappwebview`（macOS 用 WKWebView、Windows 用 WebView2，Windows 需装 WebView2 runtime）

@@ -7,6 +7,7 @@ import '../../features/history/history_page.dart';
 import '../../features/home/home_page.dart';
 import '../../features/settings/settings_page.dart';
 import '../widgets/app_shell.dart';
+import 'navigator_key.dart';
 
 /// 路由名称常量
 class AppRoutes {
@@ -21,6 +22,7 @@ class AppRoutes {
 /// 全局路由配置 Provider
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.home,
     routes: [
       ShellRoute(
