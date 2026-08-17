@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../../data/models/video_info.dart';
+import '../downloads/site_login_prompt.dart';
 
 /// 解析状态
 enum ParseStatus { idle, loading, success, error }
@@ -42,6 +45,10 @@ class ParseNotifier extends StateNotifier<ParseState> {
       state = ParseState(status: ParseStatus.success, videoInfo: info);
     } on YtDlpException catch (e) {
       state = ParseState(status: ParseStatus.error, error: e.message);
+      // 解析也需要登录/cookie 的站点（如抖音）：弹登录提示
+      if (isCookieError(e.message)) {
+        unawaited(promptSiteLogin(trimmed));
+      }
     } catch (e) {
       state = ParseState(status: ParseStatus.error, error: '解析失败: $e');
     }

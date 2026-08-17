@@ -1,21 +1,19 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/storage/downloads_dao.dart';
 import '../../core/storage/settings_storage.dart';
-import '../../core/storage/site_registry.dart';
-import '../../shared/routes/navigator_key.dart';
 import '../license/license_provider.dart';
 import '../../data/models/download_progress.dart';
 import '../../data/models/download_task.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
-import 'site_login_dialog.dart';
+import 'site_login_prompt.dart';
 
 /// 失败自动重试最大次数
 const int _kMaxRetry = 3;
@@ -217,14 +215,14 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           return;
         } on YtDlpException catch (e) {
           // 需要登录/cookie：不重试，直接提示登录对应站点
-          if (_isCookieError(e.message)) {
+          if (isCookieError(e.message)) {
             await _apply(task.id, (t) => t.copyWith(
                   status: DownloadStatus.failed,
                   error: '需要登录才能下载：${e.message}',
                   retryCount: attempt,
                   speed: 0,
                 ));
-            unawaited(_promptLogin(task));
+            unawaited(promptSiteLogin(task.url));
             return;
           }
           attempt++;
@@ -361,53 +359,6 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           speed: 0,
           completedAt: s == DownloadStatus.cancelled ? DateTime.now() : null,
         ));
-  }
-
-  /// 是否为「需要登录/cookie」类错误
-  bool _isCookieError(String message) {
-    final m = message.toLowerCase();
-    const kws = [
-      'cookie', 'login', 'sign in', 'sign-in', 'bot',
-      'authentication', 'registered', '登录', '验证', '需要登录',
-    ];
-    return kws.any(m.contains);
-  }
-
-  /// 弹「需要登录」提示并引导登录对应站点
-  Future<void> _promptLogin(DownloadTask task) async {
-    final ctx = rootNavigatorKey.currentContext;
-    if (ctx == null) return;
-    final site = resolveSite(task.url);
-
-    final go = await showDialog<bool>(
-      context: ctx,
-      builder: (c) => AlertDialog(
-        title: Text('需要登录 ${site.name}'),
-        content: const Text('该网站需要登录后才能下载，现在去登录吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(c).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(c).pop(true),
-            child: const Text('去登录'),
-          ),
-        ],
-      ),
-    );
-    if (go != true) return;
-
-    // 重新取 context，避免跨 async 边界复用旧的 BuildContext
-    final ctx2 = rootNavigatorKey.currentContext;
-    if (ctx2 == null) return;
-    final messenger = ScaffoldMessenger.of(ctx2);
-    final loggedIn = await SiteLoginDialog.show(ctx2, site);
-    if (loggedIn) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('登录成功，请点击「重试」重新下载')),
-      );
-    }
   }
 }
 

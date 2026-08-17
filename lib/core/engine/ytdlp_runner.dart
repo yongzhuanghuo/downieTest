@@ -42,11 +42,14 @@ class YtDlpRunner {
   /// [url] 视频 URL
   /// 返回包含标题、时长、格式列表等信息的 [VideoInfo]
   static Future<VideoInfo> parse(String url) async {
+    // 站点登录 cookie（解析阶段也可能需要，如抖音）
+    final cookiePaths = await SiteCookies.allCookieFilePaths();
     // 使用 --dump-json 输出单行 JSON
     final result = await _runCommand([
       '--dump-json',
       '--no-warnings',
       '--no-playlist',
+      for (final cp in cookiePaths) ...['--cookies', cp],
       url,
     ]);
 
