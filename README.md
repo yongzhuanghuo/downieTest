@@ -9,6 +9,16 @@ Slogan：拾取全网流媒体，留存每一帧画面
 
 准备开个淘宝店：简睿增效软件
 
+操作数据库
+进入容器mysql
+docker exec -it mysql-mysql-1 mysql -uroot -pNjcb@a1p
+
+-- 切换进入这个数据库
+USE downie_db;
+
+退出
+exit;
+
 ---
 
 ## 一、技术栈总览

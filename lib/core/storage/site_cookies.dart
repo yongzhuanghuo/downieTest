@@ -43,9 +43,13 @@ class SiteCookies {
       if (domain == null || domain.isEmpty) continue;
       final path = (c.path?.isNotEmpty ?? false) ? c.path! : '/';
       final secure = (c.isSecure ?? false) ? 'TRUE' : 'FALSE';
+      // includeSubdomains 必须和域名是否以 . 开头一致（.douyin.com→TRUE，www.douyin.com→FALSE），
+      // 否则 Python http.cookiejar 会 assert domain_specified == initial_dot 报错
+      final includeSubdomains = domain.startsWith('.') ? 'TRUE' : 'FALSE';
       final expiryMs = c.expiresDate ?? 0;
       final expiry = expiryMs > 0 ? expiryMs ~/ 1000 : 0;
-      buf.writeln('$domain\tTRUE\t$path\t$secure\t$expiry\t${c.name}\t${c.value}');
+      buf.writeln(
+          '$domain\t$includeSubdomains\t$path\t$secure\t$expiry\t${c.name}\t${c.value}');
     }
     final f = await cookieFile(siteId);
     await f.writeAsString(buf.toString());
