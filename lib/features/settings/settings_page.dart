@@ -2,8 +2,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/storage/youtube_cookies.dart';
 import '../license/license_card.dart';
 import 'settings_provider.dart';
+import 'youtube_login_dialog.dart';
 
 /// 设置页
 ///
@@ -102,6 +104,13 @@ class SettingsPage extends ConsumerWidget {
                 value: settings.autoOpenFolder,
                 onChanged: notifier.setAutoOpenFolder,
               ),
+            ]),
+
+            const SizedBox(height: 16),
+
+            // ==================== 账号 ====================
+            _buildSection(theme, '账号', [
+              const _YoutubeLoginTile(),
             ]),
 
             const SizedBox(height: 16),
@@ -276,5 +285,68 @@ class SettingsPage extends ConsumerWidget {
         );
       }
     }
+  }
+}
+
+/// YouTube 登录状态条目（独立 StatefulWidget 管理登录态）
+class _YoutubeLoginTile extends StatefulWidget {
+  const _YoutubeLoginTile();
+
+  @override
+  State<_YoutubeLoginTile> createState() => _YoutubeLoginTileState();
+}
+
+class _YoutubeLoginTileState extends State<_YoutubeLoginTile> {
+  bool _loggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final has = await YoutubeCookies.hasCookies();
+    if (mounted) setState(() => _loggedIn = has);
+  }
+
+  Future<void> _login() async {
+    final ok = await YoutubeLoginDialog.show(context);
+    if (ok) {
+      await _refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('YouTube 登录成功')),
+        );
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    await YoutubeCookies.clearCookies();
+    await _refresh();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已退出 YouTube 登录')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      leading: Icon(
+        Icons.account_circle,
+        color: _loggedIn ? theme.colorScheme.primary : null,
+      ),
+      title: const Text('YouTube 登录'),
+      subtitle: Text(
+        _loggedIn ? '已登录（下载时自动带 Cookie）' : '未登录（部分视频可能被反爬拦截）',
+      ),
+      trailing: _loggedIn
+          ? TextButton(onPressed: _logout, child: const Text('退出登录'))
+          : FilledButton.tonal(onPressed: _login, child: const Text('登录')),
+    );
   }
 }

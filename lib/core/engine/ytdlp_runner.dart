@@ -8,6 +8,7 @@ import '../../data/models/download_progress.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../platform/binary_locator.dart';
+import '../storage/youtube_cookies.dart';
 
 /// yt-dlp 解析异常
 class YtDlpException implements Exception {
@@ -133,6 +134,12 @@ class YtDlpRunner {
       }
     }
 
+    // YouTube 反爬：已登录则带上浏览器 cookie
+    String? cookiesPath;
+    if (_isYoutubeUrl(url) && await YoutubeCookies.hasCookies()) {
+      cookiesPath = (await YoutubeCookies.cookieFile()).path;
+    }
+
     final args = <String>[
       '--newline', // 每行一个进度，便于解析
       '--no-warnings',
@@ -145,6 +152,7 @@ class YtDlpRunner {
       if (downloadSubtitles) ...['--write-subs', '--write-auto-subs'],
       // --write-thumbnail 只写一张默认封面（即最高清那张），--write-all-thumbnails 才会写多张
       if (downloadCover) ...['--write-thumbnail', '--convert-thumbnails', 'jpg'],
+      if (cookiesPath != null) ...['--cookies', cookiesPath],
       url,
     ];
 
@@ -244,6 +252,12 @@ class YtDlpRunner {
   static String _deriveOutputPath(String template) {
     // 替换 %(ext)s 为 mp4（我们强制 merge-output-format mp4）
     return template.replaceAll('%(ext)s', 'mp4');
+  }
+
+  /// 是否为 YouTube 链接
+  static bool _isYoutubeUrl(String url) {
+    final u = url.toLowerCase();
+    return u.contains('youtube.com') || u.contains('youtu.be');
   }
 
   /// 获取可用字幕语言列表
