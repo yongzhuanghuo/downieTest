@@ -110,6 +110,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     required VideoInfo videoInfo,
     required FormatOption format,
     bool downloadSubtitles = false,
+    bool downloadCover = false,
   }) async {
     final task = DownloadTask(
       id: const Uuid().v4(),
@@ -124,6 +125,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       fileSize: format.fileSize ?? 0,
       audioOnly: format.audioOnly,
       downloadSubtitles: downloadSubtitles,
+      downloadCover: downloadCover,
       createdAt: DateTime.now(),
     );
 
@@ -177,6 +179,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             shouldCancel: () => _cancelled.contains(task.id),
             audioOnly: task.audioOnly,
             downloadSubtitles: task.downloadSubtitles,
+            downloadCover: task.downloadCover,
           );
           if (_cancelled.contains(task.id)) {
             await _finishStatus(task.id, DownloadStatus.cancelled);

@@ -87,6 +87,7 @@ class YtDlpRunner {
     bool Function()? shouldCancel,
     bool audioOnly = false,
     bool downloadSubtitles = false,
+    bool downloadCover = false,
   }) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
@@ -142,6 +143,8 @@ class YtDlpRunner {
       if (audioOnly) ...['-x', '--audio-format', 'mp3'],
       if (!audioOnly) ...['--merge-output-format', 'mp4'],
       if (downloadSubtitles) ...['--write-subs', '--write-auto-subs'],
+      // --write-thumbnail 只写一张默认封面（即最高清那张），--write-all-thumbnails 才会写多张
+      if (downloadCover) ...['--write-thumbnail', '--convert-thumbnails', 'jpg'],
       url,
     ];
 

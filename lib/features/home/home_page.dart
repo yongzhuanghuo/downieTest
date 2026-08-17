@@ -21,6 +21,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   final _urlController = TextEditingController();
   FormatOption? _selectedFormat;
   bool _downloadSubtitles = false; // 下载时是否导出字幕
+  bool _downloadCover = false; // 下载时是否下载封面
 
   @override
   void dispose() {
@@ -49,6 +50,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> _parse() async {
     _selectedFormat = null;
     _downloadSubtitles = false;
+    _downloadCover = false;
     ref.read(parseProvider.notifier).parse(_urlController.text);
   }
 
@@ -155,6 +157,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           videoInfo: info,
           format: format,
           downloadSubtitles: _downloadSubtitles,
+          downloadCover: _downloadCover,
         );
     if (mounted) {
       final rem = storage.todayRemaining;
@@ -470,7 +473,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 16),
             _buildFormatSelector(theme, info),
             const SizedBox(height: 12),
-            _buildSubtitleCheckbox(theme),
+            _buildDownloadOptions(theme),
             const SizedBox(height: 16),
             _buildDownloadButton(theme),
           ],
@@ -547,15 +550,32 @@ class _HomePageState extends ConsumerState<HomePage> {
     return '${f.label}$size';
   }
 
-  Widget _buildSubtitleCheckbox(ThemeData theme) {
-    return CheckboxListTile(
-      value: _downloadSubtitles,
-      onChanged: (v) => setState(() => _downloadSubtitles = v ?? false),
-      title: const Text('同时下载字幕'),
-      subtitle: const Text('下载所有可用字幕（.srt/.vtt）'),
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      controlAffinity: ListTileControlAffinity.leading,
+  Widget _buildDownloadOptions(ThemeData theme) {
+    return Row(
+      children: [
+        Expanded(
+          child: CheckboxListTile(
+            value: _downloadSubtitles,
+            onChanged: (v) => setState(() => _downloadSubtitles = v ?? false),
+            title: const Text('同时下载字幕'),
+            subtitle: const Text('.srt / .vtt'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+        ),
+        Expanded(
+          child: CheckboxListTile(
+            value: _downloadCover,
+            onChanged: (v) => setState(() => _downloadCover = v ?? false),
+            title: const Text('同时下载封面'),
+            subtitle: const Text('.jpg'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+        ),
+      ],
     );
   }
 

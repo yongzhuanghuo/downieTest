@@ -48,6 +48,9 @@ class DownloadTask {
   /// 是否在下载时同时导出字幕
   final bool downloadSubtitles;
 
+  /// 是否在下载时同时下载封面
+  final bool downloadCover;
+
   /// 当前状态
   final DownloadStatus status;
 
@@ -93,6 +96,7 @@ class DownloadTask {
     required this.ext,
     required this.audioOnly,
     this.downloadSubtitles = false,
+    this.downloadCover = false,
     this.status = DownloadStatus.pending,
     this.progress,
     this.fileSize = 0,
@@ -130,6 +134,7 @@ class DownloadTask {
       ext: ext,
       audioOnly: audioOnly,
       downloadSubtitles: downloadSubtitles,
+      downloadCover: downloadCover,
       status: status ?? this.status,
       progress: progress ?? this.progress,
       fileSize: fileSize ?? this.fileSize,

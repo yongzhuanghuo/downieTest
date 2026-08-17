@@ -602,6 +602,7 @@ pm2 save && pm2 startup
 ### 阶段 13：字幕功能（下载时勾选下载字幕）✅ 已完成
 
 - 下载视频时勾选「同时下载字幕」，yt-dlp `--write-subs --write-auto-subs` 下载全部可用字幕
+- 下载时勾选「同时下载封面」，yt-dlp `--write-thumbnail --convert-thumbnails jpg` 下载封面图（只下载最高清一张，转成 jpg）
 - 上传视频 / 音频提取字幕 → 已取消（归入阶段 18 后期）
 
 ### 阶段 14：去水印工具 ❌ 已移除
@@ -614,9 +615,26 @@ pm2 save && pm2 startup
 - 原「14 天试用」暂缓，当前免费额度为「每日 2 个视频」（客户端本地配额）
 - 服务端试用记录留待后期
 
-### 阶段 16：版本推送（方案 A）⏳ 待开始
+### 阶段 16：版本推送（方案 A）⏳ 暂缓（已设计，未实现）
 
-- 后端版本接口 + 客户端启动检查 + 弹窗提示
+> 设计已确定，暂缓开发。实现时按下面方案。
+
+**目标**：用户打开旧版软件 → 软件自动查服务器有无新版 → 有就弹窗提示更新。
+
+**整体链路**：
+1. 打包（.dmg / .exe）
+2. 安装包上传到可下载地址（建议阿里云 OSS；包内嵌 ffmpeg 后超 100MB，Gitee Releases 放不下）
+3. 后端记录「最新版本号 + 下载地址」
+4. 客户端启动检查 → 弹窗 → 引导下载
+
+**后端**：
+- 新增 `GET /api/version/latest?platform=macos|windows`，返回 `{ ok, version, build, url, changelog, force }`
+- 版本信息先写死在 `.env`（`LATEST_VERSION` / `DOWNLOAD_URL_MACOS` / `DOWNLOAD_URL_WINDOWS` / `CHANGELOG`），发版时改完重启即可；以后需要再上数据库表 `app_versions`
+
+**客户端**：
+- 依赖：`package_info_plus`（读版本号）、`url_launcher`（打开下载链接）
+- 启动时异步检查（不阻塞、失败静默），比较 `build` 号（或语义化版本）
+- 有新版 → 弹窗显示版本号 + changelog +「立即更新」按钮 → 打开浏览器下载 → 用户手动安装
 
 ### 阶段 17：UI 重新设计 ⏳ 待开始
 
