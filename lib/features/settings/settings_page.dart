@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/engine/ytdlp_runner.dart';
 import '../license/license_card.dart';
 import 'settings_provider.dart';
 
@@ -9,11 +10,57 @@ import 'settings_provider.dart';
 ///
 /// 所有设置项均通过 [SettingsNotifier] 实时持久化到 Hive，
 /// 修改后立即生效且重启不丢失。
-class SettingsPage extends ConsumerWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  String? _ytDlpVersion;
+  bool _updating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadYtDlpVersion();
+  }
+
+  Future<void> _loadYtDlpVersion() async {
+    try {
+      final v = await YtDlpRunner.getVersion();
+      if (mounted) setState(() => _ytDlpVersion = v);
+    } catch (e) {
+      debugPrint('[设置] 读取 yt-dlp 版本失败: $e');
+    }
+  }
+
+  /// 手动检查 yt-dlp 更新（`-U` 内部对比版本，最新时不会重复下载）
+  Future<void> _checkYtDlpUpdate() async {
+    setState(() => _updating = true);
+    try {
+      final r = await YtDlpRunner.update()
+          .timeout(const Duration(seconds: 60));
+      if (!mounted) return;
+      setState(() {
+        _ytDlpVersion = r.version;
+        _updating = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(r.message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _updating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('检查更新失败：$e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
@@ -138,6 +185,23 @@ class SettingsPage extends ConsumerWidget {
                 leading: const Icon(Icons.info_outline),
                 title: const Text('版本'),
                 subtitle: const Text('2.0.0'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.update),
+                title: const Text('yt-dlp 版本'),
+                subtitle: Text(
+                  _ytDlpVersion ?? '读取中...',
+                ),
+                trailing: _updating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : TextButton(
+                        onPressed: _checkYtDlpUpdate,
+                        child: const Text('检查更新'),
+                      ),
               ),
             ]),
             const SizedBox(height: 8),

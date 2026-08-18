@@ -709,3 +709,25 @@ pm2 save && pm2 startup
 
 - 未列入的站点按域名自动推导登录页，同样支持登录
 - 依赖 `flutter_inappwebview`（macOS 用 WKWebView、Windows 用 WebView2，Windows 需装 WebView2 runtime）
+
+### 阶段 20：yt-dlp 自动更新 ✅ 已完成 + OSS 镜像源 ⏳ 后期
+
+**已完成：运行时自动更新（无需重新打包 App）**
+
+- 启动时后台跑 `yt-dlp -U`（fire-and-forget，不阻塞 UI，60s 超时，失败静默降级继续用旧版）
+- 设置页「关于」区新增「yt-dlp 版本 + 检查更新」按钮，手动触发
+- 原理：`yt-dlp -U` 内部自带版本对比，发现新版才下载替换自己；已最新时不会重复下载
+- 生效前提：**只有打包版内嵌的 standalone 二进制支持 `-U` 自更新**；开发态走系统 PATH 的 brew/pip 版会被 yt-dlp 禁用 `-U`（提示用 pip 更新），自动更新自动跳过，不影响下载
+
+**后期：OSS 镜像更新源（暂不实现，需先有 OSS）**
+
+> 现在还没有阿里云 OSS，此功能先不加。等申请好 OSS（阶段 16 版本推送也需要它）再实现。
+
+**原因**：
+1. 当前 `-U` 直连 GitHub，国内访问慢且不稳定，自动更新经常超时失败 → 静默降级后用户实际拿不到最新版，更新机制形同虚设
+2. 服务器定时拉 GitHub 最新 yt-dlp 存到 OSS，客户端用 `yt-dlp -U --update-to <OSS 地址>` 指向国内下载，速度快且可控
+3. 和阶段 16「版本推送」共用一个 OSS，避免重复建设
+
+**实现方式（到时候）**：
+- 服务器定时任务：拉取 yt-dlp GitHub 最新 release 的 standalone 二进制 → 上传 OSS 固定路径（如 `yt-dlp/yt-dlp_latest`)
+- 客户端：`YtDlpRunner.update()` 改用 `--update-to` 指向 OSS 地址，失败再回退 GitHub 官方源

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -87,6 +88,26 @@ Future<void> _initBinaries() async {
   } else {
     debugPrint('[Engine] ✅ 引擎就绪');
   }
+
+  // 4. 后台自动更新 yt-dlp（fire-and-forget，不阻塞启动）
+  _autoUpdateYtDlp();
+}
+
+/// 后台自动更新 yt-dlp 到最新版。
+///
+/// `yt-dlp -U` 内部会对比版本，发现新版才下载替换自己（已最新不会重复下载）。
+/// 打包版的内嵌 standalone 二进制支持自更新；开发态走 PATH 的 brew/pip 版
+/// 会被禁用，失败静默降级继续用旧版，不影响下载。
+/// 套 60s 超时，防止国内 GitHub 慢导致后台进程一直挂着。
+void _autoUpdateYtDlp() {
+  unawaited(() async {
+    try {
+      final r = await YtDlpRunner.update().timeout(const Duration(seconds: 60));
+      debugPrint('[更新] yt-dlp: ${r.message}');
+    } catch (e) {
+      debugPrint('[更新] yt-dlp 自动更新失败（降级继续用旧版）: $e');
+    }
+  }());
 }
 
 /// 把 debugPrint 同时写到日志文件（应用支持目录 logs/ 下，按天命名）。

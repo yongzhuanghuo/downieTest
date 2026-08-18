@@ -37,6 +37,31 @@ class YtDlpRunner {
     return result.stdout.trim();
   }
 
+  /// 更新 yt-dlp 到最新版
+  ///
+  /// `yt-dlp -U` 内部会对比当前版本，只有发现新版才下载替换自己；
+  /// 已是最新时直接返回「已是最新版」，不会重复下载。
+  /// 返回 (是否成功, 更新后版本, 提示信息)。
+  ///
+  /// 注意：只有打包版内嵌的 standalone 二进制支持 `-U` 自更新；
+  /// 开发态走 PATH 的 brew/pip 版会被禁用（提示用 pip 更新），返回失败即可静默跳过。
+  static Future<({bool ok, String version, String message})> update() async {
+    final before = await getVersion();
+    final result = await _runCommand(['-U', '--no-warnings']);
+    final after = await getVersion();
+    if (result.exitCode != 0) {
+      return (
+        ok: false,
+        version: before,
+        message: '更新失败: ${_extractErrorMessage(result.stderr)}',
+      );
+    }
+    if (after == before && !result.stdout.contains('Updated')) {
+      return (ok: true, version: after, message: '已是最新版 $after');
+    }
+    return (ok: true, version: after, message: '已更新到 $after');
+  }
+
   /// 解析视频信息（不下载）
   ///
   /// [url] 视频 URL
