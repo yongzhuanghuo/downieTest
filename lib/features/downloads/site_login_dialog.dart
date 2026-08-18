@@ -44,6 +44,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     try {
       final cookies = await CookieManager.instance()
           .getCookies(url: WebUri(widget.site.loginUrl));
+      debugPrint('[登录] ${widget.site.name} 抓到 ${cookies.length} 条 cookie');
       await SiteCookies.saveCookies(widget.site.id, cookies);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {

@@ -130,8 +130,10 @@ class SettingsStorage {
       await testFile.delete();
       return dir;
     } catch (_) {
-      // 回退到用户主目录
-      final home = Platform.environment['HOME'] ?? '.';
+      // 回退到用户主目录（Windows 没有 HOME 环境变量，用 USERPROFILE）
+      final home = Platform.environment['HOME'] ??
+          (Platform.isWindows ? Platform.environment['USERPROFILE'] : null) ??
+          '.';
       final fallback = Directory('$home/.downie_test');
       if (!await fallback.exists()) {
         await fallback.create(recursive: true);

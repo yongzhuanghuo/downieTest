@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'settings_storage.dart';
@@ -53,6 +54,7 @@ class SiteCookies {
     }
     final f = await cookieFile(siteId);
     await f.writeAsString(buf.toString());
+    debugPrint('[Cookie] 保存 ${cookies.length} 条到 ${f.path}');
   }
 
   static Future<void> clearCookies(String siteId) async {
