@@ -50,6 +50,7 @@ class SiteLoginDialog extends StatefulWidget {
 class _SiteLoginDialogState extends State<SiteLoginDialog> {
   bool _saving = false;
   bool _webView2Missing = false;
+  InAppWebViewController? _controller;
 
   @override
   void initState() {
@@ -63,8 +64,10 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   Future<void> _finish() async {
     setState(() => _saving = true);
     try {
-      final cookies = await CookieManager.instance()
-          .getCookies(url: WebUri(widget.site.loginUrl));
+      final cookies = await CookieManager.instance().getCookies(
+        url: WebUri(widget.site.loginUrl),
+        webViewController: _controller,
+      );
       debugPrint('[登录] ${widget.site.name} 抓到 ${cookies.length} 条 cookie');
       await SiteCookies.saveCookies(widget.site.id, cookies);
       if (mounted) Navigator.of(context).pop(true);
@@ -153,6 +156,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                       initialSettings:
                           InAppWebViewSettings(javaScriptEnabled: true),
                       onWebViewCreated: (controller) {
+                        _controller = controller;
                         debugPrint('[登录] webview 已创建');
                       },
                       onLoadStart: (controller, url) {
