@@ -68,6 +68,11 @@ jobs:
       - name: 打包 Windows
         run: flutter build windows --release
 
+      - name: 下载 WebView2 运行时安装器
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "windows/installer/MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+
       - name: 生成安装包（Inno Setup）
         shell: pwsh
         run: |

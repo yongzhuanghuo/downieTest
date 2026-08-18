@@ -36,7 +36,9 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   void initState() {
     super.initState();
     // Windows 没装 WebView2 会空白，这里先检测，缺了就提示
-    _webView2Missing = !isWebView2Available();
+    final available = isWebView2Available();
+    _webView2Missing = !available;
+    debugPrint('[登录] WebView2 可用: $available');
   }
 
   Future<void> _finish() async {
