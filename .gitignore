@@ -55,10 +55,8 @@ assets/bin/windows/*
 macos/Pods/
 macos/Podfile.lock
 
-# Flutter generated
-.dart_tool/
-*.lock
-!pubspec.lock
+# pubspec.lock 提交进库（应用项目应锁定依赖版本），不要忽略
+# 后端 package-lock.json 同样提交进库，保证可复现构建
 
 # 日志文件
 *.log
