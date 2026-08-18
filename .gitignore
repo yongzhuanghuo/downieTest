@@ -12,6 +12,7 @@ flutter_*.png
 # IDE
 .idea/
 .vscode/
+.claude/
 *.iml
 *.ipr
 *.iws
