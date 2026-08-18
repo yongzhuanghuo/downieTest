@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,8 +30,11 @@ class ParseState {
 class ParseNotifier extends StateNotifier<ParseState> {
   ParseNotifier() : super(const ParseState());
 
-  /// 解析视频 URL
-  Future<void> parse(String url) async {
+  /// 解析视频 URL（公开入口）
+  Future<void> parse(String url) => _doParse(url, autoLogin: true);
+
+  /// 解析实现。autoLogin 为 true 时，遇到需要登录的站点会弹登录并自动重试一次。
+  Future<void> _doParse(String url, {required bool autoLogin}) async {
     final trimmed = url.trim();
     if (trimmed.isEmpty) {
       state = const ParseState(status: ParseStatus.error, error: '请输入视频链接');
@@ -46,13 +47,26 @@ class ParseNotifier extends StateNotifier<ParseState> {
       final info = await YtDlpRunner.parse(target);
       state = ParseState(status: ParseStatus.success, videoInfo: info);
     } on YtDlpException catch (e) {
-      state = ParseState(status: ParseStatus.error, error: e.message);
-      // 解析也需要登录/cookie 的站点（如抖音）：弹登录提示
-      if (isCookieError(e.message)) {
-        unawaited(promptSiteLogin(target));
+      // 技术日志只输出到终端，不显示在界面上
+      debugPrint('[解析] $target 失败: ${e.message}');
+      final needLogin = isCookieError(e.message);
+      state = ParseState(
+        status: ParseStatus.error,
+        error: needLogin ? '该网站需要登录后才能解析' : _friendlyError(e.message),
+      );
+      if (needLogin && autoLogin) {
+        final loggedIn = await promptSiteLogin(target);
+        if (loggedIn) {
+          // 登录成功，自动重新解析一次（不再自动弹登录，避免死循环）
+          await _doParse(url, autoLogin: false);
+        }
       }
     } catch (e) {
-      state = ParseState(status: ParseStatus.error, error: '解析失败: $e');
+      debugPrint('[解析] $target 异常: $e');
+      state = const ParseState(
+        status: ParseStatus.error,
+        error: '解析失败，请检查链接是否正确',
+      );
     }
   }
 
@@ -68,4 +82,19 @@ final parseProvider =
 String? _extractUrl(String text) {
   final m = RegExp(r'https?://[^\s一-鿿]+').firstMatch(text);
   return m?.group(0);
+}
+
+/// 把 yt-dlp 的技术错误转成用户能看懂的提示
+String _friendlyError(String message) {
+  final m = message.toLowerCase();
+  if (m.contains('unsupported url') || m.contains('unsupported')) {
+    return '不支持该链接，请确认链接是否正确';
+  }
+  if (m.contains('not found') || m.contains('404')) {
+    return '视频不存在或已被删除';
+  }
+  if (m.contains('private') || m.contains('members only') || m.contains('premium')) {
+    return '该视频需要会员或登录才能访问';
+  }
+  return '解析失败，请检查链接是否正确';
 }

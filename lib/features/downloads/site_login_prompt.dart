@@ -47,7 +47,7 @@ Future<bool> promptSiteLogin(String url) async {
   final loggedIn = await SiteLoginDialog.show(ctx2, site);
   if (loggedIn) {
     messenger.showSnackBar(
-      const SnackBar(content: Text('登录成功，请重试')),
+      const SnackBar(content: Text('登录成功')),
     );
   }
   return loggedIn;
