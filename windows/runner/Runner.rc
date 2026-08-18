@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.downlo" "\0"
-            VALUE "FileDescription", "downlo_test" "\0"
+            VALUE "FileDescription", "Sownie Pro" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "downlo_test" "\0"
+            VALUE "InternalName", "Sownie Pro" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.downlo. All rights reserved." "\0"
-            VALUE "OriginalFilename", "downlo_test.exe" "\0"
-            VALUE "ProductName", "downlo_test" "\0"
+            VALUE "OriginalFilename", "sownie.exe" "\0"
+            VALUE "ProductName", "Sownie Pro" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

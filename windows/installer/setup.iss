@@ -4,7 +4,7 @@
 
 #define MyAppName "Sownie Pro"
 #define MyAppVersion "2.0.0"
-#define MyAppExeName "downlo_test.exe"
+#define MyAppExeName "sownie.exe"
 
 [Setup]
 AppId={{7C1A2B3D-4E5F-4A6B-8C9D-0E1F2A3B4C5D}

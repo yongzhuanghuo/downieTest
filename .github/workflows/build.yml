@@ -38,7 +38,7 @@ jobs:
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
-          name: downie-pro-macos
+          name: sownie-pro-macos
           path: build/macos/Build/Products/Release/*.app
           retention-days: 30
 
@@ -82,13 +82,13 @@ jobs:
       - name: 上传安装包
         uses: actions/upload-artifact@v4
         with:
-          name: downie-pro-windows-setup
+          name: sownie-pro-windows-setup
           path: windows/installer/Output/*.exe
           retention-days: 30
 
       - name: 上传产物（便携版）
         uses: actions/upload-artifact@v4
         with:
-          name: downie-pro-windows
+          name: sownie-pro-windows
           path: build/windows/x64/runner/Release/
           retention-days: 30
