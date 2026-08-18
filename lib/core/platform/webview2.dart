@@ -31,7 +31,8 @@ Future<void> openWebView2DownloadPage() async {
   const url = 'https://developer.microsoft.com/microsoft-edge/webview2/';
   try {
     if (Platform.isWindows) {
-      await Process.run('explorer', [url]);
+      // rundll32 触发 Shell 打开 URL，浏览器会正确置顶（explorer 方式有时压在窗口下面）
+      await Process.run('rundll32', ['url.dll,FileProtocolHandler', url]);
     } else if (Platform.isMacOS) {
       await Process.run('open', [url]);
     }
