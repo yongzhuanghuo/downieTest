@@ -39,15 +39,17 @@ class ParseNotifier extends StateNotifier<ParseState> {
       state = const ParseState(status: ParseStatus.error, error: '请输入视频链接');
       return;
     }
+    // 从分享文本里提取真正的 URL（抖音/B站等复制的链接常带标题等文字）
+    final target = _extractUrl(trimmed) ?? trimmed;
     state = const ParseState(status: ParseStatus.loading);
     try {
-      final info = await YtDlpRunner.parse(trimmed);
+      final info = await YtDlpRunner.parse(target);
       state = ParseState(status: ParseStatus.success, videoInfo: info);
     } on YtDlpException catch (e) {
       state = ParseState(status: ParseStatus.error, error: e.message);
       // 解析也需要登录/cookie 的站点（如抖音）：弹登录提示
       if (isCookieError(e.message)) {
-        unawaited(promptSiteLogin(trimmed));
+        unawaited(promptSiteLogin(target));
       }
     } catch (e) {
       state = ParseState(status: ParseStatus.error, error: '解析失败: $e');
@@ -60,3 +62,10 @@ class ParseNotifier extends StateNotifier<ParseState> {
 
 final parseProvider =
     StateNotifierProvider<ParseNotifier, ParseState>((ref) => ParseNotifier());
+
+/// 从分享文本里提取第一个 URL（如「标题 https://v.douyin.com/xxx 复制此链接」）。
+/// 匹配到空格或中文字符为止；找不到 URL 则返回 null。
+String? _extractUrl(String text) {
+  final m = RegExp(r'https?://[^\s一-鿿]+').firstMatch(text);
+  return m?.group(0);
+}
