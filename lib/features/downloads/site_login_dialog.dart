@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../../core/platform/webview2.dart';
+import '../../core/storage/settings_storage.dart';
 import '../../core/storage/site_cookies.dart';
 import '../../core/storage/site_registry.dart';
 
@@ -11,15 +14,31 @@ import '../../core/storage/site_registry.dart';
 /// 抓取该站 cookie 存成 cookies/{siteId}.txt。
 class SiteLoginDialog extends StatefulWidget {
   final SiteConfig site;
+  final WebViewEnvironment? environment;
 
-  const SiteLoginDialog({super.key, required this.site});
+  const SiteLoginDialog({super.key, required this.site, this.environment});
 
   /// 弹出登录框；返回 true 表示登录成功并已保存 cookie
   static Future<bool> show(BuildContext context, SiteConfig site) async {
+    // 安装版装在 Program Files（只读），WebView2 默认在 exe 旁建用户数据目录会失败导致白屏。
+    // 把用户数据目录指到可写的 AppData，修复安装版白屏。
+    WebViewEnvironment? env;
+    if (Platform.isWindows) {
+      try {
+        final dir = await SettingsStorage.getStorageDir();
+        env = await WebViewEnvironment.create(
+          settings: WebViewEnvironmentSettings(
+            userDataFolder: '${dir.path}\\WebView2',
+          ),
+        );
+      } catch (e) {
+        debugPrint('[登录] WebView2 环境创建失败: $e');
+      }
+    }
     final ok = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => SiteLoginDialog(site: site),
+      builder: (_) => SiteLoginDialog(site: site, environment: env),
     );
     return ok ?? false;
   }
@@ -128,6 +147,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
               child: _webView2Missing
                   ? _buildWebView2Missing(theme)
                   : InAppWebView(
+                      webViewEnvironment: widget.environment,
                       initialUrlRequest:
                           URLRequest(url: WebUri(widget.site.loginUrl)),
                       initialSettings:
