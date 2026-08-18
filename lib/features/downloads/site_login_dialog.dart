@@ -68,6 +68,12 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         webViewEnvironment: widget.environment,
       ).getCookies(url: WebUri(widget.site.loginUrl));
       debugPrint('[登录] ${widget.site.name} 抓到 ${cookies.length} 条 cookie');
+      for (final c in cookies) {
+        debugPrint('[登录]   cookie: ${c.name} @ ${c.domain}');
+      }
+      if (cookies.isEmpty) {
+        debugPrint('[登录] ⚠️ 抓到 0 条 cookie —— 很可能没在页面里真正登录！');
+      }
       await SiteCookies.saveCookies(widget.site.id, cookies);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -177,7 +183,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                 children: [
                   Expanded(
                     child: Text(
-                      '登录完成后点击「完成登录」',
+                      '先在页面里登录账号（扫码/短信），登录成功后点「完成登录」',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

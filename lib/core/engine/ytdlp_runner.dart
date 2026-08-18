@@ -45,6 +45,18 @@ class YtDlpRunner {
     // 站点登录 cookie（解析阶段也可能需要，如抖音）
     final cookiePaths = await SiteCookies.allCookieFilePaths();
     debugPrint('[解析] cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}');
+    for (final cp in cookiePaths) {
+      try {
+        final lines = await File(cp).readAsLines();
+        final names = lines
+            .where((l) => l.isNotEmpty && !l.startsWith('#'))
+            .map((l) => l.split('\t').length >= 6 ? l.split('\t')[5] : '?')
+            .toList();
+        debugPrint('[解析]   $cp 共 ${names.length} 条，名字: ${names.join(', ')}');
+      } catch (e) {
+        debugPrint('[解析]   读 cookie 文件失败: $e');
+      }
+    }
     // 使用 --dump-json 输出单行 JSON
     final result = await _runCommand([
       '--dump-json',
