@@ -513,6 +513,29 @@ pm2 start ecosystem.config.cjs
 pm2 save && pm2 startup
 ```
 
+### 5.4 查看日志
+
+日志用 `debugPrint` 输出到标准输出，带 `[...]` 前缀便于搜索：
+
+| 前缀 | 来源 |
+|------|------|
+| `[解析]` | 视频解析（含原始技术报错） |
+| `[YtDlp]` | yt-dlp 下载引擎 |
+| `[DownloadList]` | 下载队列 / 任务 |
+| `[Engine]` | 启动时的引擎初始化 |
+| `[BinaryLocator]` / `[BinaryInit]` | yt-dlp / FFmpeg 二进制定位 |
+| `[Settings]` | 设置存储 |
+
+**开发态**：跑 `flutter run -d macos` 时，日志直接打印在**启动它的那个终端窗口**里（VS Code 则在 Debug Console / OUTPUT 面板）。
+
+**打包态（release .app）**：`debugPrint` 仍会输出到 stdout，但双击启动的 GUI 应用没有终端，日志会丢失。要在打包版排查问题，两种方式：
+
+1. 从终端启动（能看到 stdout）：
+   `./build/macos/Build/Products/Release/downie_test.app/Contents/MacOS/downie_test`
+2. 后续加「写日志文件」功能，把日志同时落到本地文件（暂未实现，需要时再加）
+
+> 界面上的报错已做友好化，只显示用户能看懂的提示；原始技术报错只在终端日志里能看到。
+
 ---
 
 ## 六、开发计划与进度
