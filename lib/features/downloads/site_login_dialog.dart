@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
@@ -11,15 +13,29 @@ import '../../core/storage/site_registry.dart';
 /// 抓取该站 cookie 存成 cookies/{siteId}.txt。
 class SiteLoginDialog extends StatefulWidget {
   final SiteConfig site;
+  final WebViewEnvironment? environment;
 
-  const SiteLoginDialog({super.key, required this.site});
+  const SiteLoginDialog({super.key, required this.site, this.environment});
 
   /// 弹出登录框；返回 true 表示登录成功并已保存 cookie
   static Future<bool> show(BuildContext context, SiteConfig site) async {
+    // Windows 上禁用 GPU 硬件加速，避免虚拟机/部分显卡白屏
+    WebViewEnvironment? env;
+    if (Platform.isWindows) {
+      try {
+        env = await WebViewEnvironment.create(
+          settings: WebViewEnvironmentSettings(
+            additionalBrowserArguments: '--disable-gpu --disable-gpu-compositing',
+          ),
+        );
+      } catch (e) {
+        debugPrint('[登录] WebView2 环境创建失败: $e');
+      }
+    }
     final ok = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => SiteLoginDialog(site: site),
+      builder: (_) => SiteLoginDialog(site: site, environment: env),
     );
     return ok ?? false;
   }
@@ -128,6 +144,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
               child: _webView2Missing
                   ? _buildWebView2Missing(theme)
                   : InAppWebView(
+                      webViewEnvironment: widget.environment,
                       initialUrlRequest:
                           URLRequest(url: WebUri(widget.site.loginUrl)),
                       initialSettings:
