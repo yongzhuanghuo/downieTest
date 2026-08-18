@@ -186,7 +186,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           children: [
             _buildTopBanner(theme, isPro, used, remaining),
             const SizedBox(height: 20),
-            Text('添加链接', style: theme.textTheme.headlineSmall),
+            Text('添加链接', style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
               '粘贴视频链接，支持 YouTube、B站、抖音等 1000+ 网站',

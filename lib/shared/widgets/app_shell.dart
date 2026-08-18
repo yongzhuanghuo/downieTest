@@ -98,7 +98,7 @@ class _SideNavigationBar extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            'Sownie Pro',
+            '4K全能视频下载器',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.onSurface,
@@ -158,7 +158,7 @@ class _SideNavigationBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Text(
-        'v1.0.0',
+        'v2.0.0',
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
         ),

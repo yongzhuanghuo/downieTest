@@ -47,7 +47,7 @@ Future<void> _initWindowManager() async {
     size: _defaultWindowSize,
     minimumSize: _minWindowSize,
     center: true,
-    title: 'Sownie Pro',
+    title: '4KDownle',
     titleBarStyle: TitleBarStyle.normal,
   );
 

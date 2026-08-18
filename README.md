@@ -1,10 +1,10 @@
-# Sownie Pro 项目技术文档
+# 4KDownle 项目技术文档
 
 > 网页视频下载工具 — 支持 YouTube、B站、抖音等 1000+ 网站  
 > 目标平台：macOS / Windows
-> 软件英文名：Sownie
-中文名称：拾帧
-专业版：Sownie Pro / 拾帧专业版
+> 软件英文名：4KDownle
+中文名称：4k全能视频下载器
+专业版：4KDownle / 4K全能视频下载器
 Slogan：拾取全网流媒体，留存每一帧画面
 
 准备开个淘宝店：简睿增效软件
