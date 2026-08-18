@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -23,6 +25,9 @@ void main() async {
   // 初始化本地存储（Hive KV）—— 设置 + 许可证
   await SettingsStorage.instance.init();
   await LicenseStorage.instance.init();
+
+  // 文件日志：把 debugPrint 同时写到日志文件，打包版双击启动也能排查
+  await _setupFileLogging();
 
   // 初始化 yt-dlp / FFmpeg 二进制（后台执行，不阻塞 UI）
   _initBinaries();
@@ -81,6 +86,36 @@ Future<void> _initBinaries() async {
     debugPrint('[Engine] ⚠️ 引擎未就绪，请确认 yt-dlp / ffmpeg 已安装');
   } else {
     debugPrint('[Engine] ✅ 引擎就绪');
+  }
+}
+
+/// 把 debugPrint 同时写到日志文件（应用支持目录 logs/ 下，按天命名）。
+/// 打包版双击启动时 stdout 没有控制台，日志会丢失，写文件后可随时排查。
+Future<void> _setupFileLogging() async {
+  try {
+    final dir = await SettingsStorage.getStorageDir();
+    final logDir = Directory('${dir.path}/logs');
+    await logDir.create(recursive: true);
+    final now = DateTime.now();
+    final name = 'app_${now.year}'
+        '${now.month.toString().padLeft(2, '0')}'
+        '${now.day.toString().padLeft(2, '0')}.log';
+    final file = File('${logDir.path}/$name');
+
+    final original = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) {
+        try {
+          file.writeAsStringSync(
+            '${DateTime.now().toIso8601String()} $message\n',
+            mode: FileMode.append,
+          );
+        } catch (_) {}
+      }
+      original(message, wrapWidth: wrapWidth);
+    };
+  } catch (e) {
+    debugPrint('日志文件初始化失败: $e');
   }
 }
 

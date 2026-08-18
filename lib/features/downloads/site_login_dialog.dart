@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+import '../../core/platform/webview2.dart';
 import '../../core/storage/site_cookies.dart';
 import '../../core/storage/site_registry.dart';
 
@@ -29,6 +30,14 @@ class SiteLoginDialog extends StatefulWidget {
 
 class _SiteLoginDialogState extends State<SiteLoginDialog> {
   bool _saving = false;
+  bool _webView2Missing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Windows 没装 WebView2 会空白，这里先检测，缺了就提示
+    _webView2Missing = !isWebView2Available();
+  }
 
   Future<void> _finish() async {
     setState(() => _saving = true);
@@ -45,6 +54,39 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         );
       }
     }
+  }
+
+  /// Windows 缺 WebView2 时显示的提示（引导用户去安装）
+  Widget _buildWebView2Missing(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+            const SizedBox(height: 12),
+            Text('未检测到 WebView2 运行时', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              '登录页需要微软 WebView2 内核才能显示，请安装后重新登录',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () {
+                openWebView2DownloadPage();
+              },
+              icon: const Icon(Icons.download),
+              label: const Text('去下载 WebView2'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -80,10 +122,14 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
               ),
             ),
             Expanded(
-              child: InAppWebView(
-                initialUrlRequest: URLRequest(url: WebUri(widget.site.loginUrl)),
-                initialSettings: InAppWebViewSettings(javaScriptEnabled: true),
-              ),
+              child: _webView2Missing
+                  ? _buildWebView2Missing(theme)
+                  : InAppWebView(
+                      initialUrlRequest:
+                          URLRequest(url: WebUri(widget.site.loginUrl)),
+                      initialSettings:
+                          InAppWebViewSettings(javaScriptEnabled: true),
+                    ),
             ),
             Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
@@ -106,7 +152,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
-                    onPressed: _saving ? null : _finish,
+                    onPressed: (_saving || _webView2Missing) ? null : _finish,
                     icon: _saving
                         ? const SizedBox(
                             width: 16,
