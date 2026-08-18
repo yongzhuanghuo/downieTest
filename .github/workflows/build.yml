@@ -68,7 +68,20 @@ jobs:
       - name: 打包 Windows
         run: flutter build windows --release
 
-      - name: 上传产物
+      - name: 生成安装包（Inno Setup）
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          iscc windows/installer/setup.iss
+
+      - name: 上传安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: downie-pro-windows-setup
+          path: windows/installer/Output/*.exe
+          retention-days: 30
+
+      - name: 上传产物（便携版）
         uses: actions/upload-artifact@v4
         with:
           name: downie-pro-windows

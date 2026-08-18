@@ -2,7 +2,7 @@ name: downie_test
 description: "Downlo PRO - 网页视频下载工具"
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 2.0.0+1
 
 environment:
   sdk: ^3.13.0
