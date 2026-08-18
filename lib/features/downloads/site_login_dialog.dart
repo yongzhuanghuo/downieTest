@@ -74,6 +74,26 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       if (cookies.isEmpty) {
         debugPrint('[登录] ⚠️ 抓到 0 条 cookie —— 很可能没在页面里真正登录！');
       }
+      // 检测是否有登录态 cookie（抖音 sessionid / YouTube SID / B站 SESSDATA 等）
+      final hasLogin = cookies.any((c) {
+        final n = c.name.toLowerCase();
+        return n.contains('session') ||
+            n.contains('sid') ||
+            n.contains('sess') ||
+            n.contains('login');
+      });
+      if (!hasLogin) {
+        debugPrint('[登录] ⚠️ 没发现登录 cookie，可能没真正登录');
+        if (mounted) {
+          setState(() => _saving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('还没登录成功，请先在页面里登录账号（看到头像/昵称）再点完成'),
+            ),
+          );
+        }
+        return; // 不关闭弹窗，让用户继续登录
+      }
       await SiteCookies.saveCookies(widget.site.id, cookies);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
