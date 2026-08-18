@@ -1,8 +1,8 @@
-; Downlo PRO Windows 安装包脚本（Inno Setup 6）
+; Sownie Pro Windows 安装包脚本（Inno Setup 6）
 ; 生成单个 setup.exe，用户双击即可安装（含开始菜单/桌面快捷方式/卸载）
 ; 用法：iscc setup.iss
 
-#define MyAppName "Downlo PRO"
+#define MyAppName "Sownie Pro"
 #define MyAppVersion "2.0.0"
 #define MyAppExeName "downlo_test.exe"
 
@@ -14,7 +14,7 @@ AppVerName={#MyAppName} {#MyAppVersion}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=Output
-OutputBaseFilename=DownloPRO-Setup-{#MyAppVersion}
+OutputBaseFilename=SowniePro-Setup-{#MyAppVersion}
 SetupIconFile=..\runner\resources\app_icon.ico
 Compression=lzma2
 SolidCompression=yes

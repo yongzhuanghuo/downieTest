@@ -1,4 +1,4 @@
-# Downlo PRO 项目技术文档
+# Sownie Pro 项目技术文档
 
 > 网页视频下载工具 — 支持 YouTube、B站、抖音等 1000+ 网站  
 > 目标平台：macOS / Windows

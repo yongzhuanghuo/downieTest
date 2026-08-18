@@ -98,7 +98,7 @@ class _SideNavigationBar extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            'Downlo PRO',
+            'Sownie Pro',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.onSurface,

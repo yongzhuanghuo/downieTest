@@ -15,7 +15,7 @@ class DownloApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      title: 'Downlo PRO',
+      title: 'Sownie Pro',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

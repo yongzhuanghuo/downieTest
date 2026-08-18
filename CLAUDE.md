@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-Downlo PRO（Sownie / 拾帧）— Flutter 桌面视频下载器（macOS / Windows），通过 yt-dlp + FFmpeg 子进程做解析、下载、合并，带会员授权系统（自建 Node 后端）。详细结构和技术栈见 [README.md](README.md)（含开发计划阶段 1-19）。
+Sownie Pro（拾帧）— Flutter 桌面视频下载器（macOS / Windows），通过 yt-dlp + FFmpeg 子进程做解析、下载、合并，带会员授权系统（自建 Node 后端）。详细结构和技术栈见 [README.md](README.md)（含开发计划阶段 1-19）。
 
 ## 常用命令
 
