@@ -77,7 +77,16 @@ class YtDlpRunner {
             .where((l) => l.isNotEmpty && !l.startsWith('#'))
             .map((l) => l.split('\t').length >= 6 ? l.split('\t')[5] : '?')
             .toList();
-        debugPrint('[解析]   $cp 共 ${names.length} 条，名字: ${names.join(', ')}');
+        // 关键登录态/反爬 cookie 概览：抖音缺 msToken 就是 Fresh cookies 的直接原因
+        final hasMsToken = names.contains('msToken');
+        final hasSession = names.any((n) =>
+            n.contains('session') ||
+            n.contains('sid_') ||
+            n.contains('login_time'));
+        debugPrint('[解析]   $cp 共 ${names.length} 条，'
+            'msToken=${hasMsToken ? '有' : '❌无'}，'
+            '登录态cookie=${hasSession ? '有' : '❌无'}');
+        debugPrint('[解析]   名字: ${names.join(', ')}');
       } catch (e) {
         debugPrint('[解析]   读 cookie 文件失败: $e');
       }
@@ -177,6 +186,8 @@ class YtDlpRunner {
 
     // 站点登录 cookie：把所有已登录站点的 cookies.txt 都传给 yt-dlp（按域名自动匹配）
     final cookiePaths = await SiteCookies.allCookieFilePaths();
+    debugPrint(
+        '[YtDlp] 下载使用 cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}');
 
     final args = <String>[
       '--newline', // 每行一个进度，便于解析

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -50,6 +51,7 @@ class SiteLoginDialog extends StatefulWidget {
 class _SiteLoginDialogState extends State<SiteLoginDialog> {
   bool _saving = false;
   bool _webView2Missing = false;
+  InAppWebViewController? _controller;
 
   @override
   void initState() {
@@ -95,6 +97,28 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         return; // 不关闭弹窗，让用户继续登录
       }
       await SiteCookies.saveCookies(widget.site.id, cookies);
+
+      // ---------- 补抓 msToken（抖音反爬核心） ----------
+      // 抖音的 msToken 存在 localStorage（key 通常是 xmst），不在 cookie 里；
+      // yt-dlp 抖音提取器会检查 cookie 里的 msToken，缺失就报
+      // "Fresh cookies (not necessarily logged in) are needed"。
+      // 登录态 cookie 再全，没 msToken 也会被拒，所以这里从 localStorage
+      // 抓出来，追加一行成 cookie 写进文件。仅抖音需要，其他站点跳过。
+      if (widget.site.id == 'douyin') {
+        debugPrint('[登录] 抖音站点 → 尝试补抓 msToken');
+        final msToken = await _extractMsToken();
+        if (msToken != null && msToken.isNotEmpty) {
+          debugPrint(
+              '[登录] ✅ 抓到 msToken（${msToken.length} 字符），补进 cookie');
+          await _appendMsToken(msToken);
+        } else {
+          debugPrint('[登录] ⚠️ 没抓到 msToken，抖音解析可能仍报 Fresh cookies');
+        }
+      } else {
+        debugPrint('[登录] ${widget.site.name}（id=${widget.site.id}）非抖音，'
+            '跳过 msToken 抓取，不影响其他站点');
+      }
+
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -103,6 +127,69 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
           SnackBar(content: Text('保存 Cookie 失败：$e')),
         );
       }
+    }
+  }
+
+  /// 从 WebView 的 localStorage 抓抖音 msToken
+  ///
+  /// 抖音把 msToken 存在 localStorage，key 通常是 `xmst`（也可能 `msToken`）。
+  /// 探测多个 key，都找不到时返回 null 并在日志里列出所有 key 名方便排查。
+  Future<String?> _extractMsToken() async {
+    final c = _controller;
+    if (c == null) return null;
+    final script = r'''
+      JSON.stringify((() => {
+        try {
+          const keys = ['xmst', 'msToken', 'ms_token'];
+          for (const k of keys) {
+            const v = localStorage.getItem(k);
+            if (v && v.length > 10) return {found: k, token: v};
+          }
+          const all = [];
+          for (let i = 0; i < localStorage.length; i++) all.push(localStorage.key(i));
+          return {found: null, token: null, keys: all};
+        } catch (e) {
+          return {found: null, token: null, keys: ['__js_error__']};
+        }
+      })())
+    ''';
+    try {
+      final raw = (await c.evaluateJavascript(source: script))?.toString() ?? '';
+      // evaluateJavascript 对字符串返回值可能带 JSON 引号，去掉后再解析
+      final jsonStr = raw.startsWith('"') && raw.endsWith('"')
+          ? raw.substring(1, raw.length - 1)
+          : raw;
+      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final found = map['found'] as String?;
+      final token = map['token'] as String?;
+      if (found != null) {
+        debugPrint('[登录] msToken 的 localStorage key = $found');
+      } else {
+        final keys = (map['keys'] as List?)?.join(', ') ?? '';
+        debugPrint('[登录] localStorage 键: $keys');
+      }
+      return token;
+    } catch (e) {
+      debugPrint('[登录] 读 localStorage 失败: $e');
+      return null;
+    }
+  }
+
+  /// 把 msToken 追加一行到 cookie 文件（Netscape 格式，等价于一个 cookie）
+  Future<void> _appendMsToken(String token) async {
+    try {
+      final f = await SiteCookies.cookieFile(widget.site.id);
+      final line =
+          '${widget.site.cookieDomain}\tTRUE\t/\tFALSE\t0\tmsToken\t$token\n';
+      await File(f.path).writeAsString(line, mode: FileMode.append);
+      // 读回文件验证写入成功（含行数、是否真的有 msToken 行）
+      final lines = await File(f.path).readAsLines();
+      final msLines = lines.where((l) => l.contains('\tmsToken\t')).toList();
+      debugPrint('[Cookie] 已追加 msToken 到 ${f.path}');
+      debugPrint('[Cookie] 验证：文件共 ${lines.length} 行，msToken 行数=${msLines.length}'
+          '，msToken 值长度=${msLines.isEmpty ? 0 : msLines.first.length}');
+    } catch (e) {
+      debugPrint('[Cookie] 追加 msToken 失败: $e');
     }
   }
 
@@ -181,6 +268,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                       initialSettings:
                           InAppWebViewSettings(javaScriptEnabled: true),
                       onWebViewCreated: (controller) {
+                        _controller = controller;
                         debugPrint('[登录] webview 已创建');
                       },
                       onLoadStart: (controller, url) {
