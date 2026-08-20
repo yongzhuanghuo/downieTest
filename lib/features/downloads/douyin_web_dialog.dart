@@ -52,7 +52,7 @@ class _DouyinWebDialogState extends State<DouyinWebDialog> {
   InAppWebViewController? _controller;
   bool _finished = false;
   int _probe = 0;
-  String _status = '正在加载抖音视频页...';
+  String _status = '正在加载抖音视频页，请稍后...';
 
   /// 桌面 Chrome UA：只有桌面 UA 才会从分享页跳转到视频页，
   /// 视频页才请求 aweme/detail；移动 UA 会停在「打开 App」引导页。
@@ -182,23 +182,14 @@ class _DouyinWebDialogState extends State<DouyinWebDialog> {
       if (bitRates is List) {
         for (final b in bitRates) {
           if (b is! Map) continue;
-          final pa = b['play_addr'];
-          final url = firstUrl(pa);
+          final url = firstUrl(b['play_addr']);
           if (url.isEmpty) continue;
           final gearName = (b['gear_name'] as String?) ?? '';
-          // 优先读 play_addr.height（真实分辨率），兜底从 gear_name 提取数字
-          var height = 0;
-          if (pa is Map) {
-            height = (pa['height'] as num?)?.toInt() ?? 0;
-          }
-          if (height <= 0) height = _extractNumber(gearName);
-          debugPrint('[抖音]   格式: gear=$gearName height=$height');
+          debugPrint('[抖音]   格式: gear=$gearName');
           formats.add(FormatOption(
             formatId: _noWatermark(url),
-            label: height > 0
-                ? '${height}P MP4'
-                : (gearName.isNotEmpty ? gearName : 'MP4'),
-            height: height,
+            label: gearName.isNotEmpty ? gearName : 'MP4',
+            height: 0,
             ext: 'mp4',
             needsMerge: false,
           ));
@@ -240,12 +231,6 @@ class _DouyinWebDialogState extends State<DouyinWebDialog> {
   }
 
   String _noWatermark(String url) => url.replaceAll('/playwm/', '/play/');
-
-  /// 从 gear_name（如 "normal_1080_0"、"1080_1_1"）提取 3~4 位数字作为分辨率兜底
-  int _extractNumber(String s) {
-    final m = RegExp(r'(\d{3,4})').firstMatch(s);
-    return m != null ? int.parse(m.group(1)!) : 0;
-  }
 
   @override
   Widget build(BuildContext context) {

@@ -51,8 +51,8 @@ class LicenseStorage {
   /// 是否已激活 PRO
   bool get isPro => _cached?.isPro ?? false;
 
-  /// 当前最大清晰度（免费 1080，PRO 4000+）
-  int get maxHeight => isPro ? 10000 : 1080;
+  /// 当前最大清晰度（已取消免费版清晰度限制，所有用户均可下载全部清晰度）
+  int get maxHeight => 10000;
 
   /// 每日限额（免费 2 个，PRO 不限）
   int? get dailyQuota => isPro ? null : 2;
@@ -127,11 +127,9 @@ final isProProvider = Provider<bool>((ref) {
   return ref.watch(activatedLicenseProvider)?.isPro ?? false;
 });
 
-/// 最大允许高度（派生自 activatedLicenseProvider）
+/// 最大允许高度（已取消清晰度限制，所有用户均不限）
 final maxAllowedHeightProvider = Provider<int>((ref) {
-  final license = ref.watch(activatedLicenseProvider);
-  if (license == null) return 1080;
-  return license.isPro ? 10000 : 1080;
+  return 10000;
 });
 
 /// 今日已用次数

@@ -278,10 +278,16 @@ class DownloadsPage extends ConsumerWidget {
   // ==================== 工具方法 ====================
 
   Future<void> _openFile(String path) async {
-    if (Platform.isMacOS) {
-      await Process.run('open', ['-R', path]);
-    } else if (Platform.isWindows) {
-      await Process.run('explorer', ['/select,${path.replaceAll('/', '\\')}']);
+    // 打开文件所在目录（不选中文件，避免 explorer /select 路径解析问题）
+    final dir = File(path).parent.path;
+    try {
+      if (Platform.isMacOS) {
+        await Process.run('open', [dir]);
+      } else if (Platform.isWindows) {
+        await Process.run('explorer', [dir]);
+      }
+    } catch (e) {
+      debugPrint('[打开目录] 失败: $e');
     }
   }
 

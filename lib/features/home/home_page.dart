@@ -54,29 +54,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     ref.read(parseProvider.notifier).parse(_urlController.text);
   }
 
-  /// 解析成功后自动选择默认格式（免费版降级到 1080P）
+  /// 解析成功后自动选择默认格式（已取消清晰度限制，直接选推荐格式）
   void _autoSelectFormat(VideoInfo info) {
-    final isPro = ref.read(isProProvider);
-    final maxH = isPro ? 10000000 : 1080;
-    final defaultFmt = info.recommendedFormat;
-    if (!isPro &&
-        defaultFmt != null &&
-        !defaultFmt.audioOnly &&
-        defaultFmt.height > maxH) {
-      final videoFormats = info.formats.where((f) => !f.audioOnly).toList();
-      if (videoFormats.isNotEmpty) {
-        try {
-          _selectedFormat = videoFormats
-              .firstWhere((f) => f.height <= maxH, orElse: () => videoFormats.last);
-        } catch (_) {
-          _selectedFormat = defaultFmt;
-        }
-      } else {
-        _selectedFormat = defaultFmt;
-      }
-    } else {
-      _selectedFormat = defaultFmt;
-    }
+    _selectedFormat = info.recommendedFormat;
     if (mounted) setState(() {});
   }
 
@@ -506,8 +486,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildFormatSelector(ThemeData theme, VideoInfo info) {
-    final isPro = ref.watch(isProProvider);
-    final maxH = isPro ? 10000000 : 1080;
     final videoFormats = info.formats.where((f) => !f.audioOnly).toList();
     final audioFormats = info.formats.where((f) => f.audioOnly).toList();
     final currentValue = _selectedFormat ?? info.recommendedFormat;
@@ -520,21 +498,10 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
       initialValue: currentValue,
       items: [
-        ...videoFormats.map((f) {
-          final locked = !isPro && f.height > maxH;
-          return DropdownMenuItem<FormatOption>(
-            value: f,
-            enabled: !locked,
-            child: Text(
-              _formatLabel(f),
-              style: TextStyle(
-                color: locked
-                    ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
-                    : null,
-              ),
-            ),
-          );
-        }),
+        ...videoFormats.map((f) => DropdownMenuItem<FormatOption>(
+              value: f,
+              child: Text(_formatLabel(f)),
+            )),
         if (audioFormats.isNotEmpty)
           ...audioFormats.map((f) => DropdownMenuItem<FormatOption>(
                 value: f,
