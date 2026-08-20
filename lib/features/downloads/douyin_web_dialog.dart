@@ -6,7 +6,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-import '../../core/engine/douyin_downloader.dart';
 import '../../core/storage/settings_storage.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
@@ -54,6 +53,12 @@ class _DouyinWebDialogState extends State<DouyinWebDialog> {
   bool _finished = false;
   int _probe = 0;
   String _status = '正在加载抖音视频页...';
+
+  /// 桌面 Chrome UA：只有桌面 UA 才会从分享页跳转到视频页，
+  /// 视频页才请求 aweme/detail；移动 UA 会停在「打开 App」引导页。
+  static const String _desktopUA =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
   /// 注入到页面最前端的 hook 脚本：拦截 aweme/detail 的 fetch/XHR 响应
   static const String _hookScript = r'''
@@ -275,7 +280,7 @@ class _DouyinWebDialogState extends State<DouyinWebDialog> {
                     initialUrlRequest: URLRequest(url: WebUri(widget.url)),
                     initialSettings: InAppWebViewSettings(
                       javaScriptEnabled: true,
-                      userAgent: DouyinDownloader.ua,
+                      userAgent: _desktopUA,
                     ),
                     initialUserScripts: UnmodifiableListView<UserScript>([
                       UserScript(
