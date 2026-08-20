@@ -31,7 +31,8 @@ class DouyinHttpExtractor {
       final resp = await client.send(req);
       final finalUrl = resp.request?.url.toString() ?? url;
       debugPrint('[抖音HTTP] 短链解析到: $finalUrl');
-      final m = RegExp(r'/(\d{10,})').firstMatch(finalUrl);
+      // 抖音视频 ID 是 19 位；15 位以上避免误匹配 ts= 等 10 位参数
+      final m = RegExp(r'/(\d{15,})').firstMatch(finalUrl);
       final id = m?.group(1);
       client.close();
       return id;
@@ -72,23 +73,9 @@ class DouyinHttpExtractor {
     }
   }
 
-  /// 从分享页 HTML 提取 _ROUTER_DATA JSON（先试 RENDER_DATA，再试 window._ROUTER_DATA）
+  /// 从分享页 HTML 提取 _ROUTER_DATA JSON（分享页是 window._ROUTER_DATA，RENDER_DATA 兜底）
   static Map<String, dynamic>? _extractRouterData(String html) {
-    // 1. <script id="RENDER_DATA" type="application/json">URL-encoded JSON</script>
-    final renderData =
-        RegExp(r'id="RENDER_DATA"[^>]*>(.*?)</script>', dotAll: true)
-            .firstMatch(html);
-    if (renderData != null) {
-      try {
-        final decoded = Uri.decodeComponent(renderData.group(1)!.trim());
-        debugPrint('[抖音HTTP] 找到 RENDER_DATA，解码后长度 ${decoded.length}');
-        return jsonDecode(decoded) as Map<String, dynamic>;
-      } catch (e) {
-        debugPrint('[抖音HTTP] RENDER_DATA 解析失败: $e');
-      }
-    }
-
-    // 2. window._ROUTER_DATA = {...};
+    // 1. window._ROUTER_DATA = {...};（分享页 SSR 的实际形式，优先）
     final routerData = RegExp(
       r'window\._ROUTER_DATA\s*=\s*(\{.*?\})\s*</script>',
       dotAll: true,
@@ -99,6 +86,20 @@ class DouyinHttpExtractor {
         return jsonDecode(routerData.group(1)!) as Map<String, dynamic>;
       } catch (e) {
         debugPrint('[抖音HTTP] _ROUTER_DATA 解析失败: $e');
+      }
+    }
+
+    // 2. <script id="RENDER_DATA" type="application/json">URL-encoded JSON</script>（兜底）
+    final renderData =
+        RegExp(r'id="RENDER_DATA"[^>]*>(.*?)</script>', dotAll: true)
+            .firstMatch(html);
+    if (renderData != null) {
+      try {
+        final decoded = Uri.decodeComponent(renderData.group(1)!.trim());
+        debugPrint('[抖音HTTP] 找到 RENDER_DATA，解码后长度 ${decoded.length}');
+        return jsonDecode(decoded) as Map<String, dynamic>;
+      } catch (e) {
+        debugPrint('[抖音HTTP] RENDER_DATA 解析失败: $e');
       }
     }
 
@@ -192,8 +193,8 @@ class DouyinHttpExtractor {
     );
   }
 
-  /// 去水印：把播放地址里的 playwm 替换成 play
-  static String _noWatermark(String url) => url.replaceAll('playwm', 'play');
+  /// 去水印：把播放地址路径里的 /playwm/ 替换成 /play/
+  static String _noWatermark(String url) => url.replaceAll('/playwm/', '/play/');
 
   static int _parseHeight(String gearName) {
     final parts = gearName.split('x');
