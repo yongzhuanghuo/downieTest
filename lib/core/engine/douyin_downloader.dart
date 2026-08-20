@@ -22,11 +22,10 @@ class DouyinDownloadException implements Exception {
 class DouyinDownloader {
   DouyinDownloader._();
 
-  /// 移动端 UA（与分享页抓取一致，脚本证明移动端 UA 无 Referer 即可下载）
+  /// 桌面 Chrome UA（下载地址是 PC 网页版 aweme/detail 返回的，需桌面 UA + Referer）
   static const String ua =
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
-      'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 '
-      'Safari/604.1';
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
   /// 下载播放地址 [url] 到 [outputPath]（完整文件路径，含扩展名）
   static Future<String> download({
@@ -40,6 +39,7 @@ class DouyinDownloader {
     try {
       final req = http.Request('GET', Uri.parse(url));
       req.headers['User-Agent'] = ua;
+      req.headers['Referer'] = 'https://www.douyin.com/';
       final resp = await client.send(req);
       if (resp.statusCode != 200) {
         throw DouyinDownloadException('下载失败 HTTP ${resp.statusCode}');

@@ -182,10 +182,17 @@ class _DouyinWebDialogState extends State<DouyinWebDialog> {
       if (bitRates is List) {
         for (final b in bitRates) {
           if (b is! Map) continue;
-          final url = firstUrl(b['play_addr']);
+          final pa = b['play_addr'];
+          final url = firstUrl(pa);
           if (url.isEmpty) continue;
           final gearName = (b['gear_name'] as String?) ?? '';
-          final height = _parseHeight(gearName);
+          // 优先读 play_addr.height（真实分辨率），兜底从 gear_name 提取数字
+          var height = 0;
+          if (pa is Map) {
+            height = (pa['height'] as num?)?.toInt() ?? 0;
+          }
+          if (height <= 0) height = _extractNumber(gearName);
+          debugPrint('[抖音]   格式: gear=$gearName height=$height');
           formats.add(FormatOption(
             formatId: _noWatermark(url),
             label: height > 0
@@ -234,13 +241,10 @@ class _DouyinWebDialogState extends State<DouyinWebDialog> {
 
   String _noWatermark(String url) => url.replaceAll('/playwm/', '/play/');
 
-  int _parseHeight(String gearName) {
-    final parts = gearName.split('x');
-    if (parts.length >= 2) {
-      final h = int.tryParse(parts[1].trim());
-      if (h != null && h > 0) return h;
-    }
-    return 0;
+  /// 从 gear_name（如 "normal_1080_0"、"1080_1_1"）提取 3~4 位数字作为分辨率兜底
+  int _extractNumber(String s) {
+    final m = RegExp(r'(\d{3,4})').firstMatch(s);
+    return m != null ? int.parse(m.group(1)!) : 0;
   }
 
   @override
