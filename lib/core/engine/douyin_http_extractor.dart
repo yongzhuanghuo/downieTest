@@ -24,18 +24,17 @@ class DouyinHttpExtractor {
   /// 从短链/长链解析视频 ID（跟随重定向拿最终 URL 里的数字 ID）
   static Future<String?> resolveId(String url) async {
     try {
-      final client = http.Client();
-      final req = http.Request('GET', Uri.parse(url));
-      req.headers['User-Agent'] = mobileUA;
-      req.followRedirects = true;
-      final resp = await client.send(req);
+      // http.get 会自动跟随重定向，resp.request.url 是最终 URL
+      // （client.send() 不跟随重定向，之前用 send 导致拿到的是原始短链）
+      final resp = await http.get(
+        Uri.parse(url),
+        headers: {'User-Agent': mobileUA},
+      );
       final finalUrl = resp.request?.url.toString() ?? url;
       debugPrint('[抖音HTTP] 短链解析到: $finalUrl');
       // 抖音视频 ID 是 19 位；15 位以上避免误匹配 ts= 等 10 位参数
       final m = RegExp(r'/(\d{15,})').firstMatch(finalUrl);
-      final id = m?.group(1);
-      client.close();
-      return id;
+      return m?.group(1);
     } catch (e) {
       debugPrint('[抖音HTTP] 短链解析失败: $e');
       return null;
