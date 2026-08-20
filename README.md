@@ -731,3 +731,27 @@ pm2 save && pm2 startup
 **实现方式（到时候）**：
 - 服务器定时任务：拉取 yt-dlp GitHub 最新 release 的 standalone 二进制 → 上传 OSS 固定路径（如 `yt-dlp/yt-dlp_latest`)
 - 客户端：`YtDlpRunner.update()` 改用 `--update-to` 指向 OSS 地址，失败再回退 GitHub 官方源
+
+### 阶段 21：抖音解析问题排查（Fresh cookies）🔧 进行中
+
+> 2026-08 排查记录，供后续继续跟进。
+
+**现象**：解析抖音报 `[Douyin] ...: Fresh cookies (not necessarily logged in) are needed`，即使登录抓了 cookie 也一样。
+
+**已排除的原因**（都有日志为证）：
+1. **不是缺 msToken**：已实现「登录后从 localStorage 抓 msToken 补进 cookie」（[site_login_dialog.dart](lib/features/downloads/site_login_dialog.dart)），抓到 172 字符、解析时 `msToken=有`，仍失败。
+2. **不是 cookie 不完整**：sessionid / sid_guard / ttwid / s_v_web_id / login_time 全在也失败。
+3. **不是 yt-dlp 版本旧**：2026.07.04 已是最新。
+4. **官方也失效**：yt-dlp [issue #16867](https://github.com/yt-dlp/yt-dlp/issues/16867)「Fresh cookies issue with valid cookies on nightly」确认带完整有效 cookie 也失败。根因是抖音反爬升级（`a_bogus` 动态签名 + msToken 关联校验），yt-dlp 抖音提取器被整体打穿。
+
+**当前关键发现（环境差异）**：
+- macOS 本地：yt-dlp **直接解析成功**（用旧的 61 条 cookie，无 msToken）。
+- Windows：同样 yt-dlp + 新登录的 cookie（50 条 + msToken）**失败**。
+- 结论倾向「**cookie 新鲜度/信誉**」：报错名本身就是要"不新鲜"的 cookie。旧会话（有历史信誉）能过，刚登录的会话（s_v_web_id 太新）被拒。**待验证**：Windows 上登录后停留几分钟再解析，或把 mac 上成功的 douyin.txt 拷到 Windows，若能成功即坐实此因。
+
+**候选方案（暂不记录，待验证）**：
+
+**cookie 文件位置与手动删除**：
+- macOS：`~/Library/Application Support/com.example.downieTest/cookies/<站点>.txt`
+- Windows：`%APPDATA%\com.downlo\4KDownle\cookies\<站点>.txt`
+- App 内暂无删除入口，直接删对应文件即可（yt-dlp 解析时就不带该站 cookie，不影响其他功能）

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/engine/douyin_downloader.dart';
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/storage/downloads_dao.dart';
 import '../../core/storage/settings_storage.dart';
@@ -172,16 +173,27 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             ));
 
         try {
-          final result = await YtDlpRunner.download(
-            url: task.url,
-            formatId: task.formatId,
-            outputPath: outputTemplate,
-            onProgress: (p) => _applyProgress(task.id, p),
-            shouldCancel: () => _cancelled.contains(task.id),
-            audioOnly: task.audioOnly,
-            downloadSubtitles: task.downloadSubtitles,
-            downloadCover: task.downloadCover,
-          );
+          final String result;
+          if (task.extractor == 'Douyin') {
+            // 抖音：formatId 存的是播放地址，直接用 HTTP 下载（绕过 yt-dlp）
+            result = await DouyinDownloader.download(
+              url: task.formatId,
+              outputPath: outputTemplate,
+              onProgress: (p) => _applyProgress(task.id, p),
+              shouldCancel: () => _cancelled.contains(task.id),
+            );
+          } else {
+            result = await YtDlpRunner.download(
+              url: task.url,
+              formatId: task.formatId,
+              outputPath: outputTemplate,
+              onProgress: (p) => _applyProgress(task.id, p),
+              shouldCancel: () => _cancelled.contains(task.id),
+              audioOnly: task.audioOnly,
+              downloadSubtitles: task.downloadSubtitles,
+              downloadCover: task.downloadCover,
+            );
+          }
           if (_cancelled.contains(task.id)) {
             await _finishStatus(task.id, DownloadStatus.cancelled);
             return;
@@ -212,6 +224,15 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           if (SettingsStorage.instance.current.autoOpenFolder) {
             unawaited(_revealFile(result));
           }
+          return;
+        } on DouyinDownloadException catch (e) {
+          // 抖音直链下载失败（播放地址失效等），不重试直接失败
+          await _apply(task.id, (t) => t.copyWith(
+                status: DownloadStatus.failed,
+                error: e.message,
+                retryCount: attempt,
+                speed: 0,
+              ));
           return;
         } on YtDlpException catch (e) {
           // 需要登录/cookie：不重试，直接提示登录对应站点

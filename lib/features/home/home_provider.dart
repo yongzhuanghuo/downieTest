@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../../data/models/video_info.dart';
+import '../../shared/routes/navigator_key.dart';
+import '../downloads/douyin_parse_dialog.dart';
 import '../downloads/site_login_prompt.dart';
 
 /// 解析状态
@@ -43,6 +45,23 @@ class ParseNotifier extends StateNotifier<ParseState> {
     // 从分享文本里提取真正的 URL（抖音/B站等复制的链接常带标题等文字）
     final target = _extractUrl(trimmed) ?? trimmed;
     state = const ParseState(status: ParseStatus.loading);
+
+    // 抖音：yt-dlp 提取器被反爬打穿，改走 WebView 解析（弹窗抓真实播放地址）
+    if (target.contains('douyin.com')) {
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx == null) {
+        state = const ParseState(status: ParseStatus.error, error: '界面未就绪');
+        return;
+      }
+      final info = await DouyinParseDialog.show(ctx, target);
+      if (info == null) {
+        state = const ParseState(status: ParseStatus.error, error: '抖音解析失败，请重试');
+      } else {
+        state = ParseState(status: ParseStatus.success, videoInfo: info);
+      }
+      return;
+    }
+
     try {
       final info = await YtDlpRunner.parse(target);
       state = ParseState(status: ParseStatus.success, videoInfo: info);
