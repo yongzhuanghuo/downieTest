@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/engine/douyin_http_extractor.dart';
 import '../../core/engine/ytdlp_runner.dart';
 import '../../data/models/video_info.dart';
+import '../../shared/routes/navigator_key.dart';
+import '../downloads/douyin_web_dialog.dart';
 import '../downloads/site_login_prompt.dart';
 
 /// 解析状态
@@ -45,19 +46,18 @@ class ParseNotifier extends StateNotifier<ParseState> {
     final target = _extractUrl(trimmed) ?? trimmed;
     state = const ParseState(status: ParseStatus.loading);
 
-    // 抖音：yt-dlp 提取器被反爬打穿，改走 HTTP 抓分享页 SSR 数据（移动端 UA）
+    // 抖音：分享页 SSR 已不给播放地址，改走 WebView 拦截 aweme/detail API（真实浏览器环境带 a_bogus 签名）
     if (target.contains('douyin.com')) {
-      try {
-        final id = await DouyinHttpExtractor.resolveId(target);
-        if (id == null) {
-          state = const ParseState(status: ParseStatus.error, error: '抖音解析失败：无法获取视频 ID');
-          return;
-        }
-        final info = await DouyinHttpExtractor.fetch(id, target);
-        state = ParseState(status: ParseStatus.success, videoInfo: info);
-      } catch (e) {
-        debugPrint('[解析] 抖音失败: $e');
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx == null) {
+        state = const ParseState(status: ParseStatus.error, error: '界面未就绪');
+        return;
+      }
+      final info = await DouyinWebDialog.show(ctx, target);
+      if (info == null) {
         state = const ParseState(status: ParseStatus.error, error: '抖音解析失败，请重试');
+      } else {
+        state = ParseState(status: ParseStatus.success, videoInfo: info);
       }
       return;
     }
