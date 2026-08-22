@@ -271,8 +271,14 @@
       if (search) q.set('search', search);
       if (status) q.set('status', status);
       if (type) q.set('type', type);
-      const data = await api('/licenses?' + q.toString());
-      if (!data.ok) return;
+      let data;
+      try {
+        data = await api('/licenses?' + q.toString());
+      } catch (e) {
+        toast('加载列表失败: ' + e.message);
+        return;
+      }
+      if (!data.ok) { toast(data.message || data.error || '加载列表失败'); return; }
       total = data.total;
       const tbody = document.getElementById('license-tbody');
       tbody.innerHTML = data.licenses.map(l => `

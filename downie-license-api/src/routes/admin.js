@@ -117,13 +117,15 @@ export function registerAdminRoutes(app, pool) {
       );
       const total = countRows[0]?.c || 0;
 
+      // LIMIT/OFFSET 直接用拼接（pageSize/offset 都是 parseInt 出的安全整数），
+      // 避免 mysql2 预处理语句对 LIMIT 参数绑定的兼容问题导致查询报错返回空列表
       const [rows] = await pool.execute(
         `SELECT l.*,
                 (SELECT COUNT(*) FROM device_bindings d WHERE d.code = l.code AND d.status = 'active') AS bound_count
          FROM licenses l ${whereClause}
          ORDER BY l.created_at DESC
-         LIMIT ? OFFSET ?`,
-        [...params, pageSize, (page - 1) * pageSize],
+         LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
+        params,
       );
 
       res.json({

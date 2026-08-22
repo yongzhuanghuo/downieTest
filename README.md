@@ -258,25 +258,28 @@ lib/
 downie-license-api/
 ├── src/
 │   ├── index.js                  # Express 入口 + 启动（监听 3000 端口）
-│   ├── config.js                 # 读 .env（端口 + MySQL 连接）
+│   ├── config.js                 # 读 .env（端口 + MySQL + admin 账号）
 │   ├── db.js                     # mysql2 连接池 + 启动 ping 验证
 │   ├── license.js                # 激活码工具（随机码生成/规范化/格式化）
 │   └── routes/
-│       └── license.js            # 5 个接口：激活/解绑/状态/心跳/验证
-│                                  #   - activate: 查码→设备数检查(事务+FOR UPDATE)→绑定
-│                                  #   - unbind: 月限2次检查→解绑→记日志
-│                                  #   - status: 设备列表 + 剩余名额
-│                                  #   - heartbeat: 更新 last_seen
-│                                  #   - verify: 离线降级验证
+│       ├── license.js            # 5 个接口：激活/解绑/状态/心跳/验证
+│       │                          #   - activate: 查码→设备数检查(事务+FOR UPDATE)→绑定
+│       │                          #   - unbind: 解绑→记日志
+│       │                          #   - status: 设备列表 + 剩余名额
+│       │                          #   - heartbeat: 更新 last_seen
+│       │                          #   - verify: 离线降级验证
+│       └── admin.js              # 管理后台 API（JWT 认证）：登录/统计/列表/生成/详情/吊销/恢复/导出
+├── admin/
+│   └── index.html                # 卡密管理后台单页（原生 HTML/CSS/JS，无构建）
 ├── sql/
 │   └── schema.sql                # MySQL 建表语句（licenses/device_bindings/unbind_log）
 ├── scripts/
 │   ├── init-db.js                # 建表脚本
 │   └── generate-licenses.js      # 生成激活码（写库 + 导出 CSV）
-├── .env.example                  # 环境变量模板（DB 连接 + PORT）
+├── .env.example                  # 环境变量模板（DB + PORT + ADMIN_* + JWT_SECRET）
 ├── ecosystem.config.cjs          # pm2 启动配置
 ├── nginx.conf.example            # 后续 HTTPS 反向代理参考
-└── package.json                  # 依赖：express / mysql2 / dotenv / cors
+└── package.json                  # 依赖：express / mysql2 / dotenv / cors / jsonwebtoken
 ```
 
 ### 2.3 平台配置
@@ -508,10 +511,42 @@ cd downie-license-api
 npm install
 cp .env.example .env          # 填 MySQL 连接信息
 npm run init-db               # 建表
-npm run generate -- -c 10 -t perpetual -o pro.csv   # 生成激活码
 pm2 start ecosystem.config.cjs
 pm2 save && pm2 startup
 ```
+
+**pm2 常用命令**（后端日常维护，都在 `downie-license-api/` 目录下执行）：
+
+```bash
+pm2 status                            # 看所有进程状态
+pm2 start ecosystem.config.cjs        # 启动
+pm2 restart downie-license-api        # 重启（改了代码或改了 .env 后必须执行）
+pm2 logs downie-license-api           # 实时跟踪日志（Ctrl+C 退出）
+pm2 logs downie-license-api --lines 50  # 看最近 50 行日志（不实时）
+pm2 stop downie-license-api           # 停止
+pm2 delete downie-license-api         # 删除进程（重新 start 前用）
+```
+
+**`.env` 里除了 MySQL 连接，还要配管理后台登录信息**：
+
+```ini
+ADMIN_USERNAME=admin              # 管理后台登录用户名（默认 admin）
+ADMIN_PASSWORD=你的强密码          # 管理后台登录密码
+JWT_SECRET=一段长随机字符串        # JWT 签名密钥（管理后台 token 用）
+```
+
+**激活码管理后台**（Web 页面，和 API 同一个进程，`pm2 restart` 即可生效）：
+
+- 访问地址：`http://服务器IP:3000/admin/`，用上面的 ADMIN_USERNAME / ADMIN_PASSWORD 登录
+- 功能：
+  - 统计卡片：总数 / 未激活 / 已激活 / 已吊销 / 免费版 / 永久版
+  - 生成卡密：选类型（永久/免费）、数量、设备数、过期天数，一键复制 + 下载 CSV
+  - 卡密列表：搜索 / 按状态·类型筛选 / 分页
+  - 卡密详情：查看绑定的设备列表
+  - 吊销 / 恢复卡密（软删除，可恢复，不物理删除）
+  - 导出 CSV（按当前筛选条件）
+- 生成卡密不再需要跑命令行 `npm run generate`，页面里点几下就行（命令行脚本仍保留可用）
+- ⚠️ 当前是 HTTP 明文，管理密码明文传输，正式使用前建议套 nginx + HTTPS（见阶段 16）
 
 ### 5.4 查看日志
 
@@ -757,3 +792,35 @@ pm2 save && pm2 startup
 - macOS：`~/Library/Application Support/com.example.downieTest/cookies/<站点>.txt`
 - Windows：`%APPDATA%\com.downlo\4KDownle\cookies\<站点>.txt`
 - App 内暂无删除入口，直接删对应文件即可
+
+### 阶段 22：激活码管理后台（Web 页面）✅ 已完成
+
+> 2026-08 完成。之前生成卡密只能跑命令行 `npm run generate`，麻烦且看不到全局。加了 Web 管理页面。
+
+**技术方案**：
+- 后端：`src/routes/admin.js`，JWT 认证（`jsonwebtoken`），账号密码配在 `.env`（`ADMIN_USERNAME` / `ADMIN_PASSWORD` / `JWT_SECRET`）
+- 前端：`admin/index.html` 单页（原生 HTML/CSS/JS，无构建）
+- 部署：前端页面和 API 都在**同一个 Express 进程**（`app.use('/admin', express.static('admin'))` 托管静态页面），`pm2 restart downie-license-api` 即可，无需额外前端服务
+
+**功能**：
+- 登录（JWT 24h 过期）
+- 统计卡片：总数 / 未激活 / 已激活 / 已吊销 / 免费版 / 永久版 / 绑定设备总数
+- 生成卡密：类型（永久/免费）、数量、设备数、过期天数，一键复制 + 下载 CSV
+- 卡密列表：搜索 / 按状态·类型筛选 / 分页，每行显示已绑设备数
+- 卡密详情：查看绑定的设备列表（设备名/指纹/绑定时间/最后心跳）
+- 吊销 / 恢复卡密（软删除可恢复，**不物理删除**）
+- 导出 CSV（按当前筛选条件）
+
+**接口**（`/admin/api/*`，除 login 外都需 `Authorization: Bearer <token>`）：
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/admin/api/login` | 登录 |
+| GET | `/admin/api/stats` | 统计 |
+| GET | `/admin/api/licenses` | 列表（分页/搜索/筛选） |
+| POST | `/admin/api/licenses/generate` | 生成卡密 |
+| GET | `/admin/api/licenses/:code` | 详情 + 绑定设备 |
+| POST | `/admin/api/licenses/:code/revoke` | 吊销 |
+| POST | `/admin/api/licenses/:code/restore` | 恢复 |
+| GET | `/admin/api/licenses/export` | 导出 CSV |
+
+> 数据库**不改表**，复用 `licenses` + `device_bindings`。跟踪只按激活状态（unused/activated/revoked），不加「销售/渠道」字段。
