@@ -60,9 +60,15 @@ class _DouyinWebDialogState extends State<DouyinWebDialog> {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-  /// 注入到页面最前端的 hook 脚本：拦截 aweme/detail 的 fetch/XHR 响应
+  /// 注入到页面最前端的 hook 脚本：拦截 aweme/detail 的 fetch/XHR 响应 + 阻止视频自动播放
   static const String _hookScript = r'''
     (function () {
+      // 阻止 HTML5 视频自动播放：我们只需拦截 API 拿播放地址，不需要视频真正播放，
+      // 避免 macOS 上视频 GPU 硬解与 Flutter 渲染（Impeller/Metal）抢资源导致窗口闪烁/马赛克。
+      try {
+        HTMLMediaElement.prototype.play = function () { return Promise.resolve(); };
+        HTMLMediaElement.prototype.pause = function () {};
+      } catch (e) {}
       var put = function (url, text) {
         if (url && (url.indexOf('aweme/detail') >= 0 || url.indexOf('aweme_detail') >= 0)) {
           try { window.__douyin_data__ = text; window.__douyin_data_url__ = url; } catch (e) {}
@@ -270,6 +276,7 @@ class _DouyinWebDialogState extends State<DouyinWebDialog> {
                     initialSettings: InAppWebViewSettings(
                       javaScriptEnabled: true,
                       userAgent: _desktopUA,
+                      mediaPlaybackRequiresUserGesture: true,
                     ),
                     initialUserScripts: UnmodifiableListView<UserScript>([
                       UserScript(

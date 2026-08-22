@@ -709,6 +709,7 @@ pm2 save && pm2 startup
 
 - 未列入的站点按域名自动推导登录页，同样支持登录
 - 依赖 `flutter_inappwebview`（macOS 用 WKWebView、Windows 用 WebView2，Windows 需装 WebView2 runtime）
+- 注意：抖音例外——抖音解析不走 yt-dlp + cookie，改走 WebView 拦截 `aweme/detail`（见阶段 21），登录抓 cookie 对抖音无用
 
 ### 阶段 20：yt-dlp 自动更新 ✅ 已完成 + OSS 镜像源 ⏳ 后期
 
@@ -732,26 +733,27 @@ pm2 save && pm2 startup
 - 服务器定时任务：拉取 yt-dlp GitHub 最新 release 的 standalone 二进制 → 上传 OSS 固定路径（如 `yt-dlp/yt-dlp_latest`)
 - 客户端：`YtDlpRunner.update()` 改用 `--update-to` 指向 OSS 地址，失败再回退 GitHub 官方源
 
-### 阶段 21：抖音解析问题排查（Fresh cookies）🔧 进行中
+### 阶段 21：抖音解析（WebView 拦截 aweme/detail API）✅ 已完成
 
-> 2026-08 排查记录，供后续继续跟进。
+> 2026-08 完成。背景：yt-dlp 抖音提取器未实现 `a_bogus` 签名，被抖音反爬打穿，补任何 cookie 都报 Fresh cookies。
 
-**现象**：解析抖音报 `[Douyin] ...: Fresh cookies (not necessarily logged in) are needed`，即使登录抓了 cookie 也一样。
+**根因**（curl 实测 + yt-dlp 源码查证）：
+1. yt-dlp `tiktok.py` 的 `DouyinIE` 请求 `aweme/v1/web/aweme/detail/` API 时没实现 `a_bogus` 签名（源码只有 `# TODO: Run verification challenge`），抖音拒绝请求返回空 JSON，误报 `Fresh cookies`。补 sessionid/msToken/s_v_web_id 全都没用。
+2. 抖音 2026 年分享页（`iesdouyin.com/share/video/{id}`）SSR 只渲染页面框架（itemId/abParams），**播放地址由前端 JS 异步调 `aweme/detail` 拉取**——纯 HTTP 抓分享页拿不到 `play_addr`。
+3. 结论：纯 HTTP 两条路（yt-dlp、抓分享页 SSR）都断。唯一可靠方案是**真实浏览器环境拦截 aweme/detail 响应**（浏览器自动生成 a_bogus 签名 + 带 cookie + msToken）。
 
-**已排除的原因**（都有日志为证）：
-1. **不是缺 msToken**：已实现「登录后从 localStorage 抓 msToken 补进 cookie」（[site_login_dialog.dart](lib/features/downloads/site_login_dialog.dart)），抓到 172 字符、解析时 `msToken=有`，仍失败。
-2. **不是 cookie 不完整**：sessionid / sid_guard / ttwid / s_v_web_id / login_time 全在也失败。
-3. **不是 yt-dlp 版本旧**：2026.07.04 已是最新。
-4. **官方也失效**：yt-dlp [issue #16867](https://github.com/yt-dlp/yt-dlp/issues/16867)「Fresh cookies issue with valid cookies on nightly」确认带完整有效 cookie 也失败。根因是抖音反爬升级（`a_bogus` 动态签名 + msToken 关联校验），yt-dlp 抖音提取器被整体打穿。
+**实现**：
+1. [home_provider.dart](lib/features/home/home_provider.dart)：url 含 `douyin.com` → 走 `DouyinWebDialog`（不走 yt-dlp）
+2. [douyin_web_dialog.dart](lib/features/downloads/douyin_web_dialog.dart)：弹 WebView 对话框，**桌面 Chrome UA** 打开短链，注入 JS hook（`AT_DOCUMENT_START`）拦截 `aweme/detail` 的 fetch/XHR 响应存到 `window.__douyin_data__`，轮询读取后解析 `aweme_detail`（标题/作者/封面/时长/各清晰度 `gear_name`），构造 VideoInfo
+3. [download_provider.dart](lib/features/downloads/download_provider.dart)：按 `extractor=='Douyin'` 分流到 HTTP 直链下载
+4. [douyin_downloader.dart](lib/core/engine/douyin_downloader.dart)：HTTP 直链下载（桌面 UA + `Referer: https://www.douyin.com/`），带进度回调
 
-**当前关键发现（环境差异）**：
-- macOS 本地：yt-dlp **直接解析成功**（用旧的 61 条 cookie，无 msToken）。
-- Windows：同样 yt-dlp + 新登录的 cookie（50 条 + msToken）**失败**。
-- 结论倾向「**cookie 新鲜度/信誉**」：报错名本身就是要"不新鲜"的 cookie。旧会话（有历史信誉）能过，刚登录的会话（s_v_web_id 太新）被拒。**待验证**：Windows 上登录后停留几分钟再解析，或把 mac 上成功的 douyin.txt 拷到 Windows，若能成功即坐实此因。
+**关键坑（实测踩过）**：
+- **必须桌面 UA**：移动 UA 会让分享页停在「打开 App」引导页，不请求 aweme/detail，hook 截获不到
+- **下载防盗链**：下载地址是 PC 网页版（`browser_name=Chrome`），CDN 要求桌面 UA + Referer douyin.com；缺 Referer 时部分节点（如 `v26-web.douyinvod.com`）返回 403
+- 格式名直接显示 `gear_name` 原样（`normal_1080_0`、`1080_1_1`），不做分辨率转换
 
-**候选方案（暂不记录，待验证）**：
-
-**cookie 文件位置与手动删除**：
+**cookie 文件位置与手动删除**（抖音不依赖 cookie，但其他站点登录用）：
 - macOS：`~/Library/Application Support/com.example.downieTest/cookies/<站点>.txt`
 - Windows：`%APPDATA%\com.downlo\4KDownle\cookies\<站点>.txt`
-- App 内暂无删除入口，直接删对应文件即可（yt-dlp 解析时就不带该站 cookie，不影响其他功能）
+- App 内暂无删除入口，直接删对应文件即可
