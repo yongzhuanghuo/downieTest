@@ -168,7 +168,7 @@
       <table>
         <thead>
           <tr>
-            <th>激活码</th><th>类型</th><th>设备数</th><th>状态</th><th>已绑</th><th>创建时间</th><th>操作</th>
+            <th>#</th><th>激活码</th><th>类型</th><th>设备数</th><th>状态</th><th>已绑</th><th>创建时间</th><th>操作</th>
           </tr>
         </thead>
         <tbody id="license-tbody"></tbody>
@@ -289,8 +289,9 @@
       if (!data.ok) { toast(data.message || data.error || '加载列表失败'); return; }
       total = data.total;
       const tbody = document.getElementById('license-tbody');
-      tbody.innerHTML = data.licenses.map(l => `
+      tbody.innerHTML = data.licenses.map((l, i) => `
         <tr>
+          <td>${(page - 1) * pageSize + i + 1}</td>
           <td class="code-cell">${l.formatted}</td>
           <td><span class="tag ${typeTag[l.type]}">${typeText[l.type]}</span></td>
           <td>${l.max_devices}</td>
