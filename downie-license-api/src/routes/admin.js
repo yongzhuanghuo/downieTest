@@ -42,6 +42,18 @@ export function registerAdminRoutes(app, pool) {
     throw new Error('生成失败：多次撞码，请重试');
   }
 
+  // 日期时间格式化：mysql2 把 DATETIME 返回为 Date 对象，expire_at 是时间戳，
+  // 统一转成 "YYYY-MM-DD HH:mm:ss" 可读格式
+  function fmtDateTime(v) {
+    if (!v) return '';
+    if (typeof v === 'number') return fmtDateTime(new Date(v));
+    if (v instanceof Date) {
+      const p = (n) => String(n).padStart(2, '0');
+      return `${v.getFullYear()}-${p(v.getMonth() + 1)}-${p(v.getDate())} ${p(v.getHours())}:${p(v.getMinutes())}:${p(v.getSeconds())}`;
+    }
+    return String(v).replace('T', ' ').slice(0, 19);
+  }
+
   // 登录
   app.post('/admin/api/login', (req, res) => {
     const { username, password } = req.body || {};
@@ -170,12 +182,15 @@ export function registerAdminRoutes(app, pool) {
     }
   });
 
-  // 导出 CSV（按筛选）
+  // 导出 CSV（支持三种范围：全部 / 当前筛选 / 当前页，通过参数区分）
   app.get('/admin/api/licenses/export', auth, async (req, res, next) => {
     try {
       const search = (req.query.search || '').trim().toUpperCase();
       const status = req.query.status;
       const type = req.query.type;
+      const page = req.query.page ? parseInt(req.query.page, 10) : null;
+      const pageSize = req.query.page_size ? parseInt(req.query.page_size, 10) : null;
+
       const where = [];
       const params = [];
       if (search) {
@@ -192,13 +207,20 @@ export function registerAdminRoutes(app, pool) {
       }
       const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-      const [rows] = await pool.execute(
-        `SELECT * FROM licenses ${whereClause} ORDER BY created_at DESC`,
-        params,
-      );
-      const lines = ['activation_code,type,max_devices,status,expire_at,created_at'];
+      let sql = `SELECT * FROM licenses ${whereClause} ORDER BY created_at DESC`;
+      if (page && pageSize) {
+        sql += ` LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`;
+      }
+      const [rows] = await pool.execute(sql, params);
+
+      const typeMap = { free: '免费版', perpetual: '永久版' };
+      const statusMap = { unused: '未激活', activated: '已激活', revoked: '已吊销' };
+      const lines = ['激活码,类型,设备数,状态,过期时间,创建时间'];
       for (const r of rows) {
-        lines.push(`${formatCode(r.code)},${r.type},${r.max_devices},${r.status},${r.expire_at ?? 0},${r.created_at}`);
+        const expire = r.expire_at ? fmtDateTime(r.expire_at) : '永久';
+        lines.push(
+          `${formatCode(r.code)},${typeMap[r.type] || r.type},${r.max_devices},${statusMap[r.status] || r.status},${expire},${fmtDateTime(r.created_at)}`,
+        );
       }
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename=licenses.csv');

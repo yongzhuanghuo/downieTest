@@ -69,7 +69,7 @@
     th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
     th { color: #888; font-weight: 500; font-size: 12px; }
     tr:hover { background: #fafbfc; }
-    .code-cell { font-family: monospace; font-size: 13px; letter-spacing: .5px; }
+    .code-cell { font-family: monospace; font-size: 13px; letter-spacing: .5px; white-space: nowrap; }
     .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
     .tag-unused { background: #e3f2fd; color: #1565c0; }
     .tag-activated { background: #e8f5e9; color: #2e7d32; }
@@ -162,6 +162,11 @@
           <option value="">全部类型</option>
           <option value="free">免费版</option>
           <option value="perpetual">永久版</option>
+        </select>
+        <select id="export-scope">
+          <option value="all">导出全部</option>
+          <option value="filter">导出筛选结果</option>
+          <option value="page">导出当前页</option>
         </select>
         <button class="btn btn-outline" onclick="exportCsv()">导出 CSV</button>
       </div>
@@ -379,13 +384,20 @@
 
     // ===== 导出 =====
     async function exportCsv() {
-      const search = document.getElementById('search').value.trim();
-      const status = document.getElementById('filter-status').value;
-      const type = document.getElementById('filter-type').value;
+      const scope = document.getElementById('export-scope').value;
       const q = new URLSearchParams();
-      if (search) q.set('search', search);
-      if (status) q.set('status', status);
-      if (type) q.set('type', type);
+      if (scope !== 'all') {
+        const search = document.getElementById('search').value.trim();
+        const status = document.getElementById('filter-status').value;
+        const type = document.getElementById('filter-type').value;
+        if (search) q.set('search', search);
+        if (status) q.set('status', status);
+        if (type) q.set('type', type);
+        if (scope === 'page') {
+          q.set('page', page);
+          q.set('page_size', pageSize);
+        }
+      }
       const resp = await fetch(API + '/licenses/export?' + q.toString(), { headers: { 'Authorization': 'Bearer ' + token } });
       const blob = await resp.blob();
       const a = document.createElement('a');
