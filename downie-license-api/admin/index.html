@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4KDownle · 卡密管理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f6f8; color: #333; font-size: 14px;
+    }
+    a { color: #1565c0; text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; }
+    input, select { font-family: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 6px; }
+    input:focus, select:focus { outline: none; border-color: #1565c0; }
+
+    /* 登录页 */
+    #login-view { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-box { background: #fff; padding: 40px 36px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.08); width: 340px; }
+    .login-box h1 { font-size: 20px; margin-bottom: 6px; }
+    .login-box p { color: #888; margin-bottom: 24px; font-size: 13px; }
+    .login-box label { display: block; margin-bottom: 6px; color: #555; font-size: 13px; }
+    .login-box input { width: 100%; margin-bottom: 16px; }
+    .login-box button { width: 100%; padding: 10px; background: #1565c0; color: #fff; border: none; border-radius: 6px; font-size: 15px; }
+    .login-box button:hover { background: #0d47a1; }
+    .login-err { color: #d32f2f; font-size: 13px; margin-top: 12px; display: none; }
+
+    /* 主布局 */
+    #admin-view { display: none; max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .topbar h1 { font-size: 20px; }
+    .topbar .logout { color: #d32f2f; cursor: pointer; background: none; border: none; font-size: 14px; }
+
+    /* 统计卡片 */
+    .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: #fff; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+    .stat-card .num { font-size: 26px; font-weight: 600; }
+    .stat-card .label { color: #888; font-size: 12px; margin-top: 4px; }
+    .stat-card.total .num { color: #333; }
+    .stat-card.unused .num { color: #1565c0; }
+    .stat-card.activated .num { color: #2e7d32; }
+    .stat-card.revoked .num { color: #d32f2f; }
+    .stat-card.free .num { color: #6a1b9a; }
+    .stat-card.perpetual .num { color: #e65100; }
+
+    /* 面板 */
+    .panel { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.05); margin-bottom: 20px; }
+    .panel h2 { font-size: 16px; margin-bottom: 14px; }
+    .panel-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .panel-row .field { display: flex; flex-direction: column; gap: 4px; }
+    .panel-row .field label { font-size: 12px; color: #888; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 14px; }
+    .btn-primary { background: #1565c0; color: #fff; }
+    .btn-primary:hover { background: #0d47a1; }
+    .btn-danger { background: #d32f2f; color: #fff; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 5px; }
+    .btn-outline { background: #fff; color: #555; border: 1px solid #d0d5dd; }
+    .btn-outline:hover { background: #f5f6f8; }
+
+    /* 生成结果 */
+    .gen-result { display: none; margin-top: 14px; }
+    .gen-result textarea { width: 100%; height: 120px; font-family: monospace; font-size: 13px; padding: 10px; border: 1px solid #d0d5dd; border-radius: 6px; }
+
+    /* 表格 */
+    .toolbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+    .toolbar input[type=text] { width: 220px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+    th { color: #888; font-weight: 500; font-size: 12px; }
+    tr:hover { background: #fafbfc; }
+    .code-cell { font-family: monospace; font-size: 13px; letter-spacing: .5px; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+    .tag-unused { background: #e3f2fd; color: #1565c0; }
+    .tag-activated { background: #e8f5e9; color: #2e7d32; }
+    .tag-revoked { background: #ffebee; color: #d32f2f; }
+    .tag-free { background: #f3e5f5; color: #6a1b9a; }
+    .tag-perpetual { background: #fff3e0; color: #e65100; }
+    .actions { display: flex; gap: 6px; }
+
+    /* 分页 */
+    .pagination { display: flex; gap: 8px; align-items: center; margin-top: 14px; justify-content: flex-end; }
+    .pagination button { padding: 5px 12px; }
+
+    /* 弹窗 */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; align-items: center; justify-content: center; }
+    .modal { background: #fff; border-radius: 12px; padding: 24px; width: 520px; max-height: 80vh; overflow: auto; }
+    .modal h3 { margin-bottom: 14px; }
+    .modal .close { float: right; cursor: pointer; color: #888; font-size: 20px; }
+
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 6px; display: none; z-index: 200; }
+  </style>
+</head>
+<body>
+  <!-- 登录 -->
+  <div id="login-view">
+    <div class="login-box">
+      <h1>4KDownle 卡密管理</h1>
+      <p>登录后管理激活码</p>
+      <label>用户名</label>
+      <input id="login-username" placeholder="admin" autocomplete="username">
+      <label>密码</label>
+      <input id="login-password" type="password" placeholder="密码" autocomplete="current-password">
+      <button onclick="login()">登录</button>
+      <div class="login-err" id="login-err">用户名或密码错误</div>
+    </div>
+  </div>
+
+  <!-- 管理 -->
+  <div id="admin-view">
+    <div class="topbar">
+      <h1>卡密管理</h1>
+      <button class="logout" onclick="logout()">退出登录</button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="panel">
+      <h2>生成卡密</h2>
+      <div class="panel-row">
+        <div class="field">
+          <label>类型</label>
+          <select id="gen-type">
+            <option value="perpetual">永久版</option>
+            <option value="free">免费版</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>数量</label>
+          <input id="gen-count" type="number" value="1" min="1" max="1000" style="width:90px">
+        </div>
+        <div class="field">
+          <label>设备数</label>
+          <input id="gen-devices" type="number" value="4" min="1" style="width:90px">
+        </div>
+        <div class="field">
+          <label>过期天数（0=永久）</label>
+          <input id="gen-expire" type="number" value="0" min="0" style="width:110px">
+        </div>
+        <button class="btn btn-primary" onclick="generate()">生成</button>
+      </div>
+      <div class="gen-result" id="gen-result">
+        <textarea id="gen-codes" readonly></textarea>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="copyCodes()">复制全部</button>
+          <button class="btn btn-outline btn-sm" onclick="downloadCodes()">下载 CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>卡密列表</h2>
+      <div class="toolbar">
+        <input type="text" id="search" placeholder="搜索激活码..." onkeyup="debounceSearch()">
+        <select id="filter-status" onchange="loadLicenses(1)">
+          <option value="">全部状态</option>
+          <option value="unused">未激活</option>
+          <option value="activated">已激活</option>
+          <option value="revoked">已吊销</option>
+        </select>
+        <select id="filter-type" onchange="loadLicenses(1)">
+          <option value="">全部类型</option>
+          <option value="free">免费版</option>
+          <option value="perpetual">永久版</option>
+        </select>
+        <button class="btn btn-outline" onclick="exportCsv()">导出 CSV</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>激活码</th><th>类型</th><th>设备数</th><th>状态</th><th>已绑</th><th>创建时间</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="license-tbody"></tbody>
+      </table>
+      <div class="pagination">
+        <span id="page-info"></span>
+        <button class="btn btn-outline btn-sm" onclick="prevPage()">上一页</button>
+        <button class="btn btn-outline btn-sm" onclick="nextPage()">下一页</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 详情弹窗 -->
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal">
+      <span class="close" onclick="closeDetail()">&times;</span>
+      <h3>卡密详情</h3>
+      <div id="detail-body"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = '/admin/api';
+    let token = localStorage.getItem('admin_token');
+    let page = 1, total = 0, pageSize = 20;
+
+    // ===== 工具 =====
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 2000);
+    }
+    async function api(path, opts = {}) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const resp = await fetch(API + path, { ...opts, headers });
+      if (resp.status === 401) { logout(); throw new Error('未登录'); }
+      return resp.json();
+    }
+    const statusText = { unused: '未激活', activated: '已激活', revoked: '已吊销' };
+    const statusTag = { unused: 'tag-unused', activated: 'tag-activated', revoked: 'tag-revoked' };
+    const typeText = { free: '免费版', perpetual: '永久版' };
+    const typeTag = { free: 'tag-free', perpetual: 'tag-perpetual' };
+    function fmtTime(s) { if (!s) return '—'; return String(s).replace('T', ' ').slice(0, 19); }
+
+    // ===== 登录 =====
+    async function login() {
+      const u = document.getElementById('login-username').value.trim();
+      const p = document.getElementById('login-password').value;
+      const resp = await fetch(API + '/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        token = data.token;
+        localStorage.setItem('admin_token', token);
+        showAdmin();
+      } else {
+        document.getElementById('login-err').style.display = 'block';
+      }
+    }
+    function logout() {
+      token = null; localStorage.removeItem('admin_token');
+      document.getElementById('admin-view').style.display = 'none';
+      document.getElementById('login-view').style.display = 'flex';
+    }
+
+    // ===== 进入管理页 =====
+    function showAdmin() {
+      document.getElementById('login-view').style.display = 'none';
+      document.getElementById('admin-view').style.display = 'block';
+      loadStats(); loadLicenses(1);
+    }
+
+    // ===== 统计 =====
+    async function loadStats() {
+      const data = await api('/stats');
+      if (!data.ok) return;
+      const s = data.stats;
+      document.getElementById('stats').innerHTML = `
+        <div class="stat-card total"><div class="num">${s.total}</div><div class="label">总数</div></div>
+        <div class="stat-card unused"><div class="num">${s.unused}</div><div class="label">未激活</div></div>
+        <div class="stat-card activated"><div class="num">${s.activated}</div><div class="label">已激活</div></div>
+        <div class="stat-card revoked"><div class="num">${s.revoked}</div><div class="label">已吊销</div></div>
+        <div class="stat-card free"><div class="num">${s.free}</div><div class="label">免费版</div></div>
+        <div class="stat-card perpetual"><div class="num">${s.perpetual}</div><div class="label">永久版</div></div>
+      `;
+    }
+
+    // ===== 列表 =====
+    async function loadLicenses(p) {
+      page = p || page;
+      const search = document.getElementById('search').value.trim();
+      const status = document.getElementById('filter-status').value;
+      const type = document.getElementById('filter-type').value;
+      const q = new URLSearchParams({ page, page_size: pageSize });
+      if (search) q.set('search', search);
+      if (status) q.set('status', status);
+      if (type) q.set('type', type);
+      const data = await api('/licenses?' + q.toString());
+      if (!data.ok) return;
+      total = data.total;
+      const tbody = document.getElementById('license-tbody');
+      tbody.innerHTML = data.licenses.map(l => `
+        <tr>
+          <td class="code-cell">${l.formatted}</td>
+          <td><span class="tag ${typeTag[l.type]}">${typeText[l.type]}</span></td>
+          <td>${l.max_devices}</td>
+          <td><span class="tag ${statusTag[l.status]}">${statusText[l.status]}</span></td>
+          <td>${l.bound_count || 0}</td>
+          <td>${fmtTime(l.created_at)}</td>
+          <td class="actions">
+            <button class="btn btn-outline btn-sm" onclick="showDetail('${l.code}')">详情</button>
+            ${l.status === 'revoked'
+              ? `<button class="btn btn-outline btn-sm" onclick="restore('${l.code}')">恢复</button>`
+              : `<button class="btn btn-danger btn-sm" onclick="revoke('${l.code}')">吊销</button>`}
+          </td>
+        </tr>
+      `).join('');
+      document.getElementById('page-info').textContent = `共 ${total} 条 · 第 ${page} 页`;
+    }
+    function prevPage() { if (page > 1) loadLicenses(page - 1); }
+    function nextPage() { if (page * pageSize < total) loadLicenses(page + 1); }
+    let searchTimer;
+    function debounceSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadLicenses(1), 400); }
+
+    // ===== 生成 =====
+    async function generate() {
+      const body = {
+        type: document.getElementById('gen-type').value,
+        count: parseInt(document.getElementById('gen-count').value, 10) || 1,
+        devices: parseInt(document.getElementById('gen-devices').value, 10) || null,
+        expire_days: parseInt(document.getElementById('gen-expire').value, 10) || 0,
+      };
+      const data = await api('/licenses/generate', { method: 'POST', body: JSON.stringify(body) });
+      if (!data.ok) { toast(data.message || '生成失败'); return; }
+      document.getElementById('gen-codes').value = data.codes.join('\n');
+      document.getElementById('gen-result').style.display = 'block';
+      toast(`已生成 ${data.count} 个卡密`);
+      loadStats(); loadLicenses(1);
+    }
+    function copyCodes() {
+      const codes = document.getElementById('gen-codes').value;
+      navigator.clipboard.writeText(codes).then(() => toast('已复制'));
+    }
+    function downloadCodes() {
+      const codes = document.getElementById('gen-codes').value.split('\n');
+      const csv = 'activation_code\n' + codes.join('\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'licenses.csv'; a.click();
+    }
+
+    // ===== 吊销/恢复 =====
+    async function revoke(code) {
+      if (!confirm('确认吊销这个卡密？吊销后该卡密无法激活（可恢复）。')) return;
+      const data = await api(`/licenses/${code}/revoke`, { method: 'POST' });
+      if (data.ok) { toast('已吊销'); loadLicenses(); loadStats(); }
+    }
+    async function restore(code) {
+      const data = await api(`/licenses/${code}/restore`, { method: 'POST' });
+      if (data.ok) { toast('已恢复'); loadLicenses(); loadStats(); }
+    }
+
+    // ===== 详情 =====
+    async function showDetail(code) {
+      const data = await api('/licenses/' + code);
+      if (!data.ok) return;
+      const l = data.license;
+      const devRows = data.devices.map(d => `
+        <tr><td>${d.device_name || '未知设备'}</td><td style="font-family:monospace;font-size:12px">${d.device_fp}</td>
+        <td>${fmtTime(d.bound_at)}</td><td>${fmtTime(d.last_seen)}</td>
+        <td><span class="tag ${d.status === 'active' ? 'tag-activated' : 'tag-revoked'}">${d.status === 'active' ? '已绑定' : '已解绑'}</span></td></tr>
+      `).join('');
+      document.getElementById('detail-body').innerHTML = `
+        <p style="margin-bottom:8px"><b>激活码：</b><span class="code-cell">${l.formatted}</span></p>
+        <p style="margin-bottom:8px"><b>类型：</b>${typeText[l.type]} · <b>设备数：</b>${l.max_devices} · <b>状态：</b>${statusText[l.status]}</p>
+        <p style="margin-bottom:12px"><b>创建：</b>${fmtTime(l.created_at)} · <b>过期：</b>${l.expire_at ? fmtTime(new Date(l.expire_at).toISOString()) : '永久'}</p>
+        <h4 style="margin-bottom:8px">绑定设备（${devRows ? data.devices.length : 0}）</h4>
+        <table><thead><tr><th>设备名</th><th>指纹</th><th>绑定时间</th><th>最后心跳</th><th>状态</th></tr></thead>
+        <tbody>${devRows || '<tr><td colspan="5" style="color:#888">无绑定设备</td></tr>'}</tbody></table>
+      `;
+      document.getElementById('detail-modal').style.display = 'flex';
+    }
+    function closeDetail() { document.getElementById('detail-modal').style.display = 'none'; }
+
+    // ===== 导出 =====
+    async function exportCsv() {
+      const search = document.getElementById('search').value.trim();
+      const status = document.getElementById('filter-status').value;
+      const type = document.getElementById('filter-type').value;
+      const q = new URLSearchParams();
+      if (search) q.set('search', search);
+      if (status) q.set('status', status);
+      if (type) q.set('type', type);
+      const resp = await fetch(API + '/licenses/export?' + q.toString(), { headers: { 'Authorization': 'Bearer ' + token } });
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'licenses.csv'; a.click();
+    }
+
+    // 回车登录
+    document.getElementById('login-password').addEventListener('keyup', (e) => { if (e.key === 'Enter') login(); });
+
+    // 启动
+    if (token) showAdmin();
+  </script>
+</body>
+</html>

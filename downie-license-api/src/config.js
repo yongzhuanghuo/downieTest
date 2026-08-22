@@ -20,5 +20,10 @@ export function loadConfig() {
       password: required('DB_PASSWORD'),
       database: required('DB_NAME'),
     },
+    admin: {
+      username: process.env.ADMIN_USERNAME || 'admin',
+      password: required('ADMIN_PASSWORD'),
+      jwtSecret: required('JWT_SECRET'),
+    },
   };
 }

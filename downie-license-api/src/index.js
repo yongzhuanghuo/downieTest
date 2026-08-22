@@ -1,8 +1,11 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import { loadConfig } from './config.js';
 import { createPool } from './db.js';
 import { registerLicenseRoutes } from './routes/license.js';
+import { registerAdminRoutes } from './routes/admin.js';
 
 const config = loadConfig();
 
@@ -25,6 +28,11 @@ app.use(cors());          // 桌面应用无浏览器同源限制，开放 CORS 
 app.use(express.json());  // 解析 JSON 请求体
 
 registerLicenseRoutes(app, pool);
+
+// 激活码管理后台：接口 + 静态页面托管（同一个进程，无需额外前端服务）
+registerAdminRoutes(app, pool);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
 
 // 统一错误处理：兜底任何未捕获的同步/异步错误
 // eslint-disable-next-line no-unused-vars
