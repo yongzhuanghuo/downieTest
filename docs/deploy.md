@@ -93,7 +93,7 @@ curl -X POST http://127.0.0.1:3000/api/license/activate \
 
 在 Flutter 项目里，把授权后端地址改成你的服务器：
 
-1. 编辑 [lib/core/license/license_client.dart](lib/core/license/license_client.dart) 顶部，
+1. 编辑 [lib/core/license/license_client.dart](../apps/desktop/lib/core/license/license_client.dart) 顶部，
    或构建时用 `--dart-define` 覆盖（无需改源码）：
 
 ```bash

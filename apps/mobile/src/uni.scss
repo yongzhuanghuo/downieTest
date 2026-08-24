@@ -1,0 +1,18 @@
+/* 引入 uview-plus 主题变量 */
+@import 'uview-plus/theme.scss';
+
+/* 覆盖 uview-plus 主色为亮绿 */
+$u-primary: #b8ff26;
+$u-bg-color: #121212;
+
+/* 项目主题变量（暗黑 + 亮绿） */
+$bg: #121212;            // 全 App 底色
+$card: #1e1e1e;          // 卡片/输入框
+$card2: #252525;         // 次级卡片
+$text: #ffffff;          // 主文字
+$text-secondary: #999999; // 次要文字
+$danger: #e5484d;        // 错误/删除
+$primary: #b8ff26;       // 主色（亮绿）
+$banner-from: #6c5ce7;   // Banner 渐变起点（紫）
+$banner-to: #4a90d9;     // Banner 渐变终点（蓝）
+$radius: 24rpx;          // 大圆角

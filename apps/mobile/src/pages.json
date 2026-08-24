@@ -1,0 +1,66 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^u--(.*)": "uview-plus/components/u-$1/u-$1.vue",
+      "^up-(.*)": "uview-plus/components/u-$1/u-$1.vue",
+      "^u-([^-].*)": "uview-plus/components/u-$1/u-$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": { "navigationStyle": "custom", "navigationBarTitleText": "4KDownle" }
+    },
+    {
+      "path": "pages/downloads/downloads",
+      "style": { "navigationBarTitleText": "下载" }
+    },
+    {
+      "path": "pages/mine/mine",
+      "style": { "navigationBarTitleText": "我的" }
+    },
+    {
+      "path": "pages/parse/parse",
+      "style": { "navigationBarTitleText": "解析结果" }
+    },
+    {
+      "path": "pages/download/download",
+      "style": { "navigationBarTitleText": "下载" }
+    },
+    {
+      "path": "pages/delogo/delogo",
+      "style": { "navigationBarTitleText": "去水印" }
+    },
+    {
+      "path": "pages/watermark/watermark",
+      "style": { "navigationBarTitleText": "加水印" }
+    },
+    {
+      "path": "pages/md5/md5",
+      "style": { "navigationBarTitleText": "MD5修改" }
+    },
+    {
+      "path": "pages/gif/gif",
+      "style": { "navigationBarTitleText": "转GIF" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "4KDownle",
+    "navigationBarBackgroundColor": "#121212",
+    "backgroundColor": "#121212"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#b8ff26",
+    "backgroundColor": "#1a1a1a",
+    "borderStyle": "black",
+    "fontSize": "14pt",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "首页" },
+      { "pagePath": "pages/downloads/downloads", "text": "下载" },
+      { "pagePath": "pages/mine/mine", "text": "我的" }
+    ]
+  }
+}

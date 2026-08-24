@@ -7,10 +7,17 @@ on:
     tags: [ 'v*' ]
   workflow_dispatch:
 
+# 说明：Flutter 桌面端位于 apps/desktop/，两个 job 都用 defaults.working-directory 切进去。
+# 注意 actions/upload-artifact 的 path 相对 $GITHUB_WORKSPACE 解析，**不受 working-directory 影响**，
+# 必须显式写 apps/desktop/ 前缀。
+
 jobs:
   # ==================== macOS ====================
   build-macos:
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
     steps:
       - uses: actions/checkout@v4
 
@@ -39,12 +46,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: 4kdownle-pro-macos
-          path: build/macos/Build/Products/Release/*.app
+          path: apps/desktop/build/macos/Build/Products/Release/*.app
           retention-days: 30
 
   # ==================== Windows ====================
   build-windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
     steps:
       - uses: actions/checkout@v4
 
@@ -75,6 +85,8 @@ jobs:
 
       - name: 生成安装包（Inno Setup）
         shell: pwsh
+        # setup.iss 内部路径相对 .iss 自身（..\runner、..\..\build），
+        # 所以必须在 apps/desktop 下执行 iscc，由 defaults.working-directory 保证
         run: |
           choco install innosetup -y --no-progress
           iscc windows/installer/setup.iss
@@ -83,12 +95,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: 4kdownle-pro-windows-setup
-          path: windows/installer/Output/*.exe
+          path: apps/desktop/windows/installer/Output/*.exe
           retention-days: 30
 
       - name: 上传产物（便携版）
         uses: actions/upload-artifact@v4
         with:
           name: 4kdownle-pro-windows
-          path: build/windows/x64/runner/Release/
+          path: apps/desktop/build/windows/x64/runner/Release/
           retention-days: 30

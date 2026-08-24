@@ -1,4 +1,50 @@
-# Flutter / Dart
+# ============================================================
+# 4KDownle monorepo — 统一 .gitignore
+#
+# 规则约定：
+#   · 不含斜杠的 pattern 匹配任意层级（如 build/、node_modules/），仓库级通用
+#   · 含斜杠的 pattern 锚定在仓库根，必须写全路径（如 apps/desktop/assets/bin/）
+# ============================================================
+
+# ---------- 通用 ----------
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
+*.log
+
+# ---------- IDE ----------
+.idea/
+.vscode/
+.claude/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+# 鸿蒙 DevEco Studio
+.hvigor/
+.cxx/
+
+# ---------- 密钥 / 环境变量 ----------
+.env
+.env.local
+.env.*.local
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+# 生成的激活码 CSV（含真实激活码，勿提交）
+services/license-api/*.csv
+
+# ============================================================
+# apps/desktop — Flutter (macOS / Windows)
+# ============================================================
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -9,69 +55,59 @@ build/
 flutter_*.png
 !**/flutter_assets/
 
-# IDE
-.idea/
-.vscode/
-.claude/
-*.iml
-*.ipr
-*.iws
-.project
-.classpath
-.settings/
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon?
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Linux
-*~
-
-# Generated files
+# 生成代码
 *.g.dart
 *.freezed.dart
 *.mocks.dart
 
-# Secrets / env
-.env
-.env.local
-*.keystore
-*.jks
-
-# Binary assets (yt-dlp / FFmpeg) - 太大不上传
-assets/bin/macos/*
-assets/bin/windows/*
-!assets/bin/macos/.gitkeep
-!assets/bin/windows/.gitkeep
-
 # CocoaPods
-macos/Pods/
-macos/Podfile.lock
+apps/desktop/macos/Pods/
+apps/desktop/macos/Podfile.lock
+
+# 内嵌二进制（yt-dlp ~38MB + ffmpeg ~130MB，太大不上传，CI 现下）
+apps/desktop/assets/bin/macos/*
+apps/desktop/assets/bin/windows/*
+!apps/desktop/assets/bin/macos/.gitkeep
+!apps/desktop/assets/bin/windows/.gitkeep
+
+# 源 logo（已生成到 assets/logo.png 和各平台图标，源文件不进库）
+# 注意 assets/logo.png 是 App 运行时需要的，必须进库
+/apps/desktop/logo.png
+
+# 本机环境安装脚本
+setup_macos_env.sh
 
 # pubspec.lock 提交进库（应用项目应锁定依赖版本），不要忽略
 # 后端 package-lock.json 同样提交进库，保证可复现构建
 
-# 日志文件
-*.log
-flutter_*.log
-
-# 安装脚本
-setup_macos_env.sh
-
-# Node（授权后端）
+# ============================================================
+# apps/mobile — uniapp (Vue3)
+# ============================================================
 node_modules/
+dist/
+unpackage/
 .wrangler/
 
-# 生成的激活码 CSV（含真实激活码，勿提交）
-downie-license-api/*.csv
+# ============================================================
+# apps/harmony-pc — HarmonyOS（占位，待开发）
+# ============================================================
+oh_modules/
+build/default/
+*.har
+local.properties
 
-# 源 logo（已生成到 assets/logo.png 和各平台图标，源文件不进库）
-# 只忽略根目录的源图；assets/logo.png 是 App 运行时需要的，必须进库
-/logo.png
+# ============================================================
+# services/media-api — Python FastAPI
+# ============================================================
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# 运行时产物（上传的视频、抽帧图、去水印/加水印/GIF 输出）
+# config.py 在 import 时会自动 mkdir 重建，删了不影响服务启动
+services/media-api/downloads/
+services/media-api/tmp/
