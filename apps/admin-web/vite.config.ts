@@ -9,16 +9,18 @@ import {
   __APP_INFO__
 } from "./build/utils.ts";
 
-export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
+export default async ({ mode, command }: ConfigEnv): Promise<UserConfigExport> => {
   const { VITE_CDN, VITE_PORT, VITE_COMPRESSION, VITE_PUBLIC_PATH } =
     wrapperEnv(loadEnv(mode, root));
+  // 构建时统一挂到 /admin/ 下（由 FastAPI 的 /admin 静态挂载托管）；开发态用空 base
+  const base = command === "build" ? "/admin/" : VITE_PUBLIC_PATH;
   // 开发态后端地址（FastAPI 默认 3000 端口）
   const proxyTarget = {
     target: "http://127.0.0.1:3000",
     changeOrigin: true
   };
   return {
-    base: VITE_PUBLIC_PATH,
+    base,
     root,
     resolve: {
       alias
