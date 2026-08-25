@@ -3,7 +3,7 @@ from typing import Optional
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,11 @@ class UserQuery(BaseModel):
     deptId: Optional[int] = None
     pageSize: int = 10
     currentPage: int = 1
+
+    @field_validator("status", "deptId", mode="before")
+    @classmethod
+    def _empty_to_none(cls, v):
+        return None if v in ("", None) else v
 
 
 class UserCreate(BaseModel):

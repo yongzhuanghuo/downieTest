@@ -2,7 +2,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,11 @@ class RoleQuery(BaseModel):
     status: Optional[int] = None
     pageSize: int = 10
     currentPage: int = 1
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _empty_to_none(cls, v):
+        return None if v in ("", None) else v
 
 
 class RoleCreate(BaseModel):
