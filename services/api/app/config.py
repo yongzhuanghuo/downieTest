@@ -6,6 +6,7 @@ media 模块仍通过模块级常量（DOWNLOAD_DIR / TEMP_DIR / FRAME_DIR / PUB
 """
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from pydantic_settings import BaseSettings
 
@@ -59,14 +60,15 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
+        # 密码/用户名可能含 @ : / 等特殊字符，必须 URL 编码，否则连接串被解析错
         return (
-            f"mysql+aiomysql://{self.db_user}:{self.db_password}"
+            f"mysql+aiomysql://{quote_plus(self.db_user)}:{quote_plus(self.db_password)}"
             f"@{self.db_host}:{self.db_port}/{self.db_name}?charset=utf8mb4"
         )
 
     @property
     def redis_url(self) -> str:
-        auth = f":{self.redis_password}@" if self.redis_password else ""
+        auth = f":{quote_plus(self.redis_password)}@" if self.redis_password else ""
         return f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
     class Config:
