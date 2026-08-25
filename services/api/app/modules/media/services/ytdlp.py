@@ -51,6 +51,13 @@ def _base_opts(extra: dict) -> dict:
     # 代理：全局 YTDLP_PROXY 配置。境内部署想抓 YouTube 时填代理地址。
     if config.settings.ytdlp_proxy:
         opts["proxy"] = config.settings.ytdlp_proxy
+    # cookies：B站等站点对机房 IP 无 cookie 的请求返回 412 风控，YTDLP_COOKIES 指向导出的 cookies.txt
+    cookies = config.settings.ytdlp_cookies
+    if cookies:
+        if Path(cookies).is_file():
+            opts["cookiefile"] = cookies
+        else:  # 路径写错就静默不带 cookie，别让所有解析直接挂
+            logger.warning("YTDLP_COOKIES 指向的文件不存在，已忽略: %s", cookies)
     opts.update(extra)
     return opts
 

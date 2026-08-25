@@ -20,6 +20,8 @@ def _friendly_error(msg: str) -> str:
         return "视频不存在或已被删除"
     if "private" in m or "members only" in m or "premium" in m:
         return "该视频需要会员或登录才能访问"
+    if "412" in m or "429" in m or "403" in m:
+        return "该站点触发了访问风控，请稍后重试或联系管理员配置 cookies"
     if "validation error" in m or "int_from_float" in m:
         return "解析结果异常，请稍后重试"
     return f"解析失败：{msg}"

@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     allowed_origins: str = "*"
     # yt-dlp 全局代理（如 http://127.0.0.1:7890）。空 = 不走代理
     ytdlp_proxy: str = ""
+    # yt-dlp cookies 文件路径（Netscape 格式）。B站机房 IP 无 cookie 会被风控 412，填这个绕过
+    ytdlp_cookies: str = ""
     # 并发媒体任务数（0 = 自动按 CPU 核数 / 2）
     media_concurrency: int = 0
     # ---- 阿里云 OSS（后端中转转存）----
