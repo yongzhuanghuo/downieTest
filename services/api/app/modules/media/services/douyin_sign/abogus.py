@@ -21,11 +21,17 @@ def generate(uri: str) -> str:
             text=True,
             timeout=30,
         )
+    except FileNotFoundError:
+        logger.error("node 未安装，抖音解析不可用")
+        raise RuntimeError("node 未安装")
     except subprocess.TimeoutExpired:
         raise RuntimeError("a_bogus 生成超时")
 
     if result.returncode != 0:
-        raise RuntimeError(f"a_bogus 生成失败: {result.stderr.strip()[:200]}")
+        # returncode 是关键：137=OOM 被杀，126=权限，1=JS 报错。stderr 常为空，光看它等于盲猜
+        logger.error("a_bogus 生成失败 rc=%s stderr=%r stdout=%r",
+                     result.returncode, result.stderr[-500:], result.stdout[-200:])
+        raise RuntimeError(f"a_bogus 生成失败 rc={result.returncode}")
 
     ab = result.stdout.strip()
     if not ab:
