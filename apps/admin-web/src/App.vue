@@ -2,7 +2,6 @@
   <el-config-provider :locale="currentLocale">
     <router-view />
     <ReDialog />
-    <ReDrawer />
   </el-config-provider>
 </template>
 
@@ -13,18 +12,14 @@ import { useRouter, useRoute } from "vue-router";
 import { useGlobal, useWatermark } from "@pureadmin/utils";
 import { defineComponent, computed, watch, nextTick } from "vue";
 import { ReDialog, closeAllDialog } from "@/components/ReDialog";
-import { ReDrawer, closeAllDrawer } from "@/components/ReDrawer";
 import en from "element-plus/es/locale/lang/en";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
-import plusEn from "plus-pro-components/es/locale/lang/en";
-import plusZhCn from "plus-pro-components/es/locale/lang/zh-cn";
 
 export default defineComponent({
   name: "app",
   components: {
     [ElConfigProvider.name]: ElConfigProvider,
-    ReDialog,
-    ReDrawer
+    ReDialog
   },
   setup() {
     const route = useRoute();
@@ -34,14 +29,11 @@ export default defineComponent({
     const watermarkEnable = computed(() => $storage.configure?.watermark);
     const watermarkText = computed(() => $storage.configure?.watermarkText);
     const currentLocale = computed(() => {
-      return $storage.locale?.locale === "zh"
-        ? { ...zhCn, ...plusZhCn }
-        : { ...en, ...plusEn };
+      return $storage.locale?.locale === "zh" ? zhCn : en;
     });
 
     router.beforeEach(() => {
       closeAllDialog();
-      closeAllDrawer();
     });
 
     watch(

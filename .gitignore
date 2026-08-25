@@ -51,7 +51,10 @@ services/license-api/*.csv
 .packages
 .pub-cache/
 .pub/
-build/
+# 只忽略 Flutter 的构建产物目录，不要误伤 apps/admin-web/build/（那是 vite 构建脚本源码）
+# 根目录遗留的 Flutter build 产物 + 桌面端 build 产物
+/build/
+apps/desktop/build/
 flutter_*.png
 !**/flutter_assets/
 
