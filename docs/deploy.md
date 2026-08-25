@@ -1,5 +1,9 @@
 # 授权后端部署指南（MySQL + Node.js）
 
+> ⚠️ **迁移中**：授权已合并进统一服务端 [services/api](../services/api/)（Python FastAPI）。
+> 本文件描述的是旧 Node 版（`services/license-api/`）的部署，仅在切换验证期间保留作参考。
+> **新部署看 [项目使用助手.md](项目使用助手.md) §6。**
+
 后端从 Cloudflare Workers 迁移到自建 Linux 服务器（2 核 2G 阿里云）。技术栈：
 Node.js 20 + Express + MySQL 8.0 + mysql2，激活码为「数据库随机码」方案。
 

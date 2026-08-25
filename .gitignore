@@ -97,7 +97,7 @@ build/default/
 local.properties
 
 # ============================================================
-# services/media-api — Python FastAPI
+# services/api — Python FastAPI（统一服务端）
 # ============================================================
 .venv/
 venv/
@@ -109,5 +109,5 @@ __pycache__/
 
 # 运行时产物（上传的视频、抽帧图、去水印/加水印/GIF 输出）
 # config.py 在 import 时会自动 mkdir 重建，删了不影响服务启动
-services/media-api/downloads/
-services/media-api/tmp/
+services/api/downloads/
+services/api/tmp/

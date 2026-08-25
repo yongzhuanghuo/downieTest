@@ -1,6 +1,6 @@
 # 跨端架构总览
 
-四个客户端 + 两个服务的关系、两条技术路线的分野、已知的重复与待办。
+四个客户端 + 一个统一服务端的关系、两条技术路线的分野、已知的重复与待办。
 单端内部架构见各端自己的 README / CLAUDE.md。
 
 ---
@@ -22,20 +22,20 @@
    │ yt-dlp   │                               │
    │ ffmpeg   │                               ▼
    └────┬─────┘                  ┌────────────────────────┐
-        │                        │  services/media-api     │
-        │                        │  FastAPI               │
-        │                        │  yt-dlp / ffmpeg /     │
-        │                        │  抖音 a_bogus 签名       │
+        │                        │  services/api           │
+        │                        │  Python FastAPI         │
+        │                        │  ├─ license 授权        │
+        │                        │  ├─ media 视频处理       │
+        │                        │  └─ admin 管理后台       │
         │                        └────────────────────────┘
         │
-        └──────────────┐         ┌────────────────────────┐
-                       └────────▶│  services/license-api   │
-                                 │  Node + MySQL          │
-                                 │  激活码 / 设备绑定       │
-                                 └────────────────────────┘
-                                   ▲
-                                   ╎ 移动端/鸿蒙尚未接入
+        └──────────────┐
+                       └────────▶ 同一服务里的 license 模块
+                                   (MySQL 授权)
 ```
+
+> `services/api` 是授权（原 license-api）与视频处理（原 media-api）合并后的**单一服务端**，
+> 按 `MODULES` 环境变量挂载 license / admin / media 三个模块。
 
 ---
 
@@ -55,7 +55,7 @@
 
 **为什么分两条**：手机和鸿蒙的应用沙箱起不了任意子进程，物理上跑不了 yt-dlp / ffmpeg。桌面端没这个限制，所以选了成本更低、速度更快的本地方案。
 
-**这也是 `services/` 独立于 `apps/` 的原因**：media-api 不是「移动端的后端」，而是所有瘦客户端共享的服务。license-api 同理 —— 它现在只服务桌面端，但移动端接授权时会直接复用。
+**为什么 `services/api` 独立于 `apps/`**：media 不是「移动端的后端」，而是所有瘦客户端共享的服务；license 现在只服务桌面端，移动端接授权时直接复用同进程的 license 模块。
 
 ---
 
@@ -63,20 +63,19 @@
 
 跨语言（Dart / TypeScript / Python）没法共享代码，一致性靠这份契约维持。改接口时**两边都要改**。
 
-### license-api（`:3000`）
+### services/api 授权模块（license，路径前缀 `/api/license`）
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/activate` | 激活（事务 + `FOR UPDATE` 防超绑） |
-| POST | `/api/unbind` | 解绑设备 |
-| GET | `/api/status` | 设备列表 + 剩余名额 |
-| POST | `/api/heartbeat` | 更新 `last_seen` |
-| POST | `/api/verify` | 离线降级验证 |
-| — | `/admin/*` | 管理后台（JWT），同进程托管静态页 |
+| POST | `/api/license/activate` | 激活（事务 + `FOR UPDATE` 防超绑） |
+| POST | `/api/license/unbind` | 解绑设备 |
+| GET | `/api/license/status` | 设备列表 + 剩余名额 |
+| POST | `/api/license/heartbeat` | 更新 `last_seen` |
+| POST | `/api/license/verify` | 离线降级验证 |
 
 **安全模型**：客户端只发 `code + device_fp`，完全信任服务端返回的负载，本地无验签、无密钥。安全边界全在服务端。
 
-### media-api（`:8000`）
+### services/api 媒体模块（media）
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -86,12 +85,12 @@
 | POST | `/api/delogo/preview` | 上传视频 → 可 seek 播放源 |
 | POST | `/api/delogo/frame` | 指定时间戳抽帧 |
 | POST | `/api/delogo/process` | 提交 `segments[]` 去水印 |
-| POST | `/api/upload/image`、`/api/watermark`、`/api/md5`、`/api/gif` | 工具类 |
+| POST | `/api/upload/image`、`/api/watermark/process`、`/api/md5/process`、`/api/gif/process` | 工具类 |
 | GET | `/health` | 健康检查 |
 
 静态：`/files/*` → 下载产物，`/tmp/*` → 临时文件（抽帧图等）。
 
-**⚠️ 当前无鉴权**（CORS `*`、静态目录全公开）。公网部署前必须加。
+**鉴权**：客户端请求头 `X-License-Code` + `X-Device-FP` 走 `require_license`（宽松模式，无头放行）；`/files` `/tmp` 走签名 URL（`SIGNED_URLS=1` 时强制）。
 
 ---
 
@@ -99,7 +98,7 @@
 
 这是目前最值得处理的架构债。
 
-| | apps/desktop | services/media-api |
+| | apps/desktop | services/api（media 模块） |
 |---|---|---|
 | 方案 | WebView 拦截 `aweme/detail` 响应 | 纯 HTTP + a_bogus 签名 |
 | 实现 | `douyin_web_dialog.dart` + `douyin_downloader.dart` | `douyin.py` + `douyin_sign/`（约 3200 行 JS） |
@@ -109,15 +108,15 @@
 
 **共同背景**：yt-dlp 的抖音提取器没实现 `a_bogus` 签名（`tiktok.py` 里只有 TODO），且抖音分享页 SSR 不再内嵌播放地址，所以两边都得自己想办法。
 
-**判断**：media-api 那套方案更优 —— 不需要浏览器、可服务端批量跑、用户无感。桌面端的 WebView 方案是当时没有服务端才做的权宜之计。
+**判断**：`services/api` 那套方案更优 —— 不需要浏览器、可服务端批量跑、用户无感。桌面端的 WebView 方案是当时没有服务端才做的权宜之计。
 
-**建议（未排期）**：桌面端抖音解析改为调 media-api，删掉 WebView 那条路径。代价是桌面端从「纯本地」变成「抖音这一个站点要联网解析」，需要产品上接受。
+**建议（未排期）**：桌面端抖音解析改为调 `services/api` 的 media 模块，删掉 WebView 那条路径。代价是桌面端从「纯本地」变成「抖音这一个站点要联网解析」，需要产品上接受。
 
 ---
 
 ## 其他跨端待办
 
-- **移动端 / 鸿蒙尚未接入 license-api**。目前 `apps/mobile` 完全没有授权逻辑，所有功能免费。要收费得先接。
+- **移动端 / 鸿蒙尚未接入授权**。目前 `apps/mobile` 完全没有授权逻辑，所有功能免费。要收费得先接 `services/api` 的 license 模块。
 - **功能对齐靠人工**。桌面端有的（字幕下载、站点登录抓 cookie、MP3），移动端不一定有；移动端有的（加水印、改 MD5、转 GIF），桌面端没有。没有任何机制保证同步。
 - **反爬失效是持续成本**。抖音 a_bogus、B站 WBI、视频号登录态都会随平台更新而失效。走服务端路线的好处是改一次全端生效；桌面端则要发版。
 

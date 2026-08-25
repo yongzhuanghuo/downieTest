@@ -14,13 +14,13 @@
 | [apps/desktop](apps/desktop/) | macOS / Windows 桌面应用 | Flutter + Dart | ✅ 已发布 v2.0.0 |
 | [apps/mobile](apps/mobile/) | Android APK / 微信小程序 / H5 | uniapp（Vue3）+ uview-plus | 🔧 V1 功能已实现，未发布 |
 | [apps/harmony-pc](apps/harmony-pc/) | 鸿蒙 PC 应用 | 待定（三条候选路线） | ⏳ 占位，未开发 |
-| [services/license-api](services/license-api/) | 授权服务（激活码/设备绑定/管理后台） | Node.js + Express + MySQL | ✅ 已上线 |
-| [services/media-api](services/media-api/) | 视频解析 / 下载 / 去水印服务 | Python FastAPI + yt-dlp + ffmpeg | 🔧 V1 可跑，仅本地 |
+| [services/api](services/api/) | 统一服务端（授权 + 视频处理 + 管理后台） | Python FastAPI + MySQL + Redis | 🔧 合并中 |
+| [apps/admin-web](apps/admin-web/) | 管理后台前端 | Vue3 + Vite + Element Plus | 🔧 开发中 |
 
 **两条技术路线**（重要区别）：
 
 - **桌面端走本地**：内嵌 yt-dlp + ffmpeg 二进制，解析下载全在用户机器上跑，只在授权时联网。代价是安装包 170MB+。
-- **移动端 / 鸿蒙走服务端**：手机和鸿蒙沙箱跑不了 ffmpeg/yt-dlp，全部交给 `services/media-api` 处理。
+- **移动端 / 鸿蒙走服务端**：手机和鸿蒙沙箱跑不了 ffmpeg/yt-dlp，全部交给 `services/api` 的 media 模块处理。
 
 详见 [docs/architecture.md](docs/architecture.md)。
 
@@ -33,15 +33,16 @@
 ├── apps/                       # 客户端（按平台命名，与技术栈解耦）
 │   ├── desktop/                # Flutter — macOS / Windows
 │   ├── mobile/                 # uniapp — Android / 微信小程序 / H5
-│   └── harmony-pc/             # 鸿蒙 PC（占位）
+│   ├── harmony-pc/             # 鸿蒙 PC（占位）
+│   └── admin-web/              # 管理后台前端（Vue3）
 ├── services/                   # 服务端（多端共享，不隶属任何客户端）
-│   ├── license-api/            # Node — 授权
-│   └── media-api/              # Python — 解析/下载/去水印
+│   └── api/                    # Python FastAPI — 授权 + 解析/下载/去水印（统一）
 ├── docs/
 │   ├── architecture.md         # 跨端架构总览 ← 先看这个
 │   ├── deploy.md               # 服务器部署
 │   ├── roadmap.md              # 桌面端开发进度（阶段 1-22）
-│   └── mobile-app-design.md    # 移动端产品与技术设计稿
+│   ├── mobile-app-design.md    # 移动端产品与技术设计稿
+│   └── 项目使用助手.md          # 怎么跑起来 / 怎么排查（操作手册）
 ├── CLAUDE.md                   # 给 Claude Code 的仓库级说明
 └── CHANGELOG.md
 ```
@@ -72,31 +73,31 @@ npm install
 npm run dev:h5                      # H5 调试（也有 dev:mp-weixin / dev:app）
 ```
 
-需要同时起 `services/media-api`，否则所有功能不可用。详见 [apps/mobile/README.md](apps/mobile/README.md)。
+需要同时起 `services/api`，否则所有功能不可用。详见 [apps/mobile/README.md](apps/mobile/README.md)。
 
-### media-api（Python）
+### 统一服务端（Python FastAPI）
 
 ```bash
-cd services/media-api
+cd services/api
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-pip install Pillow                  # ⚠️ requirements.txt 漏了，见下方已知问题
-uvicorn app.main:app --reload       # http://127.0.0.1:8000
+cp .env.example .env && vim .env    # 填 DB / REDIS / ADMIN / JWT
+python scripts/init_db.py           # 建表（幂等）
+uvicorn app.main:app --reload       # http://127.0.0.1:3000
 ```
 
-系统级前置依赖：**ffmpeg / ffprobe**（视频处理）、**node**（抖音 a_bogus 签名要起 node 子进程）。
+系统级前置依赖：**ffmpeg / ffprobe**（视频处理）、**node**（抖音 a_bogus 签名要起 node 子进程）。详见 [services/api/README.md](services/api/README.md)。
 
-### license-api（Node）
+### 管理后台（pure-admin-vue3）
 
 ```bash
-cd services/license-api
-npm install
-cp .env.example .env && vim .env    # 填 DB / ADMIN_* / JWT_SECRET
-npm run init-db
-npm run dev
+cd apps/admin-web
+pnpm install
+pnpm dev               # 开发态，vite 已把 /login /user /card 等代理到 127.0.0.1:3000
+pnpm build             # 产物 dist/ 复制到 services/api/static/admin/ 由后端 /admin 托管
 ```
 
-详见 [services/license-api/README.md](services/license-api/README.md)、[docs/deploy.md](docs/deploy.md)。
+系统管理（用户/角色/菜单/部门）+ 卡密管理 + 任务管理 + 会员管理（占位）都已就位。默认管理员 `admin` / `.env 的 ADMIN_PASSWORD`。
 
 ---
 
@@ -104,11 +105,10 @@ npm run dev
 
 | 位置 | 问题 |
 |------|------|
-| `services/media-api/requirements.txt` | 缺 **Pillow**，但 `services/video_tools.py` 用了 `from PIL import ...`，按文档装依赖会 ImportError |
-| `services/media-api/app/main.py` | `CORS allow_origins=["*"]` + 无任何鉴权 + `/files` `/tmp` 静态目录全公开。**公网部署前必须加鉴权**，否则是个开放下载代理 |
 | `apps/mobile/src/pages/launch/launch.vue` | 引导启动页存在但**未注册进 `pages.json`**，实际不生效 |
-| `services/media-api/app/config.py` | `PUBLIC_BASE_URL`、`MAX_UPLOAD_SIZE` 已定义但代码未使用，是死配置 |
-| 跨端 | **抖音解析有两套实现**：桌面端 Flutter WebView 拦截 `aweme/detail`，media-api 用 a_bogus 纯 HTTP 签名。后者方案更优，建议后续收敛，见 [architecture.md](docs/architecture.md) |
+| `services/api` 媒体任务队列 | 仍为进程内存，重启丢失；Redis 队列待接 |
+| `services/api` `/files` `/tmp` | 静态目录默认无鉴权，公网前需开 `SIGNED_URLS` + 收紧 CORS |
+| 跨端 | **抖音解析有两套实现**：桌面端 Flutter WebView 拦截 `aweme/detail`，`services/api` 用 a_bogus 纯 HTTP 签名。后者方案更优，建议后续收敛，见 [architecture.md](docs/architecture.md) |
 | `.github/workflows/build.yml` | 服务器 IP 硬编码在 `--dart-define=API_BASE`，建议改用 GitHub Secrets |
 
 ---
