@@ -73,7 +73,8 @@ export default {
     onDownload() {
       if (!this.selected) return
       uni.navigateTo({
-        url: `/pages/download/download?url=${encodeURIComponent(this.url)}&format_id=${this.selected}&title=${encodeURIComponent(this.info.title || '')}`,
+        // format_id 必须 encode：抖音/B站 的 format_id 是含 ?& 的完整直链，不编码会被 query 解析截断
+        url: `/pages/download/download?url=${encodeURIComponent(this.url)}&format_id=${encodeURIComponent(this.selected)}&title=${encodeURIComponent(this.info.title || '')}`,
       })
     },
     fmtDuration(s) {
