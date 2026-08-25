@@ -5,9 +5,11 @@ yt-dlp 是主力解析引擎（1700+ 提取器，覆盖 1000+ 站点）。
 """
 import logging
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Optional
 
+import requests
 import yt_dlp
 
 from app import config
@@ -20,6 +22,20 @@ _MERGE_FORMAT = "mp4"
 
 # 抖音域名（走 Playwright 专用解析，见 douyin.py）
 _DOUYIN_HOSTS = ("douyin.com", "iesdouyin.com")
+
+# B站域名。其 WAF 对不带 buvid3 的请求返回 412，机房 IP 尤其严格（家宽通常放行）
+_BILI_HOSTS = ("bilibili.com", "b23.tv")
+
+
+@lru_cache(maxsize=1)
+def _bili_buvid3() -> str:
+    """取一个匿名 buvid3（设备指纹）。这个接口不需要登录态，也不绑定任何账号。
+
+    ponytail: 进程内永久缓存，buvid3 有效期以月计；真过期了重启进程重取即可。
+    """
+    resp = requests.get("https://api.bilibili.com/x/frontend/finger/spi", timeout=10)
+    resp.raise_for_status()
+    return resp.json()["data"]["b_3"]
 
 # 从分享文案提取 URL / 标题的正则（手机端复制的常带标题/话题/提示语）
 _URL_RE = re.compile(r"https?://[^\s一-鿿]+")
@@ -40,7 +56,7 @@ def _extract_title(text: str) -> str:
     return " ".join(t.strip() for t in _TAG_RE.findall(text))
 
 
-def _base_opts(extra: dict) -> dict:
+def _base_opts(extra: dict, url: str = "") -> dict:
     opts = {
         "quiet": True,
         "no_warnings": True,
@@ -58,6 +74,12 @@ def _base_opts(extra: dict) -> dict:
             opts["cookiefile"] = cookies
         else:  # 路径写错就静默不带 cookie，别让所有解析直接挂
             logger.warning("YTDLP_COOKIES 指向的文件不存在，已忽略: %s", cookies)
+    # B站：补一个匿名 buvid3 绕过 412 风控。配了 cookiefile 就不必（里面本就带 buvid3）
+    if not opts.get("cookiefile") and any(h in url for h in _BILI_HOSTS):
+        try:
+            opts["http_headers"] = {"Cookie": f"buvid3={_bili_buvid3()}"}
+        except Exception as e:  # noqa: BLE001 取不到就照常请求，让 yt-dlp 报真实错误
+            logger.warning("获取 buvid3 失败，B站可能返回 412: %s", e)
     opts.update(extra)
     return opts
 
@@ -80,7 +102,7 @@ def parse(text: str) -> ParseResponse:
             result.title = fallback_title
         return result
 
-    opts = _base_opts({"skip_download": True})
+    opts = _base_opts({"skip_download": True}, url)
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
 
@@ -162,7 +184,8 @@ def download(
             "outtmpl": outtmpl,
             "merge_output_format": _MERGE_FORMAT,
             "progress_hooks": hooks,
-        }
+        },
+        url,
     )
 
     with yt_dlp.YoutubeDL(opts) as ydl:

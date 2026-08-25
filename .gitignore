@@ -114,3 +114,7 @@ __pycache__/
 # config.py 在 import 时会自动 mkdir 重建，删了不影响服务启动
 services/api/downloads/
 services/api/tmp/
+
+# yt-dlp cookies（含 B站 SESSDATA 等登录态，泄露=账号被盗，绝不入库）
+cookies.txt
+*.cookies.txt
