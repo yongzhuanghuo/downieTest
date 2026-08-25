@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     # ---- 服务 ----
     port: int = 3000
+    modules: str = "license,admin,media"  # 挂载模块，逗号分隔
 
     # ---- MySQL（授权）----
     db_host: str = "127.0.0.1"
@@ -33,9 +34,8 @@ class Settings(BaseSettings):
     redis_db: int = 0
 
     # ---- 管理后台 ----
-    admin_username: str = "admin"
-    admin_password: str = ""
-    jwt_secret: str = ""
+    admin_password: str = ""  # 仅 init_db.py 首次建 admin 账号的初始密码，登录走 sys_users 表
+    jwt_secret: str = ""      # 登录/刷新 token 签名密钥 + 媒体文件签名 URL 的 HMAC key
 
     # ---- 媒体 ----
     download_dir: str = ""
@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     allowed_origins: str = "*"
     # yt-dlp 全局代理（如 http://127.0.0.1:7890）。空 = 不走代理
     ytdlp_proxy: str = ""
+    # 并发媒体任务数（0 = 自动按 CPU 核数 / 2）
+    media_concurrency: int = 0
     # ---- 阿里云 OSS（后端中转转存）----
     oss_endpoint: str = ""           # 如 oss-cn-hangzhou.aliyuncs.com
     oss_access_key_id: str = ""
@@ -70,6 +72,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # 忽略 .env 里未定义的键，避免多余环境变量导致启动失败
 
 
 settings = Settings()

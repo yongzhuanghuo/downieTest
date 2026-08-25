@@ -6,12 +6,12 @@ import asyncio
 import os
 from pathlib import Path
 
-from .config import DOWNLOAD_DIR, MAX_UPLOAD_SIZE, TEMP_DIR
+from .config import DOWNLOAD_DIR, MAX_UPLOAD_SIZE, TEMP_DIR, settings
 
 
 def concurrency_limit() -> int:
     """并发媒体任务上限。默认按 CPU 核数（至少 1），可用 MEDIA_CONCURRENCY 覆盖。"""
-    n = int(os.getenv("MEDIA_CONCURRENCY", 0))
+    n = settings.media_concurrency
     if n > 0:
         return n
     return max(1, (os.cpu_count() or 2) // 2)

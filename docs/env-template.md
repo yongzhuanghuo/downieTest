@@ -23,9 +23,9 @@ REDIS_PASSWORD=
 REDIS_DB=0
 
 # ============ 管理后台 ============
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=改成你的后台登录密码
-# JWT 签名密钥：一段长随机字符串，泄露了 token 可被伪造
+# 仅首次建 admin 账号的初始密码（跑 init_db.py 时用）；建完后登录走数据库，改密码在后台
+ADMIN_PASSWORD=改成初始密码
+# JWT 签名密钥：一段长随机字符串，泄露了 token 可被伪造（登录/刷新 token 都用它）
 JWT_SECRET=改成一段长随机字符串
 
 # ============ 媒体 ============
@@ -60,8 +60,9 @@ OSS_PUBLIC_BASE_URL=
 |---|---|---|
 | `DB_USER` / `DB_PASSWORD` / `DB_NAME` | 是 | 连不上库建表/启动都失败 |
 | `JWT_SECRET` | 是 | 缺了登录 token 能被伪造 |
-| `ADMIN_PASSWORD` | 建议 | 缺了默认账号密码退回 `admin123` |
-| `ADMIN_USERNAME` | 否 | 默认 `admin` |
+| `ADMIN_PASSWORD` | 建议 | 首次建 admin 账号的初始密码，缺了退回 `admin123` |
 | `REDIS_*` | 否 | 默认 `127.0.0.1:6379` 无密码 |
 | `OSS_*` | 否 | 不配则上传/产物走本地，不转存 OSS |
 | 其余媒体项 | 否 | 都有默认值 |
+
+> 账号本身固定 `admin`（seed 写死），没有 `ADMIN_USERNAME` 这个配置了。

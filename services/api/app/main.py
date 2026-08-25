@@ -11,7 +11,6 @@
 """
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
@@ -27,7 +26,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-MODULES = [m.strip() for m in os.getenv("MODULES", "license,admin,media").split(",") if m.strip()]
+MODULES = [m.strip() for m in config.settings.modules.split(",") if m.strip()]
 
 
 @asynccontextmanager
