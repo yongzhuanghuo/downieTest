@@ -1,15 +1,7 @@
 // 后端接口封装
-// H5 环境：自动用当前访问的 host（手机访问局域网 IP 时，API 指向同 IP 的后端 8000 端口）
-// 小程序 / App 环境：改成后端实际地址（局域网 IP 或部署域名）
-const BASE_URL = (() => {
-  // #ifdef H5
-  const host = location.hostname
-  if (host && host !== 'localhost' && host !== '127.0.0.1') {
-    return `http://${host}:8000`
-  }
-  // #endif
-  return 'http://127.0.0.1:8000'
-})()
+// 统一后端 services/api 跑在阿里云服务器，端口 3000
+// 本地联调（后端跑在本机）时改成 http://127.0.0.1:3000
+const BASE_URL = 'http://8.153.99.239:3000'
 
 export function fullUrl(path) {
   if (path && path.startsWith('http')) return path
