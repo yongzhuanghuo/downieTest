@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
@@ -203,6 +204,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         child: const Text('检查更新'),
                       ),
               ),
+              ListTile(
+                leading: const Icon(Icons.support_agent),
+                title: const Text('客服支持'),
+                subtitle: const Text('huoyongzhuang@qq.com'),
+                trailing: const Icon(Icons.copy),
+                onTap: () => _copySupportEmail(context),
+              ),
             ]),
             const SizedBox(height: 8),
             const LicenseCard(),
@@ -239,6 +247,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   // ==================== 交互方法 ====================
+
+  Future<void> _copySupportEmail(BuildContext context) async {
+    await Clipboard.setData(const ClipboardData(text: 'huoyongzhuang@qq.com'));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('客服邮箱已复制到剪贴板')),
+      );
+    }
+  }
 
   Future<void> _pickDownloadDir(
     BuildContext context,

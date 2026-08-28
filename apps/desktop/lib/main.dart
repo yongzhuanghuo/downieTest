@@ -11,6 +11,7 @@ import 'core/ffmpeg/ffmpeg_runner.dart';
 import 'core/platform/binary_initializer.dart';
 import 'core/platform/binary_locator.dart';
 import 'core/storage/settings_storage.dart';
+import 'core/version/version_check.dart';
 import 'features/license/license_provider.dart';
 
 /// 窗口配置常量
@@ -32,6 +33,9 @@ void main() async {
 
   // 初始化 yt-dlp / FFmpeg 二进制（后台执行，不阻塞 UI）
   _initBinaries();
+
+  // 启动后延迟检查应用新版本（后台，有新版弹窗，无则静默）
+  _checkAppUpdate();
 
   runApp(
     const ProviderScope(
@@ -106,6 +110,23 @@ void _autoUpdateYtDlp() {
       debugPrint('[更新] yt-dlp: ${r.message}');
     } catch (e) {
       debugPrint('[更新] yt-dlp 自动更新失败（降级继续用旧版）: $e');
+    }
+  }());
+}
+
+/// 启动后延迟检查应用新版本。
+///
+/// 延迟 3s 等 UI 就绪 + navigator context 可用；失败静默（连不上服务器也不打扰用户）。
+void _checkAppUpdate() {
+  unawaited(() async {
+    try {
+      await Future.delayed(const Duration(seconds: 3));
+      final info = await checkForUpdate();
+      if (info != null) {
+        await showUpdateDialog(info);
+      }
+    } catch (e) {
+      debugPrint('[更新] 版本检查失败（静默）: $e');
     }
   }());
 }

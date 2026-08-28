@@ -41,6 +41,10 @@ dependencies:
   file_picker: ^8.1.2
   flutter_inappwebview: ^6.1.5
 
+  # 版本更新推送（读版本号 + 打开下载链接）
+  package_info_plus: ^8.0.0
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

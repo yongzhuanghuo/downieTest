@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     allowed_origins: str = "*"
     # yt-dlp 全局代理（如 http://127.0.0.1:7890）。空 = 不走代理
     ytdlp_proxy: str = ""
+    # ---- 版本更新推送（客户端启动时查 /api/version/latest）----
+    latest_version: str = ""        # 如 "2.0.1"
+    latest_build: int = 0           # 客户端对比 build 号（pubspec 的 +N）
+    download_url_macos: str = ""
+    download_url_windows: str = ""
+    changelog: str = ""
+    force_update: bool = False
     # yt-dlp cookies 文件路径（Netscape 格式）。B站机房 IP 无 cookie 会被风控 412，填这个绕过
     ytdlp_cookies: str = ""
     # 并发媒体任务数（0 = 自动按 CPU 核数 / 2）

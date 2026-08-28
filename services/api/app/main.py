@@ -64,6 +64,21 @@ def health():
     return {"status": "ok", "modules": MODULES}
 
 
+@app.get("/api/version/latest")
+def latest_version(platform: str = "macos"):
+    """客户端启动时查最新版本。版本信息在 .env 里配，无鉴权（版本号不敏感）。"""
+    s = config.settings
+    url = s.download_url_windows if platform == "windows" else s.download_url_macos
+    return {
+        "ok": True,
+        "version": s.latest_version,
+        "build": s.latest_build,
+        "url": url,
+        "changelog": s.changelog,
+        "force": s.force_update,
+    }
+
+
 # ---------- license：客户端授权 ----------
 if "license" in MODULES:
     from .modules.license import router as license_router
