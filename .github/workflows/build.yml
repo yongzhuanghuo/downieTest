@@ -52,13 +52,19 @@ jobs:
       - name: 打包 macOS
         run: flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000
 
+      - name: 组装发布包（.app + 安装说明打进一个文件夹）
+        run: |
+          APP_DIR="dist/4KDownle-macos"
+          rm -rf "$APP_DIR" && mkdir -p "$APP_DIR"
+          cp -R build/macos/Build/Products/Release/*.app "$APP_DIR/"
+          cp ../../docs/MAC安装前必看.docx "$APP_DIR/"
+          cd dist && zip -r ../4KDownle-macos.zip 4KDownle-macos
+
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: 4kdownle-pro-macos
-          path: |
-            apps/desktop/build/macos/Build/Products/Release/*.app
-            docs/MAC安装前必看.docx
+          path: apps/desktop/4KDownle-macos.zip
           retention-days: 30
 
   # ==================== Windows ====================
