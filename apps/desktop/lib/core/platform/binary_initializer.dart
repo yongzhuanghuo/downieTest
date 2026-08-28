@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'binary_locator.dart';
+import '../storage/settings_storage.dart';
 
 /// 二进制初始化器
 ///
@@ -18,6 +19,11 @@ class BinaryInitializer {
   /// 初始化二进制（幂等操作，已就绪则跳过）
   static Future<BinaryInitResult> initialize() async {
     try {
+      // node + 抖音签名 JS 与 yt-dlp/ffmpeg 独立，任何时候都要提取（幂等），
+      // 不能放进下面的「已就绪则跳过」分支，否则老用户升级后 node 永远不落盘
+      await _extractBinaryOrSkip(BinaryLocator.nodeFileName);
+      await _extractDouyinSign();
+
       final ready = await BinaryLocator.isReady();
       if (ready) {
         final ytDlpVersion = await _safeGetVersion('ytdlp');
@@ -110,6 +116,29 @@ class BinaryInitializer {
     if (result.exitCode != 0) {
       // chmod 失败不致命，yt-dlp 仍可能可通过 shell 执行
     }
+  }
+
+  /// 把抖音 a_bogus 签名的 JS 文件（abogus.js + 同目录依赖）复制到支持目录。
+  /// node 执行 abogus.js 时靠 __dirname 读同目录依赖，所以 4 个文件都要落盘。
+  static Future<void> _extractDouyinSign() async {
+    const files = ['abogus.js', 'sm3.js', 'utils.js', 'vm_decode.js'];
+    final supportDir = await SettingsStorage.getStorageDir();
+    final targetDir = Directory('${supportDir.path}/douyin_sign');
+    await targetDir.create(recursive: true);
+    for (final name in files) {
+      try {
+        final data = await rootBundle.load('assets/douyin_sign/$name');
+        await File('${targetDir.path}/$name').writeAsBytes(data.buffer.asUint8List());
+      } catch (e) {
+        debugPrint('[BinaryInit] douyin_sign/$name 提取失败（开发态正常）: $e');
+      }
+    }
+  }
+
+  /// douyin_sign JS 所在目录（下载的 node 脚本路径给 douyin_parser 用）
+  static Future<String> getDouyinSignDir() async {
+    final supportDir = await SettingsStorage.getStorageDir();
+    return '${supportDir.path}/douyin_sign';
   }
 
   /// 安全获取版本（失败返回 null）

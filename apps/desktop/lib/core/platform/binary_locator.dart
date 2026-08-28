@@ -29,6 +29,9 @@ class BinaryLocator {
   /// FFmpeg 可执行文件名
   static String get ffmpegFileName => 'ffmpeg$_exeSuffix';
 
+  /// node 可执行文件名（抖音 a_bogus 签名用）
+  static String get nodeFileName => 'node$_exeSuffix';
+
   /// 应用数据目录中存放二进制的子目录
   static const String _binSubDir = 'bin';
 
@@ -60,6 +63,15 @@ class BinaryLocator {
     final localPath = await _localPath(ffmpegFileName);
     if (_canExecute(localPath)) return localPath;
     final found = await _findBinary(ffmpegFileName);
+    if (found != null) return found;
+    return localPath;
+  }
+
+  /// 获取 node 可执行文件路径
+  static Future<String> getNodePath() async {
+    final localPath = await _localPath(nodeFileName);
+    if (_canExecute(localPath)) return localPath;
+    final found = await _findBinary(nodeFileName);
     if (found != null) return found;
     return localPath;
   }

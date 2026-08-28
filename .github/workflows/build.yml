@@ -36,6 +36,16 @@ jobs:
             https://evermeet.cx/ffmpeg/getrelease/zip
           unzip -o /tmp/ffmpeg.zip -d assets/bin/macos
 
+      - name: 下载 node（抖音 a_bogus 签名用）
+        run: |
+          ARCH=$(uname -m)
+          [ "$ARCH" = "x86_64" ] && NODE_ARCH=x64 || NODE_ARCH=arm64
+          curl -fL --retry 3 -o /tmp/node.tar.gz \
+            https://nodejs.org/dist/v22.13.1/node-v22.13.1-darwin-${NODE_ARCH}.tar.gz
+          tar -xzf /tmp/node.tar.gz -C /tmp
+          cp /tmp/node-v22.13.1-darwin-${NODE_ARCH}/bin/node assets/bin/macos/node
+          chmod +x assets/bin/macos/node
+
       - name: 安装依赖
         run: flutter pub get
 
@@ -46,7 +56,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: 4kdownle-pro-macos
-          path: apps/desktop/build/macos/Build/Products/Release/*.app
+          path: |
+            apps/desktop/build/macos/Build/Products/Release/*.app
+            docs/MAC安装前必看.docx
           retention-days: 30
 
   # ==================== Windows ====================
@@ -71,6 +83,13 @@ jobs:
           Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile "ffmpeg.zip"
           Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_tmp"
           Get-ChildItem -Recurse -Filter "ffmpeg.exe" "ffmpeg_tmp" | Select-Object -First 1 | Copy-Item -Destination "assets/bin/windows/ffmpeg.exe"
+
+      - name: 下载 node（抖音 a_bogus 签名用）
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.13.1/node-v22.13.1-win-x64.zip" -OutFile "node.zip"
+          Expand-Archive -Path "node.zip" -DestinationPath "node_tmp"
+          Copy-Item "node_tmp/node-v22.13.1-win-x64/node.exe" "assets/bin/windows/node.exe"
 
       - name: 安装依赖
         run: flutter pub get

@@ -1,10 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/engine/douyin_parser.dart';
 import '../../core/engine/ytdlp_runner.dart';
 import '../../data/models/video_info.dart';
-import '../../shared/routes/navigator_key.dart';
-import '../downloads/douyin_web_dialog.dart';
 import '../downloads/site_login_prompt.dart';
 
 /// 解析状态
@@ -46,18 +45,17 @@ class ParseNotifier extends StateNotifier<ParseState> {
     final target = _extractUrl(trimmed) ?? trimmed;
     state = const ParseState(status: ParseStatus.loading);
 
-    // 抖音：分享页 SSR 已不给播放地址，改走 WebView 拦截 aweme/detail API（真实浏览器环境带 a_bogus 签名）
+    // 抖音：纯 HTTP + a_bogus 签名解析（本地 node 子进程生成签名，不依赖浏览器）
     if (target.contains('douyin.com')) {
-      final ctx = rootNavigatorKey.currentContext;
-      if (ctx == null) {
-        state = const ParseState(status: ParseStatus.error, error: '界面未就绪');
-        return;
-      }
-      final info = await DouyinWebDialog.show(ctx, target);
-      if (info == null) {
-        state = const ParseState(status: ParseStatus.error, error: '抖音解析失败，请重试');
-      } else {
+      try {
+        final info = await DouyinParser.parse(target);
         state = ParseState(status: ParseStatus.success, videoInfo: info);
+      } on DouyinParseException catch (e) {
+        debugPrint('[解析] 抖音失败: ${e.message}');
+        state = const ParseState(status: ParseStatus.error, error: '抖音解析失败，请重试');
+      } catch (e) {
+        debugPrint('[解析] 抖音异常: $e');
+        state = const ParseState(status: ParseStatus.error, error: '抖音解析失败，请重试');
       }
       return;
     }

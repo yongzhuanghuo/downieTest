@@ -58,3 +58,4 @@ flutter:
     - assets/logo.png
     - assets/bin/macos/
     - assets/bin/windows/
+    - assets/douyin_sign/
