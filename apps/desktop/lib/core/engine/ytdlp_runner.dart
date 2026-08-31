@@ -108,16 +108,27 @@ class YtDlpRunner {
       );
     }
 
-    final jsonStr = result.stdout.trim();
-    if (jsonStr.isEmpty) {
+    final stdout = result.stdout.trim();
+    if (stdout.isEmpty) {
       throw const YtDlpException('解析返回空结果');
     }
 
-    final Map<String, dynamic> json;
-    try {
-      json = jsonDecode(jsonStr) as Map<String, dynamic>;
-    } catch (e) {
-      throw YtDlpException('JSON 解析失败: $e');
+    // yt-dlp 对含多个 <video> 的页面（如奈飞被 generic extractor 兜底）会输出
+    // 多行 JSON，每行一个 entry；逐行解析，取第一个能解析成功的 JSON 对象。
+    Map<String, dynamic>? json;
+    String? lastError;
+    for (final line in stdout.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      try {
+        json = jsonDecode(trimmed) as Map<String, dynamic>;
+        break;
+      } catch (e) {
+        lastError = e.toString();
+      }
+    }
+    if (json == null) {
+      throw YtDlpException('JSON 解析失败: $lastError');
     }
 
     return _parseVideoInfo(url, json);

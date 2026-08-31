@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -50,8 +51,10 @@ class SiteLoginDialog extends StatefulWidget {
 
 class _SiteLoginDialogState extends State<SiteLoginDialog> {
   bool _saving = false;
+  bool _loginDetected = false;
   bool _webView2Missing = false;
   InAppWebViewController? _controller;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -60,6 +63,15 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     final available = isWebView2Available();
     _webView2Missing = !available;
     debugPrint('[登录] WebView2 可用: $available');
+    if (!_webView2Missing) {
+      _startLoginPolling();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _finish() async {
@@ -77,22 +89,20 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         debugPrint('[登录] ⚠️ 抓到 0 条 cookie —— 很可能没在页面里真正登录！');
       }
       // 检测是否有登录态 cookie（抖音 sessionid / YouTube SID / B站 SESSDATA 等）
-      final hasLogin = cookies.any((c) {
-        final n = c.name.toLowerCase();
-        return n.contains('session') ||
-            n.contains('sid') ||
-            n.contains('sess') ||
-            n.contains('login');
-      });
+      final hasLogin = _hasLoginCookie(cookies);
       if (!hasLogin) {
         debugPrint('[登录] ⚠️ 没发现登录 cookie，可能没真正登录');
         if (mounted) {
-          setState(() => _saving = false);
+          setState(() {
+            _saving = false;
+            _loginDetected = false;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('还没登录成功，请先在页面里登录账号（看到头像/昵称）再点完成'),
             ),
           );
+          _startLoginPolling(); // 重新监听登录态
         }
         return; // 不关闭弹窗，让用户继续登录
       }
@@ -128,6 +138,43 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         );
       }
     }
+  }
+
+  /// 定时检测页面是否已登录，登录后解锁「完成登录」按钮
+  void _startLoginPolling() {
+    _pollTimer?.cancel();
+    _pollTimer =
+        Timer.periodic(const Duration(seconds: 2), (_) => _detectLogin());
+  }
+
+  /// 抓 cookie 判断是否有登录态；检测到后解锁按钮并停止轮询
+  Future<void> _detectLogin() async {
+    if (_loginDetected || _saving) return;
+    final c = _controller;
+    if (c == null) return;
+    try {
+      final cookies = await CookieManager.instance(
+        webViewEnvironment: widget.environment,
+      ).getCookies(url: WebUri(widget.site.loginUrl));
+      if (_hasLoginCookie(cookies) && mounted) {
+        debugPrint('[登录] ✅ 检测到登录态，解锁「完成登录」');
+        setState(() => _loginDetected = true);
+        _pollTimer?.cancel();
+      }
+    } catch (e) {
+      debugPrint('[登录] 检测登录态失败: $e');
+    }
+  }
+
+  /// 判断 cookie 里是否有登录态（抖音 sessionid / YouTube SID / B站 SESSDATA 等）
+  bool _hasLoginCookie(List<Cookie> cookies) {
+    return cookies.any((c) {
+      final n = c.name.toLowerCase();
+      return n.contains('session') ||
+          n.contains('sid') ||
+          n.contains('sess') ||
+          n.contains('login');
+    });
   }
 
   /// 从 WebView 的 localStorage 抓抖音 msToken
@@ -276,6 +323,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                       },
                       onLoadStop: (controller, url) {
                         debugPrint('[登录] 加载完成: $url');
+                        _detectLogin();
                       },
                       onReceivedError: (controller, request, error) {
                         debugPrint('[登录] 加载错误: ${error.description}');
@@ -303,15 +351,23 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
-                    onPressed: (_saving || _webView2Missing) ? null : _finish,
-                    icon: _saving
+                    onPressed: (_saving || _webView2Missing || !_loginDetected)
+                        ? null
+                        : _finish,
+                    icon: (_saving || !_loginDetected)
                         ? const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.check),
-                    label: Text(_saving ? '保存中...' : '完成登录'),
+                    label: Text(
+                      _saving
+                          ? '保存中...'
+                          : _loginDetected
+                              ? '完成登录'
+                              : '等待登录...',
+                    ),
                   ),
                 ],
               ),
