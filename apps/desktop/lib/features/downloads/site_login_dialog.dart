@@ -78,10 +78,14 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     setState(() => _saving = true);
     try {
       // Windows 上必须传 webViewEnvironment，否则 CookieManager 报 Cannot obtain the WebViewEnvironment
-      final cookies = await CookieManager.instance(
+      final allCookies = await CookieManager.instance(
         webViewEnvironment: widget.environment,
       ).getCookies(url: WebUri(widget.site.loginUrl));
-      debugPrint('[登录] ${widget.site.name} 抓到 ${cookies.length} 条 cookie');
+      // 登录页里的第三方 iframe 会把别站（YouTube/Netflix 等）的 cookie 也带进来，
+      // 按站点域名过滤掉，避免串台。
+      final cookies = _filterSiteCookies(allCookies);
+      debugPrint(
+          '[登录] ${widget.site.name} 抓到 ${allCookies.length} 条（过滤后 ${cookies.length} 条）');
       for (final c in cookies) {
         debugPrint('[登录]   cookie: ${c.name} @ ${c.domain}');
       }
@@ -153,9 +157,10 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     final c = _controller;
     if (c == null) return;
     try {
-      final cookies = await CookieManager.instance(
+      final allCookies = await CookieManager.instance(
         webViewEnvironment: widget.environment,
       ).getCookies(url: WebUri(widget.site.loginUrl));
+      final cookies = _filterSiteCookies(allCookies);
       if (_hasLoginCookie(cookies) && mounted) {
         debugPrint('[登录] ✅ 检测到登录态，解锁「完成登录」');
         setState(() => _loginDetected = true);
@@ -175,6 +180,21 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
           n.contains('sess') ||
           n.contains('login');
     });
+  }
+
+  /// 只保留属于当前站点的 cookie，过滤掉登录页里第三方 iframe 带进来的别站 cookie。
+  /// cookie 的 domain 可能是 `.douyin.com` / `douyin.com` / `www.douyin.com`，
+  /// 统一去掉前导点后按「等于目标域 或 是其子域」匹配。
+  List<Cookie> _filterSiteCookies(List<Cookie> cookies) {
+    final raw = widget.site.cookieDomain;
+    final target =
+        (raw.startsWith('.') ? raw.substring(1) : raw).toLowerCase();
+    return cookies.where((c) {
+      final d = (c.domain ?? '').toLowerCase();
+      if (d.isEmpty) return false;
+      final norm = d.startsWith('.') ? d.substring(1) : d;
+      return norm == target || norm.endsWith('.$target');
+    }).toList();
   }
 
   /// 从 WebView 的 localStorage 抓抖音 msToken
