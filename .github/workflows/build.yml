@@ -165,7 +165,8 @@ jobs:
           OSS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
         run: |
           # bucket 实际区域为上海（已实测，hangzhou endpoint 会拒绝）
-          OSS_ARGS=(-i "$OSS_KEY_ID" -s "$OSS_KEY_SECRET" -e oss-cn-shanghai.aliyuncs.com -f --meta Cache-Control:no-cache)
+          # 注意 ossutil v2 密钥短选项是 -k（-s 是 shortFormat，cp 不支持会直接报错）
+          OSS_ARGS=(-i "$OSS_KEY_ID" -k "$OSS_KEY_SECRET" -e oss-cn-shanghai.aliyuncs.com -f --meta Cache-Control:no-cache)
           ossutil cp dist/4kdownle-pro-macos/4KDownle-macos.zip \
             oss://4kdownlebucket/releases/4KDownle-macos.zip "${OSS_ARGS[@]}"
           ossutil cp dist/4kdownle-pro-windows-setup/4KDownle-Windows-Setup.exe \
