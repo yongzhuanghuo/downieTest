@@ -1,9 +1,9 @@
 name: Build
 
-# 触发条件：push 到 main、打 tag（v*）、或手动触发
+# 触发条件：打 tag（v*）或手动触发。平时 push 代码不构建；
+# 想验证编译去 Actions 页面 Run workflow，想发版打 tag
 on:
   push:
-    branches: [ main ]
     tags: [ 'v*' ]
   workflow_dispatch:
 
