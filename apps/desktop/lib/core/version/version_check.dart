@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -53,6 +54,18 @@ Future<UpdateInfo?> checkForUpdate() async {
     changelog: (j['changelog'] as String?) ?? '',
     force: (j['force'] as bool?) ?? false,
   );
+}
+
+/// 全局新版本状态：非 null = 有新版（侧边栏更新图标显示红点）。
+/// 启动自动检查和侧边栏手动点击都会写入这里。
+final updateInfoProvider = StateProvider<UpdateInfo?>((ref) => null);
+
+/// 检查一次更新并把结果写入 [updateInfoProvider]。返回 true = 发现新版本。
+/// 网络失败会抛异常，由调用方决定静默还是提示。
+Future<bool> refreshUpdateState(WidgetRef ref) async {
+  final info = await checkForUpdate();
+  ref.read(updateInfoProvider.notifier).state = info;
+  return info != null;
 }
 
 /// 弹「发现新版本」对话框，引导用户打开浏览器下载安装。

@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../license/license_card.dart';
@@ -185,7 +186,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ListTile(
                 leading: const Icon(Icons.info_outline),
                 title: const Text('版本'),
-                subtitle: const Text('2.0.2'),
+                // 动态读 pubspec 版本号，发版不用手改
+                subtitle: FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snap) => Text(snap.data?.version ?? ''),
+                ),
               ),
               ListTile(
                 leading: const Icon(Icons.update),
