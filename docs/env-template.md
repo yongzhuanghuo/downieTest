@@ -46,12 +46,24 @@ YTDLP_PROXY=
 # TEMP_DIR=
 
 # ============ 阿里云 OSS（可选，不配则本地降级）============
-# 开通步骤见 docs/aliyun-oss.md
+# 开通步骤见 docs/aliyun-oss.md；OSS_ENDPOINT 必须与 bucket 实际区域一致
+# （本仓库 bucket 4kdownlebucket 在上海区：oss-cn-shanghai.aliyuncs.com，填错会静默降级本地存储）
 OSS_ENDPOINT=
 OSS_ACCESS_KEY_ID=
 OSS_ACCESS_KEY_SECRET=
 OSS_BUCKET=
 OSS_PUBLIC_BASE_URL=
+
+# ============ App 版本推送（桌面端启动查 /api/version/latest）============
+# 发新版：CI 打 tag 自动把固定名安装包覆盖传 OSS（.github/workflows/build.yml），
+# 这里改 LATEST_VERSION / LATEST_BUILD / CHANGELOG 后 pm2 restart api 即生效；
+# DOWNLOAD_URL_* 指向 OSS 固定地址，配一次不用再动
+LATEST_VERSION=2.0.0
+LATEST_BUILD=1
+DOWNLOAD_URL_MACOS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/4KDownle-macos.zip
+DOWNLOAD_URL_WINDOWS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/4KDownle-Windows-Setup.exe
+CHANGELOG=
+FORCE_UPDATE=false
 ```
 
 ## 必填 vs 可选
@@ -63,6 +75,7 @@ OSS_PUBLIC_BASE_URL=
 | `ADMIN_PASSWORD` | 建议 | 首次建 admin 账号的初始密码，缺了退回 `admin123` |
 | `REDIS_*` | 否 | 默认 `127.0.0.1:6379` 无密码 |
 | `OSS_*` | 否 | 不配则上传/产物走本地，不转存 OSS |
+| `LATEST_*` / `DOWNLOAD_URL_*` | 否 | 不配则客户端检查更新永远视为已最新 |
 | 其余媒体项 | 否 | 都有默认值 |
 
 > 账号本身固定 `admin`（seed 写死），没有 `ADMIN_USERNAME` 这个配置了。
