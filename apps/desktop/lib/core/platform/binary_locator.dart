@@ -50,7 +50,7 @@ class BinaryLocator {
   /// 查找顺序：工作目录 → 系统 PATH → 常见绝对路径 → 默认路径
   static Future<String> getYtDlpPath() async {
     final localPath = await _localPath(ytDlpFileName);
-    if (_canExecute(localPath)) return localPath;
+    if (await _canExecute(localPath)) return localPath;
     final found = await _findBinary(ytDlpFileName);
     if (found != null) return found;
     return localPath;
@@ -61,7 +61,7 @@ class BinaryLocator {
   /// 查找顺序：工作目录 → 系统 PATH → 常见绝对路径 → 默认路径
   static Future<String> getFFmpegPath() async {
     final localPath = await _localPath(ffmpegFileName);
-    if (_canExecute(localPath)) return localPath;
+    if (await _canExecute(localPath)) return localPath;
     final found = await _findBinary(ffmpegFileName);
     if (found != null) return found;
     return localPath;
@@ -70,7 +70,7 @@ class BinaryLocator {
   /// 获取 node 可执行文件路径
   static Future<String> getNodePath() async {
     final localPath = await _localPath(nodeFileName);
-    if (_canExecute(localPath)) return localPath;
+    if (await _canExecute(localPath)) return localPath;
     final found = await _findBinary(nodeFileName);
     if (found != null) return found;
     return localPath;
@@ -82,14 +82,30 @@ class BinaryLocator {
     return '${binDir.path}/$fileName';
   }
 
-  /// 判断路径是否可执行（通过启动进程验证，而非 File.existsSync）
+  /// 探测结果缓存：同一路径一次进程生命周期只探测一次。
+  /// yt-dlp --version 在部分 macOS 上单次要 20~30s（系统验证阻塞），
+  /// 一次启动重复探测六七次曾是启动卡死 2~3 分钟的主因。
+  static final Map<String, bool> _probeCache = {};
+
+  /// 判断路径是否可执行（通过启动进程验证，而非 File.existsSync；
+  /// macOS sandbox 下 File.existsSync 可能被拦截）。
   ///
-  /// macOS sandbox 下 File.existsSync 可能被拦截，
-  /// 用 Process.run 直接尝试执行更可靠。
-  static bool _canExecute(String path) {
+  /// - 必须异步：探测可能很慢（见 _probeCache 注释），同步会冻住 UI 线程
+  /// - ffmpeg 只认单杠 `-version`（`--version` 退出码 8，会被误判不可用）
+  /// - 成功才写缓存；超时/失败不缓存，下次探测还有机会
+  static Future<bool> _canExecute(String path) async {
+    final flag = path.endsWith(ffmpegFileName) ? '-version' : '--version';
+    final key = '$path $flag';
+    final cached = _probeCache[key];
+    if (cached != null) return cached;
     try {
-      final result = Process.runSync(path, ['--version']);
-      return result.exitCode == 0;
+      final result = await Process.run(path, [flag])
+          .timeout(const Duration(seconds: 30));
+      if (result.exitCode == 0) {
+        _probeCache[key] = true;
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
@@ -117,7 +133,7 @@ class BinaryLocator {
         final out = (result.stdout as String).trim();
         if (out.isNotEmpty) {
           final path = out.split('\n').first.trim();
-          if (path.isNotEmpty && _canExecute(path)) {
+          if (path.isNotEmpty && await _canExecute(path)) {
             debugPrint('[BinaryLocator] 通过 which 找到 $name: $path');
             return path;
           }
@@ -136,7 +152,7 @@ class BinaryLocator {
       'C:\\FFmpeg\\bin\\$name.exe', // Windows FFmpeg 官方
     ];
     for (final p in candidates) {
-      if (_canExecute(p)) {
+      if (await _canExecute(p)) {
         debugPrint('[BinaryLocator] 在常见路径找到 $name: $p');
         return p;
       }
@@ -149,7 +165,7 @@ class BinaryLocator {
   static Future<bool> isReady() async {
     final ytPath = await getYtDlpPath();
     final ffPath = await getFFmpegPath();
-    return _canExecute(ytPath) && _canExecute(ffPath);
+    return await _canExecute(ytPath) && await _canExecute(ffPath);
   }
 
   /// 平台信息（用于日志/调试）
@@ -163,13 +179,14 @@ class BinaryLocator {
     final binDir = await getBinDirectory();
     final ytDlpPath = await getYtDlpPath();
     final ffmpegPath = await getFFmpegPath();
-    final ready = await isReady();
+    final ytOk = await _canExecute(ytDlpPath);
+    final ffOk = await _canExecute(ffmpegPath);
     return [
       platformInfo,
       'BinDir: ${binDir.path}',
-      'yt-dlp: $ytDlpPath (${_canExecute(ytDlpPath) ? "可执行" : "不可用"})',
-      'ffmpeg: $ffmpegPath (${_canExecute(ffmpegPath) ? "可执行" : "不可用"})',
-      'Ready: $ready',
+      'yt-dlp: $ytDlpPath (${ytOk ? "可执行" : "不可用"})',
+      'ffmpeg: $ffmpegPath (${ffOk ? "可执行" : "不可用"})',
+      'Ready: ${ytOk && ffOk}',
     ].join('\n');
   }
 }
