@@ -26,15 +26,20 @@ jobs:
         with:
           channel: stable
 
-      - name: 下载 macOS 二进制（yt-dlp + ffmpeg）
+      - name: 下载 macOS 二进制（yt-dlp + ffmpeg universal）
         run: |
           mkdir -p assets/bin/macos assets/bin/windows
           curl -fL --retry 3 --retry-delay 2 -o assets/bin/macos/yt-dlp \
             https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos
           chmod +x assets/bin/macos/yt-dlp
-          curl -fL --retry 3 --retry-delay 2 -o /tmp/ffmpeg.zip \
-            https://evermeet.cx/ffmpeg/getrelease/zip
-          unzip -o /tmp/ffmpeg.zip -d assets/bin/macos
+          # ffmpeg 合成 universal：evermeet 只有 x86_64，
+          # Apple Silicon 没 Rosetta 就完全不可用，必须双架构 lipo
+          curl -fL --retry 3 --retry-delay 2 -o /tmp/ffmpeg-x64 \
+            https://github.com/eugeneware/ffmpeg-static/releases/latest/download/ffmpeg-darwin-x64
+          curl -fL --retry 3 --retry-delay 2 -o /tmp/ffmpeg-arm64 \
+            https://github.com/eugeneware/ffmpeg-static/releases/latest/download/ffmpeg-darwin-arm64
+          lipo -create /tmp/ffmpeg-x64 /tmp/ffmpeg-arm64 -output assets/bin/macos/ffmpeg
+          chmod +x assets/bin/macos/ffmpeg
 
       - name: 下载 node（抖音 a_bogus 签名用）
         run: |
