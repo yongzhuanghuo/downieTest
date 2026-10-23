@@ -41,7 +41,8 @@ class BilibiliPlugin extends SitePlugin {
     final host = uri.host.toLowerCase();
     if (host == 'b23.tv' || host.endsWith('.b23.tv')) return true;
     if (host == 'bilibili.com' || host.endsWith('.bilibili.com')) {
-      return uri.path.startsWith('/video/');
+      return uri.path.startsWith('/video/') ||
+          uri.path.startsWith('/bangumi/play/');
     }
     return false;
   }
@@ -50,6 +51,13 @@ class BilibiliPlugin extends SitePlugin {
   Future<VideoInfo> parse(String url) async {
     final resolved = await _expandShortLink(url);
     final uri = Uri.parse(resolved);
+
+    // 番剧：ep/ss 走 pgc 接口
+    if (uri.path.startsWith('/bangumi/play/')) {
+      final cookie = await _cookieHeader();
+      return _parseBangumi(uri, cookie);
+    }
+
     final bv = RegExp(r'/video/(BV[0-9A-Za-z]+)').firstMatch(uri.path);
     final av = RegExp(r'/video/av(\d+)', caseSensitive: false)
         .firstMatch(uri.path);
@@ -232,6 +240,90 @@ class BilibiliPlugin extends SitePlugin {
       await _deleteQuietly(videoPath);
       await _deleteQuietly(audioPath);
     }
+  }
+
+  /// 番剧解析：支持 /bangumi/play/ep<id> 和 /bangumi/play/ss<id>。
+  /// ss 链接默认取第一集；后续可在 UI 里加选集。
+  Future<VideoInfo> _parseBangumi(Uri uri, String cookie) async {
+    final match = RegExp(r'/bangumi/play/(ep|ss)(\d+)').firstMatch(uri.path);
+    if (match == null) {
+      throw const SitePluginException('无法识别 B 站番剧链接', retryable: false);
+    }
+    final kind = match.group(1)!;
+    final id = match.group(2)!;
+
+    final seasonPath = kind == 'ep'
+        ? '/pgc/view/web/season?ep_id=$id'
+        : '/pgc/view/web/season?season_id=$id';
+    final seasonJson = await _getJson(seasonPath, cookie);
+    _throwIfError(seasonJson);
+
+    final result = seasonJson['result'] as Map<String, dynamic>?;
+    if (result == null) {
+      throw const SitePluginException('B 站番剧信息为空', retryable: false);
+    }
+    final episodes = ((result['episodes'] as List?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    if (episodes.isEmpty) {
+      throw const SitePluginException('B 站番剧没有可下载的剧集', retryable: false);
+    }
+
+    Map<String, dynamic>? ep;
+    if (kind == 'ep') {
+      for (final e in episodes) {
+        if (e['id']?.toString() == id || e['ep_id']?.toString() == id) {
+          ep = e;
+          break;
+        }
+      }
+    }
+    ep ??= episodes.first;
+
+    final epId = (ep['id'] ?? ep['ep_id'])?.toString() ?? id;
+    final cid = _int(ep['cid']);
+    if (cid <= 0) {
+      throw const SitePluginException('无法获取番剧 cid', retryable: false);
+    }
+
+    final playJson = await _getJson(
+      '/pgc/player/web/playurl?ep_id=$epId&cid=$cid&qn=127&fnval=4048&fourk=1',
+      cookie,
+    );
+    _throwIfError(playJson);
+
+    final playResult = playJson['result'] as Map<String, dynamic>?;
+    if (playResult == null) {
+      throw const SitePluginException('B 站番剧播放信息为空', retryable: false);
+    }
+
+    final formats = _buildFormats(playResult, result, ep);
+    if (formats.isEmpty) {
+      throw const SitePluginException('该番剧没有可用的视频流（可能需要大会员）', retryable: false);
+    }
+
+    final seasonTitle = (result['title'] as String?) ?? 'B 站番剧';
+    final epNo = (ep['title'] as String?) ?? '';
+    final epName = (ep['long_title'] as String?) ?? '';
+    final epTitle = <String>[epNo, epName].where((e) => e.isNotEmpty).join(' ');
+    var cover = (ep['cover'] ?? result['cover'] ?? '').toString();
+    if (cover.startsWith('http://')) {
+      cover = 'https://${cover.substring(7)}';
+    }
+    final upName = (result['up_info'] as Map?)?['uname'] as String? ?? '';
+
+    return VideoInfo(
+      url: 'https://www.bilibili.com/bangumi/play/ep$epId',
+      title: epTitle.isEmpty ? seasonTitle : '$seasonTitle - $epTitle',
+      duration: _int(ep['duration']),
+      uploader: upName,
+      thumbnail: cover,
+      extractor: id,
+      videoId: 'ep$epId',
+      formats: formats,
+      subtitleLangs: _subtitleLangs(playResult),
+      rawJson: <String, dynamic>{'season': result, 'episode': ep},
+    );
   }
 
   // ==================== 解析辅助 ====================
@@ -489,6 +581,8 @@ class BilibiliPlugin extends SitePlugin {
       friendly = 'B 站风控拦截，请登录后重试';
     } else if (code == -101) {
       friendly = '需要登录 B 站';
+    } else if (code == 87007 || code == -10403) {
+      friendly = '该番剧需要大会员或登录';
     } else {
       friendly = 'B 站接口错误: $code $msg';
     }
@@ -496,8 +590,12 @@ class BilibiliPlugin extends SitePlugin {
     throw SitePluginException(
       friendly,
       retryable: code >= 500 || code == -1,
-      requiresLogin:
-          code == -401 || code == -403 || code == -412 || code == -101,
+      requiresLogin: code == -401 ||
+          code == -403 ||
+          code == -412 ||
+          code == -101 ||
+          code == 87007 ||
+          code == -10403,
     );
   }
 

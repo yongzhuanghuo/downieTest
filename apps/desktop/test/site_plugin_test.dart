@@ -27,7 +27,7 @@ void main() {
   });
 
   group('BilibiliPlugin', () {
-    test('matches video and short links, not bangumi', () {
+    test('matches video, bangumi, and short links', () {
       final plugin = BilibiliPlugin();
       expect(
         plugin.matches(
@@ -42,7 +42,14 @@ void main() {
           Uri.parse('https://www.bilibili.com/bangumi/play/ep123'),
           '',
         ),
-        isFalse,
+        isTrue,
+      );
+      expect(
+        plugin.matches(
+          Uri.parse('https://www.bilibili.com/bangumi/play/ss123'),
+          '',
+        ),
+        isTrue,
       );
       expect(
         plugin.matches(Uri.parse('https://www.youtube.com/watch?v=abc'), ''),
