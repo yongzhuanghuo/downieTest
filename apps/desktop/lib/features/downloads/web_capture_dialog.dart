@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -226,13 +227,13 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
                         javaScriptEnabled: true,
                         mediaPlaybackRequiresUserGesture: false,
                       ),
-                      initialUserScripts: [
+                      initialUserScripts: UnmodifiableListView<UserScript>([
                         UserScript(
                           source: _captureJs,
                           injectionTime:
                               UserScriptInjectionTime.AT_DOCUMENT_START,
                         ),
-                      ],
+                      ]),
                       onWebViewCreated: (controller) {
                         controller.addJavaScriptHandler(
                           handlerName: 'media',
@@ -383,7 +384,9 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: openWebView2DownloadPage,
+              onPressed: () {
+                openWebView2DownloadPage();
+              },
               icon: const Icon(Icons.download),
               label: const Text('去下载 WebView2'),
             ),
