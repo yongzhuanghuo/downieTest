@@ -1,12 +1,12 @@
-; 4KDownle Windows 安装包脚本（Inno Setup 6）
+; Downie6 Windows 安装包脚本（Inno Setup 6）
 ; 生成单个 setup.exe，用户双击即可安装（含开始菜单/桌面快捷方式/卸载）
 ; 用法：iscc setup.iss
 
-#define MyAppName "4KDownle 6"
-; 安装目录沿用 4KDownle，保证从旧版升级时覆盖原目录，而不是并排装两个
-#define MyAppDirName "4KDownle"
+#define MyAppName "Downie6"
+; 安装目录使用 Downie6；旧版 4KDownle 的目录不会被自动迁移
+#define MyAppDirName "Downie6"
 #define MyAppVersion "2.0.6"
-#define MyAppExeName "4kdownle.exe"
+#define MyAppExeName "Downie6.exe"
 
 [Setup]
 AppId={{7C1A2B3D-4E5F-4A6B-8C9D-0E1F2A3B4C5D}
@@ -16,7 +16,7 @@ AppVerName={#MyAppName} {#MyAppVersion}
 DefaultDirName={autopf}\{#MyAppDirName}
 DefaultGroupName={#MyAppName}
 OutputDir=Output
-OutputBaseFilename=4KDownle-Setup-{#MyAppVersion}
+OutputBaseFilename=Downie6-Setup-{#MyAppVersion}
 SetupIconFile=..\runner\resources\app_icon.ico
 Compression=lzma2
 SolidCompression=yes

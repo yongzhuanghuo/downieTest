@@ -162,7 +162,7 @@ do {
     let c = Canvas(w: 800, h: 500, top: lightBlue, bottom: .white)
     c.logo(logoPath, x: 368, top: 24, size: 64)
     c.text(
-        "4KDownle 6",
+        "Downie6",
         x: 0, top: 100, width: 800, height: 40,
         size: 28, bold: true, align: .center
     )
@@ -192,7 +192,7 @@ do {
         size: 17, bold: true, color: darkGray
     )
     c.text(
-        "将 4KDownle 6 拖入\n「应用程序」文件夹",
+        "将 Downie6 拖入\n「应用程序」文件夹",
         x: 498, top: 248, width: 244, height: 48,
         size: 13, color: darkGray
     )
@@ -200,7 +200,7 @@ do {
     c.arrow(548, 365, 608, 365, color: blue)
 
     c.text(
-        "双击 4KDownle 6 启动 · 详细步骤见左侧安装说明",
+        "双击 Downie6 启动 · 详细步骤见左侧安装说明",
         x: 0, top: 440, width: 800, height: 24,
         size: 12, color: muted, align: .center
     )
@@ -216,7 +216,7 @@ do {
 
     c.logo(logoPath, x: 56, top: 34, size: 84)
     c.text(
-        "4KDownle 6",
+        "Downie6",
         x: 164, top: 38, width: 780, height: 42,
         size: 32, bold: true
     )
@@ -228,23 +228,23 @@ do {
 
     let steps: [(String, String, CGFloat)] = [
         (
-            "把 4KDownle 6 拖进「应用程序」",
-            "双击打开下载的 4KDownle-macos.dmg，把右侧的 4KDownle 6 图标拖到 Applications（应用程序）文件夹。",
+            "把 Downie6 拖进「应用程序」",
+            "双击打开下载的 Downie6-macos.dmg，把右侧的 Downie6 图标拖到 Applications（应用程序）文件夹。",
             132
         ),
         (
             "首次打开被拦截：右键 → 打开",
-            "如果提示「无法验证开发者」，在 4KDownle 6 上点右键 → 打开；或到 系统设置 → 隐私与安全性 → 安全性，点「仍要打开」。",
+            "如果提示「无法验证开发者」，在 Downie6 上点右键 → 打开；或到 系统设置 → 隐私与安全性 → 安全性，点「仍要打开」。",
             154
         ),
         (
             "提示「已损坏，无法打开」",
-            "打开「终端」，输入 xattr -cr （末尾保留一个空格），把 4KDownle.app 拖进终端窗口，回车执行，然后再打开应用。",
+            "打开「终端」，输入 xattr -cr （末尾保留一个空格），把 Downie6.app 拖进终端窗口，回车执行，然后再打开应用。",
             186
         ),
         (
             "解析并下载",
-            "打开 4KDownle 6，粘贴视频链接，点「解析链接」，选择画质后点「下载」。B 站/抖音等走原生插件；需要登录的站点会弹登录窗口。",
+            "打开 Downie6，粘贴视频链接，点「解析链接」，选择画质后点「下载」。B 站/抖音等走原生插件；需要登录的站点会弹登录窗口。",
             154
         ),
         (
@@ -282,7 +282,7 @@ do {
     }
 
     c.text(
-        "提示：4KDownle 6 不会绕过 DRM；Netflix 等受 DRM 保护的内容无法下载。",
+        "提示：Downie6 不会绕过 DRM；Netflix 等受 DRM 保护的内容无法下载。",
         x: 48, top: 1110, width: 904, height: 28,
         size: 14, color: red
     )
@@ -292,7 +292,7 @@ do {
         size: 13, color: muted, align: .center
     )
     c.text(
-        "4KDownle 6 · 官方安装包",
+        "Downie6 · 官方安装包",
         x: 0, top: 1330, width: 1000, height: 24,
         size: 13, color: muted, align: .center
     )

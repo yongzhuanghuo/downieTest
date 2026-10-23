@@ -10,8 +10,8 @@
 class AppBrand {
   AppBrand._();
 
-  static const String name = '4KDownle 6';
-  static const String shortName = '4KDownle';
+  static const String name = 'Downie6';
+  static const String shortName = 'Downie6';
   static const String tagline = '全能视频下载器';
   static const String supportEmail = 'huoyongzhuang@qq.com';
   static const String logoAsset = 'assets/logo.png';

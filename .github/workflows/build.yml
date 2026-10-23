@@ -62,23 +62,23 @@ jobs:
 
       - name: 组装 DMG（.app + 安装说明）
         run: |
-          APP_DIR="dist/4KDownle-macos"
+          APP_DIR="dist/Downie6-macos"
           rm -rf "$APP_DIR" && mkdir -p "$APP_DIR/.background"
           APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -1)
-          cp -R "$APP_PATH" "$APP_DIR/4KDownle.app"
+          cp -R "$APP_PATH" "$APP_DIR/Downie6.app"
           cp macos/installer/install-guide.png "$APP_DIR/安装说明.png"
           cp macos/installer/dmg-layout/.DS_Store "$APP_DIR/.DS_Store"
           cp macos/installer/dmg-layout/.background/background.png "$APP_DIR/.background/background.png"
           ln -s /Applications "$APP_DIR/Applications"
-          rm -f 4KDownle-macos.dmg
-          hdiutil create -volname "4KDownle 6" -srcfolder "$APP_DIR" -ov -format UDZO -fs HFS+ "4KDownle-macos.dmg"
-          hdiutil verify 4KDownle-macos.dmg
+          rm -f Downie6-macos.dmg
+          hdiutil create -volname "Downie6" -srcfolder "$APP_DIR" -ov -format UDZO -fs HFS+ "Downie6-macos.dmg"
+          hdiutil verify Downie6-macos.dmg
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
-          name: 4kdownle-pro-macos
-          path: apps/desktop/4KDownle-macos.dmg
+          name: Downie6-pro-macos
+          path: apps/desktop/Downie6-macos.dmg
           retention-days: 30
 
   # ==================== Windows ====================
@@ -133,19 +133,19 @@ jobs:
       - name: 重命名安装包（固定名，供版本更新固定下载 URL）
         shell: pwsh
         run: |
-          Get-ChildItem "windows/installer/Output/*.exe" | Rename-Item -NewName "4KDownle-Windows-Setup.exe"
+          Get-ChildItem "windows/installer/Output/*.exe" | Rename-Item -NewName "Downie6-Windows-Setup.exe"
 
       - name: 上传安装包
         uses: actions/upload-artifact@v4
         with:
-          name: 4kdownle-pro-windows-setup
-          path: apps/desktop/windows/installer/Output/4KDownle-Windows-Setup.exe
+          name: Downie6-pro-windows-setup
+          path: apps/desktop/windows/installer/Output/Downie6-Windows-Setup.exe
           retention-days: 30
 
       - name: 上传产物（便携版）
         uses: actions/upload-artifact@v4
         with:
-          name: 4kdownle-pro-windows
+          name: Downie6-pro-windows
           path: apps/desktop/build/windows/x64/runner/Release/
           retention-days: 30
 
@@ -182,7 +182,7 @@ jobs:
           # bucket 实际区域为上海（已实测，hangzhou endpoint 会拒绝）
           # 注意 ossutil v2 密钥短选项是 -k（-s 是 shortFormat，cp 不支持会直接报错）
           OSS_ARGS=(-i "$OSS_KEY_ID" -k "$OSS_KEY_SECRET" -e oss-cn-shanghai.aliyuncs.com -f --meta Cache-Control:no-cache)
-          ossutil cp dist/4kdownle-pro-macos/4KDownle-macos.dmg \
-            oss://4kdownlebucket/releases/4KDownle-macos.dmg "${OSS_ARGS[@]}"
-          ossutil cp dist/4kdownle-pro-windows-setup/4KDownle-Windows-Setup.exe \
-            oss://4kdownlebucket/releases/4KDownle-Windows-Setup.exe "${OSS_ARGS[@]}"
+          ossutil cp dist/Downie6-pro-macos/Downie6-macos.dmg \
+            oss://4kdownlebucket/releases/Downie6-macos.dmg "${OSS_ARGS[@]}"
+          ossutil cp dist/Downie6-pro-windows-setup/Downie6-Windows-Setup.exe \
+            oss://4kdownlebucket/releases/Downie6-Windows-Setup.exe "${OSS_ARGS[@]}"

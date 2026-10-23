@@ -1,9 +1,10 @@
 import AppKit
 import Foundation
 
-// 生成 4KDownle 6 的品牌图标：紫色圆角方块 + 白色云下载符号。
-// 运行：cd apps/desktop && swift tools/generate_brand_icon.swift
-// 输出：assets/logo6.png（1024x1024），再用 tools/generate_icons.sh 生成各端尺寸。
+// 旧版 4KDownle 6 图标生成脚本：紫色圆角方块 + 白色云下载符号。
+// 当前品牌图标已换成 Downie6，勿运行本脚本覆盖 assets/logo6.png。
+// 如确需恢复旧图标，运行：cd apps/desktop && swift tools/generate_brand_icon.swift
+// 输出：assets/logo6-original.png（1024x1024）。
 
 let size: CGFloat = 1024
 let rep = NSBitmapImageRep(
@@ -64,5 +65,5 @@ NSGraphicsContext.restoreGraphicsState()
 NSGraphicsContext.restoreGraphicsState()
 
 let data = rep.representation(using: .png, properties: [:])!
-try! data.write(to: URL(fileURLWithPath: "assets/logo6.png"))
-print("generated assets/logo6.png (1024x1024)")
+try! data.write(to: URL(fileURLWithPath: "assets/logo6-original.png"))
+print("generated assets/logo6-original.png (1024x1024)")

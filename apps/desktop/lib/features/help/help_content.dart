@@ -65,7 +65,7 @@ final List<HelpTopic> kHelpTopics = [
       '当前版本可以先复制浏览器地址，回到应用粘贴解析；'
           '或者使用「网页嗅探」打开页面并捕获媒体地址。',
       '浏览器扩展和本地 HTTP 服务在规划中，后续会支持从 Chrome/Edge/Safari'
-          '直接把当前页面发送到 4KDownle 6。',
+          '直接把当前页面发送到 Downie6。',
     ],
   ),
   const HelpTopic(
@@ -130,7 +130,7 @@ final List<HelpTopic> kHelpTopics = [
       'macOS 提示「无法验证开发者」：右键应用 → 打开，或到'
           '「系统设置 → 隐私与安全性 → 安全性」点「仍要打开」。',
       'macOS 提示「已损坏」：打开终端，输入 xattr -cr （末尾有空格），'
-          '把 4KDownle.app 拖进终端，回车后再打开。',
+          '把 Downie6.app 拖进终端，回车后再打开。',
       '解析失败：先尝试站点登录；仍然失败可以在设置里检查 yt-dlp 更新，'
           '或使用网页嗅探。',
     ],
