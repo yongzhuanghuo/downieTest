@@ -82,8 +82,10 @@ class BilibiliPlugin extends SitePlugin {
     }
 
     final pages = (data['pages'] as List?) ?? const [];
+    final index =
+        pages.isEmpty ? 0 : (pageNo - 1).clamp(0, pages.length - 1).toInt();
     final pageData = pages.isNotEmpty
-        ? (pages[(pageNo - 1).clamp(0, pages.length - 1)] as Map<String, dynamic>)
+        ? (pages[index] as Map<String, dynamic>)
         : data;
     final cid =
         (pageData['cid'] as num?)?.toInt() ?? (data['cid'] as num?)?.toInt();
@@ -156,6 +158,20 @@ class BilibiliPlugin extends SitePlugin {
     final audioOnly = spec['audioOnly'] == true;
     final audioUrl = spec['a']?.toString() ?? '';
     final audioBackup = spec['ba']?.toString() ?? '';
+
+    // durl/直链兜底：没有独立音频流，直接下到输出文件
+    if (!audioOnly && audioUrl.isEmpty) {
+      await _downloadStream(
+        url: spec['v']?.toString() ?? '',
+        backupUrl: spec['bv']?.toString() ?? '',
+        path: request.outputPath,
+        cookie: cookie,
+        stage: DownloadStage.downloading,
+        onProgress: request.onProgress,
+        shouldCancel: request.shouldCancel,
+      );
+      return request.outputPath;
+    }
 
     if (audioOnly) {
       final audioPath = '${request.outputPath}.audio.m4s';
@@ -371,6 +387,7 @@ class BilibiliPlugin extends SitePlugin {
         final req = http.Request('GET', current)..followRedirects = false;
         req.headers['User-Agent'] = _ua;
         final resp = await client.send(req).timeout(const Duration(seconds: 15));
+        await resp.stream.drain<void>();
         final location = resp.headers['location'];
         if (location == null || location.isEmpty) break;
         current = current.resolve(location);
@@ -462,13 +479,20 @@ class BilibiliPlugin extends SitePlugin {
     final code = _int(json['code']);
     if (code == 0) return;
     final msg = json['message']?.toString() ?? '未知错误';
-    final friendly = switch (code) {
-      -404 => '视频不存在或已被删除',
-      -403 => '该视频需要登录、会员或地区权限',
-      -412 => 'B 站风控拦截，请登录后重试',
-      -101 => '需要登录 B 站',
-      _ => 'B 站接口错误: $code $msg',
-    };
+
+    late final String friendly;
+    if (code == -404) {
+      friendly = '视频不存在或已被删除';
+    } else if (code == -403) {
+      friendly = '该视频需要登录、会员或地区权限';
+    } else if (code == -412) {
+      friendly = 'B 站风控拦截，请登录后重试';
+    } else if (code == -101) {
+      friendly = '需要登录 B 站';
+    } else {
+      friendly = 'B 站接口错误: $code $msg';
+    }
+
     throw SitePluginException(
       friendly,
       retryable: code >= 500 || code == -1,
