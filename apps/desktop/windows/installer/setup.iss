@@ -2,7 +2,9 @@
 ; 生成单个 setup.exe，用户双击即可安装（含开始菜单/桌面快捷方式/卸载）
 ; 用法：iscc setup.iss
 
-#define MyAppName "4KDownle"
+#define MyAppName "4KDownle 6"
+; 安装目录沿用 4KDownle，保证从旧版升级时覆盖原目录，而不是并排装两个
+#define MyAppDirName "4KDownle"
 #define MyAppVersion "2.0.6"
 #define MyAppExeName "4kdownle.exe"
 
@@ -11,7 +13,7 @@ AppId={{7C1A2B3D-4E5F-4A6B-8C9D-0E1F2A3B4C5D}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={autopf}\{#MyAppDirName}
 DefaultGroupName={#MyAppName}
 OutputDir=Output
 OutputBaseFilename=4KDownle-Setup-{#MyAppVersion}

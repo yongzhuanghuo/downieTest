@@ -71,7 +71,7 @@ jobs:
           cp macos/installer/dmg-layout/.background/background.png "$APP_DIR/.background/background.png"
           ln -s /Applications "$APP_DIR/Applications"
           rm -f 4KDownle-macos.dmg
-          hdiutil create -volname "4K视频下载器" -srcfolder "$APP_DIR" -ov -format UDZO -fs HFS+ "4KDownle-macos.dmg"
+          hdiutil create -volname "4KDownle 6" -srcfolder "$APP_DIR" -ov -format UDZO -fs HFS+ "4KDownle-macos.dmg"
           hdiutil verify 4KDownle-macos.dmg
 
       - name: 上传产物

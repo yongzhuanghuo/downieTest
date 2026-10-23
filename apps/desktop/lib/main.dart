@@ -12,6 +12,7 @@ import 'core/platform/binary_initializer.dart';
 import 'core/platform/binary_locator.dart';
 import 'core/storage/settings_storage.dart';
 import 'features/license/license_provider.dart';
+import 'shared/branding/app_brand.dart';
 
 /// 窗口配置常量
 const Size _defaultWindowSize = Size(1100, 750);
@@ -48,7 +49,7 @@ Future<void> _initWindowManager() async {
     size: _defaultWindowSize,
     minimumSize: _minWindowSize,
     center: true,
-    title: '4KDownle',
+    title: AppBrand.name,
     titleBarStyle: TitleBarStyle.normal,
   );
 

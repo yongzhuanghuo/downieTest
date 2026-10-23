@@ -12,7 +12,7 @@
 
 - `lib/shared/branding/app_brand.dart`
   - `name` / `tagline` / `supportEmail` / `logoAsset` / `privacyNote`
-  - 默认名称：`4KDownle 5`
+  - 默认名称：`4KDownle 6`
   - 后续换品牌只改这个文件；图标换 `assets/logo.png` 或重新生成平台图标。
 
 ## 2. 页面与组件
@@ -74,3 +74,25 @@
   - 中文文案完整，无英文残留
   - 「发送」能拉起邮件客户端，收件人为 `huoyongzhuang@qq.com`
   - 设置页帮助/支持入口可用
+
+## 6. 换品牌改哪里
+
+应用内品牌（名称/邮箱/隐私说明）只改一个文件：
+
+- `apps/desktop/lib/shared/branding/app_brand.dart`
+
+换名称/图标还会涉及发行产物，按需改：
+
+| 位置 | 作用 |
+| --- | --- |
+| `apps/desktop/assets/logo.png` | 应用内 logo（256px） |
+| `apps/desktop/assets/logo6.png` | 图标源图（1024px，`tools/generate_brand_icon.swift` 生成） |
+| `apps/desktop/tools/generate_icons.sh` | 从源图生成 macOS appiconset + Windows ICO + 256px logo |
+| `apps/desktop/tools/generate_installer_assets.swift` | DMG 背景图、安装说明长图的标题/文案 |
+| `apps/desktop/macos/Runner/Info.plist` | macOS `CFBundleName` / `CFBundleDisplayName` |
+| `apps/desktop/windows/runner/Runner.rc` | Windows 文件属性 `ProductName` / `FileDescription` |
+| `apps/desktop/windows/installer/setup.iss` | 安装向导名称、开始菜单/桌面快捷方式名称 |
+| `.github/workflows/build.yml` | DMG 卷名（`hdiutil create -volname`） |
+
+注意：`macos/installer/dmg-layout/.DS_Store` 里记录的是 `4KDownle.app` 的图标位置，
+不要改 .app 文件名，否则 DMG 窗口布局会失效；显示名用 `CFBundleDisplayName` 即可。
