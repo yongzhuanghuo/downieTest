@@ -5,8 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../core/engine/douyin_downloader.dart';
 import '../../core/engine/ytdlp_runner.dart';
+import '../../core/sites/plugin_registry.dart';
+import '../../core/sites/site_plugin.dart';
 import '../../core/storage/downloads_dao.dart';
 import '../../core/storage/settings_storage.dart';
 import '../license/license_provider.dart';
@@ -174,14 +175,15 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
 
         try {
           final String result;
-          if (task.extractor == 'Douyin') {
-            // 抖音：formatId 存的是播放地址，直接用 HTTP 下载（绕过 yt-dlp）
-            result = await DouyinDownloader.download(
-              url: task.formatId,
+          final plugin = PluginRegistry.instance.byId(task.extractor);
+          if (plugin != null) {
+            // 站点插件：formatId 由插件解释（抖音是直链，HLS/DASH 可以是清单）
+            result = await plugin.download(PluginDownloadRequest(
+              task: task,
               outputPath: outputTemplate,
               onProgress: (p) => _applyProgress(task.id, p),
               shouldCancel: () => _cancelled.contains(task.id),
-            );
+            ));
           } else {
             result = await YtDlpRunner.download(
               url: task.url,
@@ -225,15 +227,57 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             unawaited(_revealFile(result));
           }
           return;
-        } on DouyinDownloadException catch (e) {
-          // 抖音直链下载失败（播放地址失效等），不重试直接失败
+        } on SitePluginException catch (e) {
+          // 用户取消：插件抛出异常时也按“已取消”处理
+          if (_cancelled.contains(task.id)) {
+            await _finishStatus(task.id, DownloadStatus.cancelled);
+            return;
+          }
+          // 需要登录：不重试，直接提示
+          if (e.requiresLogin) {
+            await _apply(task.id, (t) => t.copyWith(
+                  status: DownloadStatus.failed,
+                  error: '需要登录才能下载：${e.message}',
+                  retryCount: attempt,
+                  speed: 0,
+                ));
+            unawaited(promptSiteLogin(task.url));
+            return;
+          }
+          // 不可重试（如抖音直链签名失效）
+          if (!e.retryable) {
+            await _apply(task.id, (t) => t.copyWith(
+                  status: DownloadStatus.failed,
+                  error: e.message,
+                  retryCount: attempt,
+                  speed: 0,
+                ));
+            return;
+          }
+          // 可重试：与 yt-dlp 相同的指数退避
+          attempt++;
+          if (attempt >= _kMaxRetry || _cancelled.contains(task.id)) {
+            await _apply(task.id, (t) => t.copyWith(
+                  status: DownloadStatus.failed,
+                  error: '重试${attempt}次均失败: ${e.message}',
+                  retryCount: attempt,
+                  speed: 0,
+                ));
+            return;
+          }
+          final delay = Duration(milliseconds: _kRetryBaseMs * (1 << (attempt - 1)));
+          debugPrint('[DownloadList] ${task.id} 第${attempt}次失败，${delay.inMilliseconds}ms后重试: ${e.message}');
           await _apply(task.id, (t) => t.copyWith(
-                status: DownloadStatus.failed,
-                error: e.message,
+                status: DownloadStatus.pending,
+                error: '第${attempt}次失败，${delay.inSeconds}s后重试...',
                 retryCount: attempt,
                 speed: 0,
               ));
-          return;
+          await Future.delayed(delay);
+          if (_cancelled.contains(task.id)) {
+            await _finishStatus(task.id, DownloadStatus.cancelled);
+            return;
+          }
         } on YtDlpException catch (e) {
           // 需要登录/cookie：不重试，直接提示登录对应站点
           if (isCookieError(e.message)) {

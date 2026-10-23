@@ -54,6 +54,9 @@ jobs:
       - name: 安装依赖
         run: flutter pub get
 
+      - name: 单元测试（站点插件）
+        run: flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart
+
       - name: 打包 macOS
         run: flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000
 
@@ -149,7 +152,8 @@ jobs:
   #      （建议 RAM 子账号，只授该桶 PutObject 权限）
   #   2. bucket 对 releases/* 前缀开匿名只读（bucket 本体保持私有）
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    # -ci 标签只跑构建和测试，不覆盖 OSS 正式包
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, '-ci')
     needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:

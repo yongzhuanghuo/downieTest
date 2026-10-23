@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/engine/douyin_parser.dart';
 import '../../core/engine/ytdlp_runner.dart';
+import '../../core/sites/plugin_registry.dart';
+import '../../core/sites/site_plugin.dart';
 import '../../data/models/video_info.dart';
 import '../downloads/site_login_prompt.dart';
 
@@ -45,19 +46,38 @@ class ParseNotifier extends StateNotifier<ParseState> {
     final target = _extractUrl(trimmed) ?? trimmed;
     state = const ParseState(status: ParseStatus.loading);
 
-    // 抖音：纯 HTTP + a_bogus 签名解析（本地 node 子进程生成签名，不依赖浏览器）
-    if (target.contains('douyin.com')) {
+    // 站点插件优先（抖音等自研解析）；没有命中再走 yt-dlp 兜底
+    final plugin = PluginRegistry.instance.find(target);
+    if (plugin != null) {
       try {
-        final info = await DouyinParser.parse(target);
+        final info = await plugin.parse(target);
         state = ParseState(status: ParseStatus.success, videoInfo: info);
-      } on DouyinParseException catch (e) {
-        debugPrint('[解析] 抖音失败: ${e.message}');
-        state = const ParseState(status: ParseStatus.error, error: '抖音解析失败，请重试');
+      } on SitePluginException catch (e) {
+        if (!e.fallbackToYtDlp) {
+          debugPrint('[解析] ${plugin.displayName}失败: ${e.message}');
+          state = ParseState(
+            status: ParseStatus.error,
+            error: e.requiresLogin
+                ? '该网站需要登录后才能解析'
+                : '${plugin.displayName}解析失败，请重试',
+          );
+          if (e.requiresLogin && autoLogin) {
+            final loggedIn = await promptSiteLogin(target);
+            if (loggedIn) {
+              await _doParse(url, autoLogin: false);
+            }
+          }
+          return;
+        }
+        debugPrint('[解析] ${plugin.displayName}不支持该链接，回退 yt-dlp: ${e.message}');
       } catch (e) {
-        debugPrint('[解析] 抖音异常: $e');
-        state = const ParseState(status: ParseStatus.error, error: '抖音解析失败，请重试');
+        debugPrint('[解析] ${plugin.displayName}异常: $e');
+        state = ParseState(
+          status: ParseStatus.error,
+          error: '${plugin.displayName}解析失败，请重试',
+        );
+        return;
       }
-      return;
     }
 
     try {

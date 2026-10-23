@@ -64,6 +64,29 @@ class SiteCookies {
     } catch (_) {}
   }
 
+  /// 读取某站点 cookie 文件，拼成 HTTP `Cookie` 头。
+  /// 没有文件或解析失败返回空字符串；插件直接发 HTTP 请求时用。
+  static Future<String> loadCookieHeader(String siteId) async {
+    try {
+      final f = await cookieFile(siteId);
+      if (!await f.exists()) return '';
+      final lines = await f.readAsLines();
+      final parts = <String>[];
+      for (final line in lines) {
+        if (line.isEmpty || line.startsWith('#')) continue;
+        final fields = line.split('\t');
+        if (fields.length < 7) continue;
+        final name = fields[5].trim();
+        final value = fields[6].trim();
+        if (name.isEmpty) continue;
+        parts.add('$name=$value');
+      }
+      return parts.join('; ');
+    } catch (_) {
+      return '';
+    }
+  }
+
   /// 所有已登录站点的 cookie 文件路径（下载时全部 --cookies 传给 yt-dlp）
   static Future<List<String>> allCookieFilePaths() async {
     try {
