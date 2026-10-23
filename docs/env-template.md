@@ -60,7 +60,7 @@ OSS_PUBLIC_BASE_URL=
 # DOWNLOAD_URL_* 指向 OSS 固定地址，配一次不用再动
 LATEST_VERSION=2.0.0
 LATEST_BUILD=1
-DOWNLOAD_URL_MACOS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/4KDownle-macos.zip
+DOWNLOAD_URL_MACOS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/4KDownle-macos.dmg
 DOWNLOAD_URL_WINDOWS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/4KDownle-Windows-Setup.exe
 CHANGELOG=
 FORCE_UPDATE=false

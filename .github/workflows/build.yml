@@ -60,19 +60,25 @@ jobs:
       - name: 打包 macOS
         run: flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000
 
-      - name: 组装发布包（.app + 安装说明打进一个文件夹）
+      - name: 组装 DMG（.app + 安装说明）
         run: |
           APP_DIR="dist/4KDownle-macos"
-          rm -rf "$APP_DIR" && mkdir -p "$APP_DIR"
-          cp -R build/macos/Build/Products/Release/*.app "$APP_DIR/"
-          cp ../../docs/MAC安装前必看.docx "$APP_DIR/"
-          cd dist && zip -r ../4KDownle-macos.zip 4KDownle-macos
+          rm -rf "$APP_DIR" && mkdir -p "$APP_DIR/.background"
+          APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -1)
+          cp -R "$APP_PATH" "$APP_DIR/4KDownle.app"
+          cp macos/installer/install-guide.png "$APP_DIR/安装说明.png"
+          cp macos/installer/dmg-layout/.DS_Store "$APP_DIR/.DS_Store"
+          cp macos/installer/dmg-layout/.background/background.png "$APP_DIR/.background/background.png"
+          ln -s /Applications "$APP_DIR/Applications"
+          rm -f 4KDownle-macos.dmg
+          hdiutil create -volname "4K视频下载器" -srcfolder "$APP_DIR" -ov -format UDZO -fs HFS+ "4KDownle-macos.dmg"
+          hdiutil verify 4KDownle-macos.dmg
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: 4kdownle-pro-macos
-          path: apps/desktop/4KDownle-macos.zip
+          path: apps/desktop/4KDownle-macos.dmg
           retention-days: 30
 
   # ==================== Windows ====================
@@ -176,7 +182,7 @@ jobs:
           # bucket 实际区域为上海（已实测，hangzhou endpoint 会拒绝）
           # 注意 ossutil v2 密钥短选项是 -k（-s 是 shortFormat，cp 不支持会直接报错）
           OSS_ARGS=(-i "$OSS_KEY_ID" -k "$OSS_KEY_SECRET" -e oss-cn-shanghai.aliyuncs.com -f --meta Cache-Control:no-cache)
-          ossutil cp dist/4kdownle-pro-macos/4KDownle-macos.zip \
-            oss://4kdownlebucket/releases/4KDownle-macos.zip "${OSS_ARGS[@]}"
+          ossutil cp dist/4kdownle-pro-macos/4KDownle-macos.dmg \
+            oss://4kdownlebucket/releases/4KDownle-macos.dmg "${OSS_ARGS[@]}"
           ossutil cp dist/4kdownle-pro-windows-setup/4KDownle-Windows-Setup.exe \
             oss://4kdownlebucket/releases/4KDownle-Windows-Setup.exe "${OSS_ARGS[@]}"

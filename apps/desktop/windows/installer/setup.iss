@@ -3,7 +3,7 @@
 ; 用法：iscc setup.iss
 
 #define MyAppName "4KDownle"
-#define MyAppVersion "2.0.5"
+#define MyAppVersion "2.0.6"
 #define MyAppExeName "4kdownle.exe"
 
 [Setup]

@@ -8,6 +8,7 @@
 
 # ---------- 通用 ----------
 .DS_Store
+!apps/desktop/macos/installer/dmg-layout/.DS_Store
 .AppleDouble
 .LSOverride
 Icon?
