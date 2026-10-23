@@ -26,7 +26,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.home,
     routes: [
       ShellRoute(
-        builder: (context, state, child) => AppShell(child: child),
+        builder: (context, state, child) =>
+            AppShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(
             path: AppRoutes.home,

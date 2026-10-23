@@ -5,14 +5,15 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  /// 主色调 - 深蓝色系，专业感
-  static const Color _seedColor = Color(0xFF1565C0);
+  /// 主色调 - 紫色系（与下载器品牌视觉一致）
+  static const Color _seedColor = Color(0xFF7C5CFF);
 
   /// 亮色主题
   static ThemeData get light => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
         colorSchemeSeed: _seedColor,
+        scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         visualDensity: VisualDensity.adaptivePlatformDensity,
         appBarTheme: const AppBarTheme(
           centerTitle: false,
@@ -45,6 +46,7 @@ class AppTheme {
         useMaterial3: true,
         brightness: Brightness.dark,
         colorSchemeSeed: _seedColor,
+        scaffoldBackgroundColor: const Color(0xFF1C1C1E),
         visualDensity: VisualDensity.adaptivePlatformDensity,
         appBarTheme: const AppBarTheme(
           centerTitle: false,

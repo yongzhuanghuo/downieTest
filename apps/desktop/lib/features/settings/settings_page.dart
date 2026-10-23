@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
+import '../../shared/branding/app_brand.dart';
+import '../help/help_window.dart';
+import '../help/support_dialog.dart';
 import '../license/license_card.dart';
 import 'settings_provider.dart';
 
@@ -181,6 +184,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
             const SizedBox(height: 16),
 
+            // ==================== 帮助与支持 ====================
+            _buildSection(theme, '帮助与支持', [
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('打开帮助'),
+                subtitle: const Text('查看使用说明和常见问题'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => HelpWindow.show(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.support_agent),
+                title: const Text('报告问题'),
+                subtitle: Text(AppBrand.supportEmail),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => SupportDialog.show(context),
+              ),
+            ]),
+
+            const SizedBox(height: 16),
+
             // ==================== 关于 ====================
             _buildSection(theme, '关于', [
               ListTile(
@@ -212,7 +235,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ListTile(
                 leading: const Icon(Icons.support_agent),
                 title: const Text('客服支持'),
-                subtitle: const Text('huoyongzhuang@qq.com'),
+                subtitle: Text(AppBrand.supportEmail),
                 trailing: const Icon(Icons.copy),
                 onTap: () => _copySupportEmail(context),
               ),
@@ -254,7 +277,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   // ==================== 交互方法 ====================
 
   Future<void> _copySupportEmail(BuildContext context) async {
-    await Clipboard.setData(const ClipboardData(text: 'huoyongzhuang@qq.com'));
+    await Clipboard.setData(ClipboardData(text: AppBrand.supportEmail));
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('客服邮箱已复制到剪贴板')),

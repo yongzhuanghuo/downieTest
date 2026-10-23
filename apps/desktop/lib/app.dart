@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/settings/settings_provider.dart';
+import 'shared/branding/app_brand.dart';
 import 'shared/routes/app_routes.dart';
 import 'shared/theme/app_theme.dart';
 
@@ -15,7 +16,7 @@ class DownloApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      title: '4KDownle',
+      title: AppBrand.name,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
