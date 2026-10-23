@@ -70,15 +70,15 @@ jobs:
           cp macos/installer/dmg-layout/.DS_Store "$APP_DIR/.DS_Store"
           cp macos/installer/dmg-layout/.background/background.png "$APP_DIR/.background/background.png"
           ln -s /Applications "$APP_DIR/Applications"
-          rm -f Downie6-macos.dmg
-          hdiutil create -volname "Downie6" -srcfolder "$APP_DIR" -ov -format UDZO -fs HFS+ "Downie6-macos.dmg"
-          hdiutil verify Downie6-macos.dmg
+          rm -f Downie6.dmg
+          hdiutil create -volname "Downie6" -srcfolder "$APP_DIR" -ov -format UDZO -fs HFS+ "Downie6.dmg"
+          hdiutil verify Downie6.dmg
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: Downie6-pro-macos
-          path: apps/desktop/Downie6-macos.dmg
+          path: apps/desktop/Downie6.dmg
           retention-days: 30
 
   # ==================== Windows ====================
@@ -182,7 +182,7 @@ jobs:
           # bucket 实际区域为上海（已实测，hangzhou endpoint 会拒绝）
           # 注意 ossutil v2 密钥短选项是 -k（-s 是 shortFormat，cp 不支持会直接报错）
           OSS_ARGS=(-i "$OSS_KEY_ID" -k "$OSS_KEY_SECRET" -e oss-cn-shanghai.aliyuncs.com -f --meta Cache-Control:no-cache)
-          ossutil cp dist/Downie6-pro-macos/Downie6-macos.dmg \
-            oss://4kdownlebucket/releases/Downie6-macos.dmg "${OSS_ARGS[@]}"
+          ossutil cp dist/Downie6-pro-macos/Downie6.dmg \
+            oss://4kdownlebucket/releases/Downie6.dmg "${OSS_ARGS[@]}"
           ossutil cp dist/Downie6-pro-windows-setup/Downie6-Windows-Setup.exe \
             oss://4kdownlebucket/releases/Downie6-Windows-Setup.exe "${OSS_ARGS[@]}"

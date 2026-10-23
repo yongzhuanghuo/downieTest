@@ -208,6 +208,8 @@ do {
 }
 
 // ---------- 安装说明长图（1000 x 1400） ----------
+// 正式安装说明现在使用设计稿 macos/installer/install-guide.png；
+// 本脚本生成 install-guide-generated.png 作为旧版备份，避免覆盖正式说明。
 do {
     let c = Canvas(w: 1000, h: 1400, top: .white, bottom: .white)
     let band = NSBezierPath(rect: c.rect(0, 0, 1000, 170))
@@ -229,7 +231,7 @@ do {
     let steps: [(String, String, CGFloat)] = [
         (
             "把 Downie6 拖进「应用程序」",
-            "双击打开下载的 Downie6-macos.dmg，把右侧的 Downie6 图标拖到 Applications（应用程序）文件夹。",
+            "双击打开下载的 Downie6.dmg，把右侧的 Downie6 图标拖到 Applications（应用程序）文件夹。",
             132
         ),
         (
@@ -296,7 +298,7 @@ do {
         x: 0, top: 1330, width: 1000, height: 24,
         size: 13, color: muted, align: .center
     )
-    c.save("\(outDir)/install-guide.png")
+    c.save("\(outDir)/install-guide-generated.png")
 }
 
-print("generated \(outDir)/background.png and \(outDir)/install-guide.png")
+print("generated \(outDir)/background.png and \(outDir)/install-guide-generated.png")
