@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../downloads/download_provider.dart';
@@ -57,7 +58,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     ref.read(parseProvider.notifier).parse(_urlController.text);
   }
 
-  /// 网页嗅探：打开页面，抓 m3u8/mpd/mp4/flv
+  /// 网页嗅探：打开页面，抓 m3u8/mpd/mp4/flv；
+  /// 如果输入本身就是媒体直链，跳过 WebView 直接进入下载。
   Future<void> _captureWeb() async {
     final text = _urlController.text.trim();
     final match = RegExp(r'https?://[^\s一-鿿]+').firstMatch(text);
@@ -70,18 +72,35 @@ class _HomePageState extends ConsumerState<HomePage> {
       return;
     }
 
+    final directKind = detectMediaKind(url);
+    if (directKind != null) {
+      _applyCapturedMedia(CapturedMedia(
+        url: url,
+        kind: directKind,
+        pageUrl: url,
+        title: uri.host,
+        referer: url,
+        cookie: '',
+      ));
+      return;
+    }
+
     final media = await WebCaptureDialog.show(context, url);
     if (media == null || !mounted) return;
+    _applyCapturedMedia(media);
+  }
 
+  void _applyCapturedMedia(CapturedMedia media) {
+    final host = Uri.tryParse(media.pageUrl)?.host ?? '';
     _selectedFormat = null;
     _downloadSubtitles = false;
     _downloadCover = false;
 
     final info = VideoInfo(
       url: media.pageUrl,
-      title: media.title.isEmpty ? uri.host : media.title,
+      title: media.title.isEmpty ? host : media.title,
       duration: 0,
-      uploader: uri.host,
+      uploader: host,
       thumbnail: '',
       extractor: 'GenericWeb',
       videoId: media.url.hashCode.abs().toString(),
