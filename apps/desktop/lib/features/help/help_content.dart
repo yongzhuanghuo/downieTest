@@ -65,7 +65,7 @@ final List<HelpTopic> kHelpTopics = [
       '当前版本可以先复制浏览器地址，回到应用粘贴解析；'
           '或者使用「网页嗅探」打开页面并捕获媒体地址。',
       '浏览器扩展和本地 HTTP 服务在规划中，后续会支持从 Chrome/Edge/Safari'
-          '直接把当前页面发送到 4KDownle。',
+          '直接把当前页面发送到 4KDownle 6。',
     ],
   ),
   const HelpTopic(
