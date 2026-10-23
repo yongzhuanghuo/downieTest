@@ -55,7 +55,7 @@ jobs:
         run: flutter pub get
 
       - name: 单元测试（站点插件）
-        run: flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart
+        run: flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart
 
       - name: 打包 macOS
         run: flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000

@@ -107,6 +107,11 @@ class ParseNotifier extends StateNotifier<ParseState> {
     }
   }
 
+  /// 外部注入解析结果（网页嗅探等）
+  void setResult(VideoInfo info) {
+    state = ParseState(status: ParseStatus.success, videoInfo: info);
+  }
+
   /// 重置状态
   void reset() => state = const ParseState();
 }

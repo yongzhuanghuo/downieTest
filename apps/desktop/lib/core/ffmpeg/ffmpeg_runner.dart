@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../data/models/download_progress.dart';
 import '../platform/binary_locator.dart';
 
 /// FFmpeg 异常
@@ -157,7 +158,100 @@ class FFmpegRunner {
     return outputPath;
   }
 
+  /// 用 FFmpeg 直接下载并转封装网络流。
+  ///
+  /// 支持 HLS（.m3u8）、DASH（.mpd）和直链 MP4/FLV。适用于网页嗅探抓到的
+  /// 媒体地址：不需要自己实现分片调度，ffmpeg 会处理 manifest、分片和 AES-128
+  /// （非 DRM）解密。
+  static Future<String> downloadUrl({
+    required String url,
+    required String outputPath,
+    String? referer,
+    String? cookie,
+    String? userAgent,
+    void Function(DownloadProgress progress)? onProgress,
+    bool Function()? shouldCancel,
+  }) async {
+    final ffmpegPath = await BinaryLocator.getFFmpegPath();
+
+    final headers = <String>[
+      if (referer != null && referer.isNotEmpty) 'Referer: $referer',
+      if (userAgent != null && userAgent.isNotEmpty) 'User-Agent: $userAgent',
+      if (cookie != null && cookie.isNotEmpty) 'Cookie: $cookie',
+    ];
+    final args = <String>[
+      '-y',
+      '-nostdin',
+      if (headers.isNotEmpty) ...['-headers', '${headers.join('\r\n')}\r\n'],
+      '-protocol_whitelist', 'file,http,https,tcp,tls,crypto',
+      '-i', url,
+      '-c', 'copy',
+      '-movflags', '+faststart',
+      outputPath,
+    ];
+
+    final process = await Process.start(ffmpegPath, args);
+    var stderrText = '';
+    double? duration;
+    var cancelled = false;
+
+    Timer? cancelTimer;
+    if (shouldCancel != null) {
+      cancelTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+        if (shouldCancel()) {
+          cancelled = true;
+          process.kill();
+        }
+      });
+    }
+
+    final sub = process.stderr.transform(utf8.decoder).listen((chunk) {
+      stderrText += chunk;
+      if (stderrText.length > 40000) {
+        stderrText = stderrText.substring(stderrText.length - 40000);
+      }
+
+      final d = RegExp(r'Duration:\s*(\d+):(\d+):(\d+\.\d+)')
+          .firstMatch(chunk);
+      if (d != null) duration = _hms(d);
+
+      for (final m
+          in RegExp(r'time=(\d+):(\d+):(\d+\.\d+)').allMatches(chunk)) {
+        final current = _hms(m);
+        final percent = duration != null && duration! > 0
+            ? (current / duration!).clamp(0.0, 1.0)
+            : null;
+        onProgress?.call(DownloadProgress(
+          downloadedBytes: 0,
+          totalBytes: null,
+          speed: 0,
+          percent: percent,
+          stage: DownloadStage.downloading,
+          detail: '下载媒体流',
+        ));
+      }
+    });
+
+    final exitCode = await process.exitCode;
+    await sub.cancel();
+    cancelTimer?.cancel();
+
+    if (cancelled) throw const FFmpegException('已取消');
+    if (exitCode != 0) {
+      throw FFmpegException(
+        '下载失败: ${stderrText.trim()}',
+        exitCode: exitCode,
+      );
+    }
+    return outputPath;
+  }
+
   // ============== 内部方法 ==============
+
+  static double _hms(RegExpMatch m) =>
+      int.parse(m.group(1)!) * 3600 +
+      int.parse(m.group(2)!) * 60 +
+      double.parse(m.group(3)!);
 
   /// 获取媒体时长（秒）
   static Future<double> getMediaDuration(String filePath) async {

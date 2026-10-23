@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../downloads/download_provider.dart';
+import '../downloads/web_capture_dialog.dart';
 import '../license/license_card.dart';
 import '../license/license_provider.dart';
 import 'home_provider.dart';
@@ -52,6 +55,51 @@ class _HomePageState extends ConsumerState<HomePage> {
     _downloadSubtitles = false;
     _downloadCover = false;
     ref.read(parseProvider.notifier).parse(_urlController.text);
+  }
+
+  /// 网页嗅探：打开页面，抓 m3u8/mpd/mp4/flv
+  Future<void> _captureWeb() async {
+    final text = _urlController.text.trim();
+    final match = RegExp(r'https?://[^\s一-鿿]+').firstMatch(text);
+    final url = match?.group(0) ?? text;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先输入一个网页链接')),
+      );
+      return;
+    }
+
+    final media = await WebCaptureDialog.show(context, url);
+    if (media == null || !mounted) return;
+
+    _selectedFormat = null;
+    _downloadSubtitles = false;
+    _downloadCover = false;
+
+    final info = VideoInfo(
+      url: media.pageUrl,
+      title: media.title.isEmpty ? uri.host : media.title,
+      duration: 0,
+      uploader: uri.host,
+      thumbnail: '',
+      extractor: 'GenericWeb',
+      videoId: media.url.hashCode.abs().toString(),
+      formats: [
+        FormatOption(
+          formatId: jsonEncode({
+            'url': media.url,
+            'kind': media.kind,
+            'referer': media.referer,
+            'cookie': media.cookie,
+          }),
+          label: '网页嗅探 ${media.kind.toUpperCase()}',
+          height: 0,
+          ext: 'mp4',
+        ),
+      ],
+    );
+    ref.read(parseProvider.notifier).setResult(info);
   }
 
   /// 解析成功后自动选择默认格式（已取消清晰度限制，直接选推荐格式）
@@ -299,19 +347,36 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildParseButton(ThemeData theme, bool isLoading) {
-    return FilledButton.icon(
-      onPressed: isLoading ? null : _parse,
-      icon: isLoading
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.search),
-      label: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 4),
-        child: Text('解析链接'),
-      ),
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: isLoading ? null : _parse,
+            icon: isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.search),
+            label: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: Text('解析链接'),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: isLoading ? null : _captureWeb,
+            icon: const Icon(Icons.travel_explore),
+            label: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: Text('网页嗅探'),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
