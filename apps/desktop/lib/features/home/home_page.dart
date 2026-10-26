@@ -58,7 +58,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     ref.read(parseProvider.notifier).parse(_urlController.text);
   }
 
-  /// 用户引导提取：打开页面，抓 m3u8/mpd/mp4/flv；
+  /// 用户自定义视频提取：打开页面，抓 m3u8/mpd/mp4/flv；
   /// 如果输入本身就是媒体直链，跳过 WebView 直接进入下载。
   Future<void> _captureWeb() async {
     final text = _urlController.text.trim();
@@ -112,7 +112,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             'referer': media.referer,
             'cookie': media.cookie,
           }),
-          label: '用户引导提取 ${media.kind.toUpperCase()}',
+          label: '用户自定义视频提取 ${media.kind.toUpperCase()}',
           height: 0,
           ext: 'mp4',
         ),
@@ -391,7 +391,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: const Icon(Icons.travel_explore),
             label: const Padding(
               padding: EdgeInsets.symmetric(vertical: 4),
-              child: Text('用户引导提取'),
+              child: Text('用户自定义视频提取'),
             ),
           ),
         ),

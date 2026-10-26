@@ -8,7 +8,7 @@ import '../../core/platform/webview2.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../core/storage/settings_storage.dart';
 
-/// 用户引导提取抓到的媒体地址
+/// 用户自定义视频提取抓到的媒体地址
 @immutable
 class CapturedMedia {
   final String url;
@@ -28,7 +28,7 @@ class CapturedMedia {
   });
 }
 
-/// 通用用户引导提取窗口（Downie UGE 式兜底）。
+/// 通用用户自定义视频提取窗口（Downie UGE 式兜底）。
 ///
 /// 打开目标页面，注入 JS hook fetch/XHR/performance，捕获 m3u8/mpd/mp4/flv，
 /// 用户选中后带着 cookie + Referer 返回，交给 GenericWebPlugin 用 ffmpeg 下载。
@@ -191,7 +191,7 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '用户引导提取',
+                      '用户自定义视频提取',
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
@@ -376,7 +376,7 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
             Text('未检测到 WebView2 运行时', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
-              '用户引导提取需要微软 WebView2 内核才能显示，请安装后重试',
+              '用户自定义视频提取需要微软 WebView2 内核才能显示，请安装后重试',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

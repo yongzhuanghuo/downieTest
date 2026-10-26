@@ -90,7 +90,7 @@ class WindowStatusBar extends ConsumerWidget {
                 ),
                 _StatusIcon(
                   icon: Icons.block,
-                  tooltip: '用户引导提取',
+                  tooltip: '用户自定义视频提取',
                   color: accent,
                   onTap: () => AddUrlsPanel.show(context),
                 ),

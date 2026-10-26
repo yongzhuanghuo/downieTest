@@ -13,7 +13,7 @@ import '../home/home_provider.dart';
 import 'download_provider.dart';
 import 'web_capture_dialog.dart';
 
-/// Downie 风格「添加链接」浮层：粘贴/用户引导提取 → 解析 → 直接入队。
+/// Downie 风格「添加链接」浮层：粘贴/用户自定义视频提取 → 解析 → 直接入队。
 class AddUrlsPanel extends ConsumerStatefulWidget {
   final String? initialText;
 
@@ -148,7 +148,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
               'referer': media.referer,
               'cookie': media.cookie,
             }),
-            label: '用户引导提取 ${media.kind.toUpperCase()}',
+            label: '用户自定义视频提取 ${media.kind.toUpperCase()}',
             height: 0,
             ext: 'mp4',
           ),
@@ -159,7 +159,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = '用户引导提取失败：$e';
+          _error = '用户自定义视频提取失败：$e';
         });
       }
     }
@@ -232,7 +232,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
               TextButton.icon(
                 onPressed: _busy ? null : _capture,
                 icon: const Icon(Icons.travel_explore, size: 14),
-                label: const Text('用户引导提取'),
+                label: const Text('用户自定义视频提取'),
               ),
               const Spacer(),
               if (_busy)
