@@ -32,6 +32,42 @@ void main() {
     expect(restored.availableFormats, isEmpty); // 格式列表不持久化
   });
 
+  test('priority and subtitle flags survive map round-trip', () {
+    final task = _task().copyWith(
+      priority: DownloadPriority.high,
+      downloadSubtitles: true,
+      downloadCover: true,
+    );
+    final map = task.toMap();
+    expect(map['priority'], DownloadPriority.high.index);
+
+    final restored = DownloadTask.fromMap(map);
+    expect(restored.priority, DownloadPriority.high);
+    expect(restored.downloadSubtitles, isTrue);
+    expect(restored.downloadCover, isTrue);
+  });
+
+  test('copyWith can clear nullable fields', () {
+    final task = _task().copyWith(
+      error: 'boom',
+      outputPath: '/tmp/a.mp4',
+      startedAt: DateTime.fromMillisecondsSinceEpoch(2),
+      completedAt: DateTime.fromMillisecondsSinceEpoch(3),
+    );
+    final cleared = task.copyWith(
+      error: null,
+      outputPath: null,
+      startedAt: null,
+      completedAt: null,
+      progress: null,
+    );
+    expect(cleared.error, isNull);
+    expect(cleared.outputPath, isNull);
+    expect(cleared.startedAt, isNull);
+    expect(cleared.completedAt, isNull);
+    expect(cleared.progress, isNull);
+  });
+
   test('rename title', () {
     final task = _task().copyWith(title: 'New title');
     expect(task.title, 'New title');

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'settings_storage.dart';
+import 'site_registry.dart';
 
 /// 站点登录 Cookie 存储（按站点 id 分文件）
 ///
@@ -85,6 +86,25 @@ class SiteCookies {
     } catch (_) {
       return '';
     }
+  }
+
+  /// 根据 URL 找内置站点配置（host 后缀匹配），没有返回 null。
+  static SiteConfig? siteForUrl(String url) {
+    final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+    if (host.isEmpty) return null;
+    for (final site in kLoginSites) {
+      for (final domain in site.domains) {
+        if (host == domain || host.endsWith('.$domain')) return site;
+      }
+    }
+    return null;
+  }
+
+  /// 读取与 URL 匹配的站点 cookie 头；没有登录态返回空字符串。
+  static Future<String> loadCookieHeaderForUrl(String url) async {
+    final site = siteForUrl(url);
+    if (site == null) return '';
+    return loadCookieHeader(site.id);
   }
 
   /// 所有已登录站点的 cookie 文件路径（下载时全部 --cookies 传给 yt-dlp）

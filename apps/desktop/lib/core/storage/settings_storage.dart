@@ -27,6 +27,21 @@ class AppSettings {
   /// 代理服务器地址（空=不使用）；支持 http://、https://、socks5://
   final String proxy;
 
+  /// 新任务默认后处理：0=无, 1=MP4, 2=仅音频
+  final int defaultPostprocessing;
+
+  /// 新任务默认下载字幕
+  final bool defaultDownloadSubtitles;
+
+  /// 新任务默认下载封面
+  final bool defaultDownloadCover;
+
+  /// 历史记录保留天数（0=永久）
+  final int historyDays;
+
+  /// 用户自定义视频提取地址栏的搜索引擎（0=Google, 1=Bing, 2=百度, 3=DuckDuckGo）
+  final int searchEngine;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -34,6 +49,11 @@ class AppSettings {
     required this.autoStart,
     required this.autoOpenFolder,
     this.proxy = '',
+    this.defaultPostprocessing = 0,
+    this.defaultDownloadSubtitles = false,
+    this.defaultDownloadCover = false,
+    this.historyDays = 0,
+    this.searchEngine = 1,
   });
 
   static const defaults = AppSettings(
@@ -43,6 +63,11 @@ class AppSettings {
     autoStart: false,
     autoOpenFolder: false,
     proxy: '',
+    defaultPostprocessing: 0,
+    defaultDownloadSubtitles: false,
+    defaultDownloadCover: false,
+    historyDays: 0,
+    searchEngine: 1,
   );
 
   AppSettings copyWith({
@@ -52,6 +77,11 @@ class AppSettings {
     bool? autoStart,
     bool? autoOpenFolder,
     String? proxy,
+    int? defaultPostprocessing,
+    bool? defaultDownloadSubtitles,
+    bool? defaultDownloadCover,
+    int? historyDays,
+    int? searchEngine,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -60,6 +90,13 @@ class AppSettings {
       autoStart: autoStart ?? this.autoStart,
       autoOpenFolder: autoOpenFolder ?? this.autoOpenFolder,
       proxy: proxy ?? this.proxy,
+      defaultPostprocessing:
+          defaultPostprocessing ?? this.defaultPostprocessing,
+      defaultDownloadSubtitles:
+          defaultDownloadSubtitles ?? this.defaultDownloadSubtitles,
+      defaultDownloadCover: defaultDownloadCover ?? this.defaultDownloadCover,
+      historyDays: historyDays ?? this.historyDays,
+      searchEngine: searchEngine ?? this.searchEngine,
     );
   }
 
@@ -120,6 +157,14 @@ class SettingsStorage {
         autoStart: (raw['autoStart'] as bool?) ?? false,
         autoOpenFolder: (raw['autoOpenFolder'] as bool?) ?? false,
         proxy: (raw['proxy'] as String?) ?? '',
+        defaultPostprocessing:
+            (raw['defaultPostprocessing'] as num?)?.toInt() ?? 0,
+        defaultDownloadSubtitles:
+            (raw['defaultDownloadSubtitles'] as bool?) ?? false,
+        defaultDownloadCover:
+            (raw['defaultDownloadCover'] as bool?) ?? false,
+        historyDays: (raw['historyDays'] as num?)?.toInt() ?? 0,
+        searchEngine: (raw['searchEngine'] as num?)?.toInt() ?? 1,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -160,6 +205,11 @@ class SettingsStorage {
       'autoStart': settings.autoStart,
       'autoOpenFolder': settings.autoOpenFolder,
       'proxy': settings.proxy,
+      'defaultPostprocessing': settings.defaultPostprocessing,
+      'defaultDownloadSubtitles': settings.defaultDownloadSubtitles,
+      'defaultDownloadCover': settings.defaultDownloadCover,
+      'historyDays': settings.historyDays,
+      'searchEngine': settings.searchEngine,
     });
     debugPrint('[Settings] saved: $settings');
   }

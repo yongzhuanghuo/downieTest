@@ -47,6 +47,39 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setDefaultPostprocessing(int mode) async {
+    final next = state.copyWith(defaultPostprocessing: mode.clamp(0, 2));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setDefaultDownloadSubtitles(bool value) async {
+    final next = state.copyWith(defaultDownloadSubtitles: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setDefaultDownloadCover(bool value) async {
+    final next = state.copyWith(defaultDownloadCover: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setSearchEngine(int id) async {
+    final next = state.copyWith(searchEngine: id.clamp(0, 3));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setHistoryDays(int days) async {
+    final allowed = {0, 7, 30, 90, 365};
+    final next = state.copyWith(
+      historyDays: allowed.contains(days) ? days : 0,
+    );
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   /// 重置为默认
   Future<void> reset() async {
     await SettingsStorage.instance.save(AppSettings.defaults);

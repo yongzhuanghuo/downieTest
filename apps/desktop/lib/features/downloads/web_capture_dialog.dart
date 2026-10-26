@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../../core/platform/webview2.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
+import '../../core/sites/search_engines.dart';
 import '../../core/storage/settings_storage.dart';
 
 /// 用户自定义视频提取抓到的媒体地址
@@ -71,6 +72,9 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
   String _pageUrl = '';
   String _title = '';
   bool _collecting = false;
+  InAppWebViewController? _webController;
+  late final TextEditingController _addressController;
+  final FocusNode _addressFocus = FocusNode();
 
   static const String _captureJs = r'''
 (function() {
@@ -125,7 +129,32 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
   void initState() {
     super.initState();
     _pageUrl = widget.url;
+    _addressController = TextEditingController(text: widget.url);
     _webView2Missing = !isWebView2Available();
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    _addressFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _go(String input) async {
+    final engine = SettingsStorage.instance.current.searchEngine;
+    final target = resolveAddressInput(input, engineId: engine);
+    if (target.isEmpty) return;
+    _addressFocus.unfocus();
+    await _webController?.loadUrl(
+      urlRequest: URLRequest(url: WebUri(target)),
+    );
+  }
+
+  void _syncAddress(String url) {
+    _pageUrl = url;
+    if (!_addressFocus.hasFocus) {
+      _addressController.text = url;
+    }
   }
 
   void _onMedia(String url) {
@@ -195,19 +224,53 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, size: 18),
+                    tooltip: '后退',
+                    onPressed: () => _webController?.goBack(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward, size: 18),
+                    tooltip: '前进',
+                    onPressed: () => _webController?.goForward(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 18),
+                    tooltip: '刷新',
+                    onPressed: () => _webController?.reload(),
+                  ),
                   SizedBox(
-                    width: 360,
-                    child: Text(
-                      widget.url,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    width: 420,
+                    child: TextField(
+                      controller: _addressController,
+                      focusNode: _addressFocus,
+                      style: theme.textTheme.bodySmall,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: '输入网址或搜索关键词',
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        filled: true,
+                        fillColor: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.5),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
+                      onSubmitted: _go,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward_circle_outlined,
+                        size: 20),
+                    tooltip: '前往',
+                    onPressed: () => _go(_addressController.text),
+                  ),
+                  const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(Icons.close),
                     tooltip: '取消',
@@ -235,6 +298,7 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
                         ),
                       ]),
                       onWebViewCreated: (controller) {
+                        _webController = controller;
                         controller.addJavaScriptHandler(
                           handlerName: 'media',
                           callback: (args) {
@@ -246,14 +310,10 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
                         );
                       },
                       onLoadStart: (controller, url) {
-                        if (url != null) {
-                          _pageUrl = url.toString();
-                        }
+                        if (url != null) _syncAddress(url.toString());
                       },
                       onLoadStop: (controller, url) {
-                        if (url != null) {
-                          _pageUrl = url.toString();
-                        }
+                        if (url != null) _syncAddress(url.toString());
                       },
                       onTitleChanged: (controller, title) {
                         if (title != null && title.isNotEmpty && mounted) {

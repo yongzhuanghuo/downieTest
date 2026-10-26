@@ -12,6 +12,7 @@ import '../../shared/widgets/window_panel.dart';
 import '../home/home_provider.dart';
 import '../license/license_provider.dart';
 import '../license/license_window.dart';
+import '../settings/settings_provider.dart';
 import 'download_provider.dart';
 import 'web_capture_dialog.dart';
 
@@ -42,11 +43,15 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
   bool _downloadSubtitles = false;
   bool _downloadCover = false;
   String? _error;
+  String? _progress;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialText ?? '');
+    final settings = ref.read(settingsProvider);
+    _downloadSubtitles = settings.defaultDownloadSubtitles;
+    _downloadCover = settings.defaultDownloadCover;
   }
 
   @override
@@ -73,39 +78,103 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
       return;
     }
 
+    // 一次粘贴多条链接时逐条解析入队；没有 URL 的纯文本仍交给解析器判断。
+    final urls = extractUrls(text);
+    final targets = urls.isEmpty ? [text] : urls;
+
     setState(() {
       _busy = true;
       _error = null;
+      _progress = targets.length > 1 ? '准备解析 ${targets.length} 条链接…' : null;
     });
-    try {
-      await ref.read(parseProvider.notifier).parse(text);
-      final parse = ref.read(parseProvider);
-      final info = parse.videoInfo;
-      if (parse.isError || info == null) {
-        if (mounted) {
-          setState(() {
-            _busy = false;
-            _error = parse.error ?? '解析失败，请检查链接';
-          });
-        }
-        return;
+
+    var added = 0;
+    var trialBlocked = false;
+    final failures = <String>[];
+
+    for (var i = 0; i < targets.length; i++) {
+      if (!mounted) return;
+      if (targets.length > 1) {
+        setState(() => _progress = '正在解析 ${i + 1}/${targets.length}…');
       }
-      await _startInfo(info);
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _error = '添加失败：$e';
-        });
+
+      final target = targets[i];
+      try {
+        await ref.read(parseProvider.notifier).parse(target);
+        final parse = ref.read(parseProvider);
+        final info = parse.videoInfo;
+        if (parse.isError || info == null) {
+          failures.add('${_shortUrl(target)}：${parse.error ?? '解析失败'}');
+          continue;
+        }
+
+        final error = await _enqueueInfo(info);
+        if (error == _trialEnded) {
+          trialBlocked = true;
+          break;
+        }
+        if (error != null) {
+          failures.add('${_shortUrl(target)}：$error');
+          continue;
+        }
+        added++;
+      } catch (e) {
+        failures.add('${_shortUrl(target)}：$e');
       }
     }
+
+    if (!mounted) return;
+
+    if (added > 0) {
+      if (failures.isNotEmpty) {
+        debugPrint('[添加链接] ${failures.length} 条失败：${failures.join('；')}');
+      }
+      Navigator.of(context).pop(true);
+      return;
+    }
+
+    setState(() {
+      _busy = false;
+      _progress = null;
+      _error = trialBlocked
+          ? '14 天试用已结束，请输入授权码'
+          : failures.isEmpty
+              ? '解析失败，请检查链接'
+              : failures.length == 1
+                  ? failures.first
+                  : '全部 ${failures.length} 条链接都解析失败：${failures.first}';
+    });
+    if (trialBlocked) {
+      await LicenseWindow.show(context);
+    }
+  }
+
+  static const _trialEnded = '__trial_ended__';
+
+  /// 把解析结果加入下载队列；成功返回 null，失败返回错误文案。
+  Future<String?> _enqueueInfo(VideoInfo info) async {
+    if (!ref.read(canDownloadProvider)) return _trialEnded;
+    final format = info.recommendedFormat;
+    if (format == null) return '没有可用格式';
+    await ref.read(downloadListProvider.notifier).startDownload(
+          videoInfo: info,
+          format: format,
+          downloadSubtitles: _downloadSubtitles,
+          downloadCover: _downloadCover,
+        );
+    return null;
+  }
+
+  String _shortUrl(String url) {
+    final uri = Uri.tryParse(url);
+    final host = uri?.host ?? '';
+    return host.isEmpty ? url : host;
   }
 
   Future<void> _capture() async {
     if (_busy) return;
     final text = _controller.text.trim();
-    final match = RegExp(r'https?://[^\s一-鿿]+').firstMatch(text);
-    final url = match?.group(0) ?? text;
+    final url = extractFirstUrl(text) ?? text;
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
       setState(() => _error = '请先输入一个网页链接');
@@ -170,33 +239,19 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
   }
 
   Future<void> _startInfo(VideoInfo info) async {
-    if (!ref.read(canDownloadProvider)) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _error = '14 天试用已结束，请输入授权码';
-        });
-        await LicenseWindow.show(context);
-      }
+    final error = await _enqueueInfo(info);
+    if (!mounted) return;
+    if (error == null) {
+      Navigator.of(context).pop(true);
       return;
     }
-    final format = info.recommendedFormat;
-    if (format == null) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _error = '没有可用格式';
-        });
-      }
-      return;
+    setState(() {
+      _busy = false;
+      _error = error == _trialEnded ? '14 天试用已结束，请输入授权码' : error;
+    });
+    if (error == _trialEnded) {
+      await LicenseWindow.show(context);
     }
-    await ref.read(downloadListProvider.notifier).startDownload(
-          videoInfo: info,
-          format: format,
-          downloadSubtitles: _downloadSubtitles,
-          downloadCover: _downloadCover,
-        );
-    if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
@@ -224,14 +279,14 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
             maxLines: 4,
             style: TextStyle(fontSize: 13, color: text),
             decoration: const InputDecoration(
-              hintText: 'https://...\n支持抖音、B站、YouTube 等',
+              hintText: 'https://...\n支持一次粘贴多条链接；抖音、B站、YouTube 等',
             ),
           ),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.md),
             Text(
               _error!,
-              maxLines: 2,
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 11, color: error),
             ),
@@ -272,15 +327,21 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
                 label: const Text('用户自定义视频提取'),
               ),
               const Spacer(),
-              if (_busy)
-                const Padding(
-                  padding: EdgeInsets.only(right: AppSpacing.lg),
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+              if (_busy) ...[
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
+                if (_progress != null) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    _progress!,
+                    style: TextStyle(fontSize: 11, color: secondary),
+                  ),
+                ],
+                const SizedBox(width: AppSpacing.lg),
+              ],
               TextButton(
                 onPressed: _busy ? null : () => Navigator.of(context).pop(false),
                 child: const Text('取消'),

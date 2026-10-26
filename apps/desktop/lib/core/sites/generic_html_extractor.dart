@@ -1,9 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
+import '../storage/settings_storage.dart';
+import '../storage/site_cookies.dart';
 import 'plugins/generic_web_plugin.dart';
 
 /// 通用 HTML 媒体提取：在 yt-dlp 之前尝试从页面 HTML 里找媒体地址。
@@ -26,13 +30,18 @@ class GenericHtmlExtractor {
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) return null;
     if (uri.scheme != 'http' && uri.scheme != 'https') return null;
 
+    http.Client? client;
     try {
-      final response = await http.get(
+      final cookie = await SiteCookies.loadCookieHeaderForUrl(pageUrl);
+      client = await _createClient();
+      final response = await client.get(
         uri,
         headers: {
           'User-Agent': _ua,
           'Referer': pageUrl,
           'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+          if (cookie.isNotEmpty) 'Cookie': cookie,
         },
       ).timeout(const Duration(seconds: 12));
       if (response.statusCode != 200) return null;
@@ -57,7 +66,7 @@ class GenericHtmlExtractor {
             'url': mediaUrl,
             'kind': kind,
             'referer': pageUrl,
-            'cookie': '',
+            'cookie': cookie,
           }),
           label: '网页提取 ${kind.toUpperCase()}',
           height: 0,
@@ -77,7 +86,30 @@ class GenericHtmlExtractor {
       );
     } catch (_) {
       return null;
+    } finally {
+      client?.close();
     }
+  }
+
+  /// 建立一个走用户代理设置的 HTTP 客户端。
+  ///
+  /// Dart 的 HttpClient 只支持 HTTP(S) 代理；socks5 配置交给 yt-dlp 处理，
+  /// 这里直接连接，避免把 SOCKS 地址误当 HTTP 代理。
+  static Future<http.Client> _createClient() async {
+    final proxy = SettingsStorage.instance.current.proxy;
+    final proxyUri = Uri.tryParse(proxy);
+    if (proxyUri == null ||
+        proxyUri.host.isEmpty ||
+        (proxyUri.scheme != 'http' && proxyUri.scheme != 'https')) {
+      return http.Client();
+    }
+    final port = proxyUri.hasPort
+        ? proxyUri.port
+        : (proxyUri.scheme == 'https' ? 443 : 80);
+    final io = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 10)
+      ..findProxy = ((_) => 'PROXY ${proxyUri.host}:$port');
+    return IOClient(io);
   }
 
   /// 从 HTML 里提取并去重媒体地址，按页面出现顺序返回。

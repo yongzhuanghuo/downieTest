@@ -19,6 +19,22 @@ extension PostprocessingModeX on PostprocessingMode {
   }
 }
 
+/// 队列优先级（高的先下载）
+enum DownloadPriority { low, normal, high }
+
+extension DownloadPriorityX on DownloadPriority {
+  String get label {
+    switch (this) {
+      case DownloadPriority.low:
+        return '低优先级';
+      case DownloadPriority.normal:
+        return '普通优先级';
+      case DownloadPriority.high:
+        return '高优先级';
+    }
+  }
+}
+
 /// 下载任务状态
 enum DownloadStatus {
   pending,    // 等待中（队列里）
@@ -58,6 +74,9 @@ class DownloadTask {
 
   /// 下载完成后的处理方式
   final PostprocessingMode postprocessing;
+
+  /// 队列优先级
+  final DownloadPriority priority;
 
   /// 高度（纯音频=0）
   final int height;
@@ -117,6 +136,7 @@ class DownloadTask {
     required this.formatLabel,
     this.availableFormats = const [],
     this.postprocessing = PostprocessingMode.none,
+    this.priority = DownloadPriority.normal,
     required this.height,
     required this.ext,
     required this.audioOnly,
@@ -135,9 +155,12 @@ class DownloadTask {
     this.completedAt,
   });
 
+  /// 可空字段用哨兵区分「不修改」和「清空」。
+  static const Object _unset = Object();
+
   DownloadTask copyWith({
     DownloadStatus? status,
-    DownloadProgress? progress,
+    Object? progress = _unset,
     String? title,
     String? formatId,
     String? formatLabel,
@@ -146,14 +169,17 @@ class DownloadTask {
     bool? audioOnly,
     List<FormatOption>? availableFormats,
     PostprocessingMode? postprocessing,
+    DownloadPriority? priority,
+    bool? downloadSubtitles,
+    bool? downloadCover,
     int? fileSize,
     int? downloadedBytes,
     int? speed,
-    String? outputPath,
-    String? error,
+    Object? outputPath = _unset,
+    Object? error = _unset,
     int? retryCount,
-    DateTime? startedAt,
-    DateTime? completedAt,
+    Object? startedAt = _unset,
+    Object? completedAt = _unset,
   }) {
     return DownloadTask(
       id: id,
@@ -165,22 +191,31 @@ class DownloadTask {
       formatLabel: formatLabel ?? this.formatLabel,
       availableFormats: availableFormats ?? this.availableFormats,
       postprocessing: postprocessing ?? this.postprocessing,
+      priority: priority ?? this.priority,
       height: height ?? this.height,
       ext: ext ?? this.ext,
       audioOnly: audioOnly ?? this.audioOnly,
-      downloadSubtitles: downloadSubtitles,
-      downloadCover: downloadCover,
+      downloadSubtitles: downloadSubtitles ?? this.downloadSubtitles,
+      downloadCover: downloadCover ?? this.downloadCover,
       status: status ?? this.status,
-      progress: progress ?? this.progress,
+      progress: identical(progress, _unset)
+          ? this.progress
+          : progress as DownloadProgress?,
       fileSize: fileSize ?? this.fileSize,
       downloadedBytes: downloadedBytes ?? this.downloadedBytes,
       speed: speed ?? this.speed,
-      outputPath: outputPath ?? this.outputPath,
-      error: error ?? this.error,
+      outputPath: identical(outputPath, _unset)
+          ? this.outputPath
+          : outputPath as String?,
+      error: identical(error, _unset) ? this.error : error as String?,
       retryCount: retryCount ?? this.retryCount,
       createdAt: createdAt,
-      startedAt: startedAt ?? this.startedAt,
-      completedAt: completedAt ?? this.completedAt,
+      startedAt: identical(startedAt, _unset)
+          ? this.startedAt
+          : startedAt as DateTime?,
+      completedAt: identical(completedAt, _unset)
+          ? this.completedAt
+          : completedAt as DateTime?,
     );
   }
 
@@ -245,8 +280,14 @@ class DownloadTask {
         (mode) => mode.name == map['postprocessing'],
         orElse: () => PostprocessingMode.none,
       ),
+      priority: DownloadPriority.values.firstWhere(
+        (value) => value.index == ((map['priority'] as num?)?.toInt() ?? 1),
+        orElse: () => DownloadPriority.normal,
+      ),
       height: (map['height'] as num?)?.toInt() ?? 0,
       ext: (map['ext'] as String?) ?? 'mp4',
+      downloadSubtitles: ((map['download_subtitles'] as num?)?.toInt() ?? 0) == 1,
+      downloadCover: ((map['download_cover'] as num?)?.toInt() ?? 0) == 1,
       audioOnly: (map['height'] as num?)?.toInt() == 0 &&
           (map['format_label'] as String?)?.toLowerCase().contains('音频') == true,
       status: DownloadStatus.values[(map['status'] as int?) ?? 0],
@@ -275,8 +316,11 @@ class DownloadTask {
       'format_id': formatId,
       'format_label': formatLabel,
       'postprocessing': postprocessing.name,
+      'priority': priority.index,
       'height': height,
       'ext': ext,
+      'download_subtitles': downloadSubtitles ? 1 : 0,
+      'download_cover': downloadCover ? 1 : 0,
       'file_size': fileSize,
       'downloaded_bytes': downloadedBytes,
       'speed': speed,

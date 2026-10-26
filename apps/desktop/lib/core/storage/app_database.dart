@@ -11,7 +11,7 @@ class AppDatabase {
   AppDatabase._();
 
   static const _dbName = 'downlo_pro.db';
-  static const _dbVersion = 2;
+  static const _dbVersion = 3;
 
   static Database? _instance;
 
@@ -54,8 +54,11 @@ class AppDatabase {
         format_id TEXT NOT NULL,
         format_label TEXT,
         postprocessing TEXT DEFAULT 'none',
+        priority INTEGER DEFAULT 1,
         height INTEGER DEFAULT 0,
         ext TEXT,
+        download_subtitles INTEGER DEFAULT 0,
+        download_cover INTEGER DEFAULT 0,
         file_size INTEGER DEFAULT 0,
         downloaded_bytes INTEGER DEFAULT 0,
         speed INTEGER DEFAULT 0,
@@ -83,6 +86,17 @@ class AppDatabase {
     if (oldVersion < 2) {
       await db.execute(
         "ALTER TABLE downloads ADD COLUMN postprocessing TEXT DEFAULT 'none'",
+      );
+    }
+    if (oldVersion < 3) {
+      await db.execute(
+        'ALTER TABLE downloads ADD COLUMN priority INTEGER DEFAULT 1',
+      );
+      await db.execute(
+        'ALTER TABLE downloads ADD COLUMN download_subtitles INTEGER DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE downloads ADD COLUMN download_cover INTEGER DEFAULT 0',
       );
     }
   }

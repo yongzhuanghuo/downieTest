@@ -48,6 +48,9 @@ class DownloadsDao {
         'status': task.status.index,
         'title': task.title,
         'postprocessing': task.postprocessing.name,
+        'priority': task.priority.index,
+        'download_subtitles': task.downloadSubtitles ? 1 : 0,
+        'download_cover': task.downloadCover ? 1 : 0,
         'format_id': task.formatId,
         'format_label': task.formatLabel,
         'height': task.height,
@@ -149,6 +152,19 @@ class DownloadsDao {
   Future<void> deleteById(String id) async {
     final db = await _db;
     await db.delete('downloads', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// 删除超过保留期的已完成记录（不动文件）
+  Future<int> deleteHistoryBefore(DateTime cutoff) async {
+    final db = await _db;
+    return db.delete(
+      'downloads',
+      where: 'status = ? AND COALESCE(completed_at, created_at) < ?',
+      whereArgs: [
+        DownloadStatus.completed.index,
+        cutoff.millisecondsSinceEpoch,
+      ],
+    );
   }
 
   /// 清空已结束任务（downloads 页工具栏按钮）

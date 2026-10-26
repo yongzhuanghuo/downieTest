@@ -48,7 +48,7 @@ class ParseNotifier extends StateNotifier<ParseState> {
       return;
     }
     // 从分享文本里提取真正的 URL（抖音/B站等复制的链接常带标题等文字）
-    final target = _extractUrl(trimmed) ?? trimmed;
+    final target = extractFirstUrl(trimmed) ?? trimmed;
     state = const ParseState(status: ParseStatus.loading);
 
     // 直接媒体地址：不抓页面，直接生成可下载格式
@@ -161,11 +161,34 @@ class ParseNotifier extends StateNotifier<ParseState> {
 final parseProvider =
     StateNotifierProvider<ParseNotifier, ParseState>((ref) => ParseNotifier());
 
-/// 从分享文本里提取第一个 URL（如「标题 https://v.douyin.com/xxx 复制此链接」）。
-/// 匹配到空格或中文字符为止；找不到 URL 则返回 null。
-String? _extractUrl(String text) {
-  final m = RegExp(r'https?://[^\s一-鿿]+').firstMatch(text);
-  return m?.group(0);
+final _urlPattern = RegExp(r'https?://[^\s一-鿿]+');
+
+/// 中文/全角标点常被复制进分享文本，不能当成 URL 的一部分。
+const _trailingPunctuation = '.,;:!?)]}>"\'、。，；：'
+    '！？）】》”’';
+
+/// 从分享文本里提取全部 URL，按出现顺序去重。
+///
+/// 抖音/B站等 App 的分享文本形如「标题 https://v.douyin.com/xxx 复制此链接」，
+/// 一次粘贴多条链接时也会走这里。
+List<String> extractUrls(String text) {
+  final result = <String>[];
+  final seen = <String>{};
+  for (final match in _urlPattern.allMatches(text)) {
+    var url = match.group(0)!;
+    while (url.isNotEmpty && _trailingPunctuation.contains(url[url.length - 1])) {
+      url = url.substring(0, url.length - 1);
+    }
+    if (url.isEmpty || !seen.add(url)) continue;
+    result.add(url);
+  }
+  return result;
+}
+
+/// 提取第一个 URL；找不到返回 null。
+String? extractFirstUrl(String text) {
+  final urls = extractUrls(text);
+  return urls.isEmpty ? null : urls.first;
 }
 
 /// 把 yt-dlp 的技术错误转成用户能看懂的提示

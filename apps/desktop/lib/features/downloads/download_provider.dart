@@ -51,14 +51,25 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     if (_initialized) return;
     _initialized = true;
 
-    // 1. 从 DB 读取所有任务（先恢复 UI）
+    // 1. 按设置清理过期历史（只删记录，不删文件）
+    final historyDays = SettingsStorage.instance.current.historyDays;
+    if (historyDays > 0) {
+      final removed = await _dao.deleteHistoryBefore(
+        DateTime.now().subtract(Duration(days: historyDays)),
+      );
+      if (removed > 0) {
+        debugPrint('[DownloadList] 清理过期历史 $removed 条');
+      }
+    }
+
+    // 2. 从 DB 读取所有任务（先恢复 UI）
     final all = await _dao.findAll();
     if (all.isNotEmpty) {
       state = List<DownloadTask>.unmodifiable(all);
       debugPrint('[DownloadList] 从DB恢复 ${all.length} 条任务');
     }
 
-    // 2. 之前的 downloading / merging → 重置为 pending（已下载字节可能有 .part 供续传）
+    // 3. 之前的 downloading / merging → 重置为 pending（已下载字节可能有 .part 供续传）
     final needResets = <DownloadTask>[];
     for (final t in all) {
       if (t.status == DownloadStatus.downloading ||
@@ -80,7 +91,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       debugPrint('[DownloadList] 恢复 ${needResets.length} 条中断任务为 pending');
     }
 
-    // 3. 启动调度器（先把现在的 pending 跑起来）
+    // 4. 启动调度器（先把现在的 pending 跑起来）
     unawaited(_scheduler());
   }
 
@@ -94,7 +105,12 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       final pending = state
           .where((t) => t.isPending)
           .toList()
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        ..sort((a, b) {
+          final byPriority = b.priority.index.compareTo(a.priority.index);
+          return byPriority != 0
+              ? byPriority
+              : a.createdAt.compareTo(b.createdAt);
+        });
 
       final available = _maxConcurrent - _activeIds.length;
       if (available > 0 && pending.isNotEmpty) {
@@ -130,6 +146,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       audioOnly: format.audioOnly,
       downloadSubtitles: downloadSubtitles,
       downloadCover: downloadCover,
+      postprocessing: _defaultPostprocessing(),
       createdAt: DateTime.now(),
     );
 
@@ -141,11 +158,30 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     unawaited(_scheduler());
   }
 
+  PostprocessingMode _defaultPostprocessing() {
+    switch (SettingsStorage.instance.current.defaultPostprocessing) {
+      case 1:
+        return PostprocessingMode.mp4;
+      case 2:
+        return PostprocessingMode.audio;
+      default:
+        return PostprocessingMode.none;
+    }
+  }
+
   /// 修改下载完成后的处理方式（下载中也可改，完成时读取最新值）
   Future<void> setPostprocessing(String id, PostprocessingMode mode) async {
     final task = _find(id);
     if (task == null || task.status == DownloadStatus.completed) return;
     await _apply(id, (t) => t.copyWith(postprocessing: mode));
+  }
+
+  /// 调整等待中任务的队列优先级
+  Future<void> setPriority(String id, DownloadPriority priority) async {
+    final task = _find(id);
+    if (task == null || task.status != DownloadStatus.pending) return;
+    await _apply(id, (t) => t.copyWith(priority: priority));
+    unawaited(_scheduler());
   }
 
   /// 重命名任务标题

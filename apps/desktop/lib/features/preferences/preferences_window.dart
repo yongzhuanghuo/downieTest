@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/sites/plugin_registry.dart';
+import '../../core/sites/search_engines.dart';
 import '../../shared/theme/design_tokens.dart';
 import '../../shared/widgets/window_panel.dart';
+import '../downloads/download_provider.dart';
+import '../history/history_page.dart';
 import '../license/license_window.dart';
 import '../settings/settings_provider.dart';
 
@@ -220,6 +223,104 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             ),
           ],
         );
+      case 3:
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            Text(
+              '历史记录保留时间',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            DropdownButtonFormField<int>(
+              initialValue: settings.historyDays,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('永久保留')),
+                DropdownMenuItem(value: 7, child: Text('7 天')),
+                DropdownMenuItem(value: 30, child: Text('30 天')),
+                DropdownMenuItem(value: 90, child: Text('90 天')),
+                DropdownMenuItem(value: 365, child: Text('1 年')),
+              ],
+              onChanged: (value) => notifier.setHistoryDays(value ?? 0),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              '过期记录会在下次启动时自动清理，已下载的文件不会被删除。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('清空已结束任务'),
+              subtitle: const Text('移除已完成、失败和已取消的队列记录'),
+              trailing: TextButton(
+                onPressed: () => _clearFinished(context),
+                child: const Text('清空'),
+              ),
+            ),
+          ],
+        );
+      case 5:
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            Text(
+              '新任务默认后处理',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(value: 0, label: Text('无')),
+                ButtonSegment(value: 1, label: Text('转换为 MP4')),
+                ButtonSegment(value: 2, label: Text('仅音频 MP3')),
+              ],
+              selected: {settings.defaultPostprocessing},
+              onSelectionChanged: (values) =>
+                  notifier.setDefaultPostprocessing(values.first),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              '下载完成后用 ffmpeg 转换。可以在下载行里随时改成其他方式；'
+              '已经是目标格式时不会重复转换。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        );
+      case 6:
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('默认下载字幕'),
+              subtitle: const Text('交给 yt-dlp 写入字幕文件'),
+              value: settings.defaultDownloadSubtitles,
+              onChanged: notifier.setDefaultDownloadSubtitles,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('默认下载封面'),
+              subtitle: const Text('保存最高清的一张封面'),
+              value: settings.defaultDownloadCover,
+              onChanged: notifier.setDefaultDownloadCover,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              '这些选项只是新任务的默认值，添加链接时仍可临时勾选/取消。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        );
       case 7:
         return ListView(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -282,6 +383,33 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             ),
           ],
         );
+      case 9:
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            Text(
+              '用户自定义视频提取地址栏',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '在提取窗口输入关键词而不是网址时，用这个搜索引擎打开。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            for (final engine in kSearchEngines)
+              RadioListTile<int>(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(engine.name),
+                value: engine.id,
+                groupValue: settings.searchEngine,
+                onChanged: (value) {
+                  if (value != null) notifier.setSearchEngine(value);
+                },
+              ),
+          ],
+        );
       case 11:
         return const _AdvancedPane();
       default:
@@ -305,6 +433,16 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             ],
           ),
         );
+    }
+  }
+
+  Future<void> _clearFinished(BuildContext context) async {
+    await ref.read(downloadListProvider.notifier).clearFinished();
+    ref.invalidate(historyProvider);
+    if (mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('已清空结束的任务')),
+      );
     }
   }
 

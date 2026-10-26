@@ -294,6 +294,15 @@ class DownloadRow extends ConsumerWidget {
             case 'rename':
               await _rename(context, notifier, task);
               break;
+            case 'priority:low':
+              await notifier.setPriority(task.id, DownloadPriority.low);
+              break;
+            case 'priority:normal':
+              await notifier.setPriority(task.id, DownloadPriority.normal);
+              break;
+            case 'priority:high':
+              await notifier.setPriority(task.id, DownloadPriority.high);
+              break;
             case 'retry':
               await notifier.retry(task.id);
               break;
@@ -308,6 +317,14 @@ class DownloadRow extends ConsumerWidget {
         itemBuilder: (context) => [
           const PopupMenuItem(value: 'copy', child: Text('复制链接')),
           const PopupMenuItem(value: 'rename', child: Text('重命名')),
+          if (task.status == DownloadStatus.pending) ...[
+            for (final priority in DownloadPriority.values)
+              CheckedPopupMenuItem(
+                value: 'priority:${priority.name}',
+                checked: task.priority == priority,
+                child: Text(priority.label),
+              ),
+          ],
           if (task.status == DownloadStatus.completed &&
               task.outputPath != null)
             const PopupMenuItem(value: 'open', child: Text('打开所在目录')),
@@ -358,6 +375,7 @@ class DownloadRow extends ConsumerWidget {
 
   String _metaText(DownloadTask task) {
     final parts = <String>[
+      if (task.priority != DownloadPriority.normal) task.priority.label,
       if (task.extractor.isNotEmpty) task.extractor,
       if (task.formatLabel.isNotEmpty) task.formatLabel,
       if (task.fileSize > 0) _formatBytes(task.fileSize),
