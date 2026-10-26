@@ -11,6 +11,7 @@ import '../../features/downloads/queue_search_panel.dart';
 import '../../features/help/help_window.dart';
 import '../../features/history/history_window.dart';
 import '../../features/preferences/preferences_window.dart';
+import '../../features/settings/settings_provider.dart';
 import '../routes/app_routes.dart';
 import '../theme/design_tokens.dart';
 
@@ -89,10 +90,16 @@ class WindowStatusBar extends ConsumerWidget {
                   onTap: () => AddUrlsPanel.show(context),
                 ),
                 _StatusIcon(
-                  icon: Icons.block,
+                  icon: Icons.travel_explore,
                   tooltip: '用户自定义视频提取',
                   color: accent,
                   onTap: () => AddUrlsPanel.show(context),
+                ),
+                _StatusIcon(
+                  icon: Icons.folder_open,
+                  tooltip: '打开下载目录',
+                  color: accent,
+                  onTap: () => _openDestination(context, ref),
                 ),
                 const Spacer(),
                 _StatusIcon(
@@ -139,6 +146,23 @@ class WindowStatusBar extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _openDestination(BuildContext context, WidgetRef ref) async {
+    try {
+      final dir = await ref.read(settingsProvider).resolveDownloadDir();
+      await Process.run(
+        Platform.isMacOS ? 'open' : 'explorer',
+        [dir],
+      );
+    } catch (e) {
+      debugPrint('[状态栏] 打开下载目录失败: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text('打开下载目录失败：$e')),
+        );
+      }
+    }
   }
 }
 

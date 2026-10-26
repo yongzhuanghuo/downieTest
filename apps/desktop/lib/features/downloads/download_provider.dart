@@ -16,6 +16,7 @@ import '../../data/models/download_progress.dart';
 import '../../data/models/download_task.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
+import '../history/history_page.dart';
 import 'site_login_prompt.dart';
 
 /// 失败自动重试最大次数
@@ -490,12 +491,14 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     _paused.remove(id);
     await _dao.deleteById(id);
     state = state.where((t) => t.id != id).toList();
+    _ref.invalidate(historyProvider);
   }
 
   /// 清空已结束任务
   Future<void> clearFinished() async {
     await _dao.deleteFinished();
     state = state.where((t) => !t.isFinished).toList();
+    _ref.invalidate(historyProvider);
   }
 
   // ==================== 内部工具方法 ====================

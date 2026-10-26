@@ -137,6 +137,113 @@ class YtDlpRunner {
     return _parseVideoInfo(url, json);
   }
 
+  /// URL 是否像播放列表（用户勾选「展开播放列表」时才用）。
+  static bool looksLikePlaylist(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    final query = uri.queryParameters;
+    if (query.containsKey('list') || query.containsKey('playlist')) {
+      return true;
+    }
+    final path = uri.path.toLowerCase();
+    return path.contains('/playlist') ||
+        path.contains('/sets/') ||
+        path.contains('/album/') ||
+        path.contains('/show/');
+  }
+
+  /// 展开播放列表（只取条目信息，不逐个解析格式）。
+  ///
+  /// 每个条目使用 `bv*+ba/b` 作为下载格式，由 yt-dlp 在下载时选最佳流。
+  static Future<List<VideoInfo>> parsePlaylist(String url) async {
+    final cookiePaths = await SiteCookies.allCookieFilePaths();
+    final proxy = SettingsStorage.instance.current.proxy;
+    final result = await _runCommand([
+      '--flat-playlist',
+      '--dump-json',
+      '--no-warnings',
+      '--yes-playlist',
+      if (proxy.isNotEmpty) ...['--proxy', proxy],
+      ..._cookieArgs(cookiePaths),
+      url,
+    ]);
+    if (result.exitCode != 0) {
+      throw YtDlpException(
+        '播放列表解析失败: ${_extractErrorMessage(result.stderr)}',
+        exitCode: result.exitCode,
+        stderr: result.stderr,
+      );
+    }
+    return parsePlaylistJson(result.stdout, url);
+  }
+
+  /// 解析 `--flat-playlist --dump-json` 的多行输出（纯函数，便于测试）。
+  static List<VideoInfo> parsePlaylistJson(
+    String stdout,
+    String playlistUrl, {
+    int limit = 200,
+  }) {
+    final result = <VideoInfo>[];
+    final seen = <String>{};
+    for (final line in stdout.split('\n')) {
+      if (result.length >= limit) break;
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      Map<String, dynamic> json;
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is! Map) continue;
+        json = Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        continue;
+      }
+
+      var webpage = (json['webpage_url'] ?? json['url'])?.toString() ?? '';
+      if (webpage.startsWith('/')) {
+        final base = Uri.tryParse(playlistUrl);
+        if (base != null) webpage = base.resolve(webpage).toString();
+      }
+      if (!webpage.startsWith('http')) continue;
+      if (!seen.add(webpage)) continue;
+
+      result.add(VideoInfo(
+        url: webpage,
+        title: json['title'] as String? ?? '未命名视频',
+        duration: (json['duration'] as num?)?.toInt() ?? 0,
+        uploader: json['uploader'] as String? ??
+            json['channel'] as String? ??
+            '',
+        thumbnail: _playlistThumbnail(json),
+        extractor: json['extractor_key'] as String? ??
+            json['extractor'] as String? ??
+            'Unknown',
+        videoId: json['id']?.toString() ?? '',
+        formats: const [
+          FormatOption(
+            formatId: 'bv*+ba/b',
+            label: '最佳画质',
+            height: 0,
+            ext: 'mp4',
+            needsMerge: true,
+          ),
+        ],
+        rawJson: json,
+      ));
+    }
+    return result;
+  }
+
+  static String _playlistThumbnail(Map<String, dynamic> json) {
+    final direct = json['thumbnail']?.toString();
+    if (direct != null && direct.isNotEmpty) return direct;
+    final thumbs = json['thumbnails'];
+    if (thumbs is List && thumbs.isNotEmpty) {
+      final last = thumbs.last;
+      if (last is Map) return last['url']?.toString() ?? '';
+    }
+    return '';
+  }
+
   /// 下载视频
   ///
   /// [url] 视频 URL

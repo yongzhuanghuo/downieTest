@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/engine/ytdlp_runner.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
@@ -42,6 +43,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
   bool _busy = false;
   bool _downloadSubtitles = false;
   bool _downloadCover = false;
+  bool _expandPlaylist = false;
   String? _error;
   String? _progress;
 
@@ -101,6 +103,39 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
 
       final target = targets[i];
       try {
+        if (_expandPlaylist && YtDlpRunner.looksLikePlaylist(target)) {
+          setState(() => _progress = '正在解析播放列表…');
+          var entries = const <VideoInfo>[];
+          try {
+            entries = await YtDlpRunner.parsePlaylist(target);
+          } catch (e) {
+            debugPrint('[添加链接] 播放列表解析失败，按单视频处理: $e');
+          }
+          // 只有一条时按普通视频解析，保留画质选择
+          if (entries.length > 1) {
+            setState(() => _progress = '播放列表 ${entries.length} 条，正在入队…');
+            var playlistAdded = 0;
+            for (final entry in entries) {
+              final error = await _enqueueInfo(entry);
+              if (error == _trialEnded) {
+                trialBlocked = true;
+                break;
+              }
+              if (error != null) {
+                failures.add('${_shortUrl(entry.url)}：$error');
+                continue;
+              }
+              added++;
+              playlistAdded++;
+            }
+            if (trialBlocked) break;
+            if (playlistAdded == 0) {
+              failures.add('${_shortUrl(target)}：播放列表条目都未能加入队列');
+            }
+            continue;
+          }
+        }
+
         await ref.read(parseProvider.notifier).parse(target);
         final parse = ref.read(parseProvider);
         final info = parse.videoInfo;
@@ -311,6 +346,18 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
                         setState(() => _downloadCover = value ?? false),
               ),
               const Text('下载封面', style: TextStyle(fontSize: 12)),
+              const SizedBox(width: AppSpacing.lg),
+              Checkbox(
+                value: _expandPlaylist,
+                onChanged: _busy
+                    ? null
+                    : (value) =>
+                        setState(() => _expandPlaylist = value ?? false),
+              ),
+              Tooltip(
+                message: '展开播放列表，最多加入 200 个视频',
+                child: const Text('展开列表', style: TextStyle(fontSize: 12)),
+              ),
             ],
           ),
           const Spacer(),
