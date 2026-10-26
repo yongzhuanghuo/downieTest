@@ -27,12 +27,14 @@ class LicenseWindow extends ConsumerStatefulWidget {
 
 class _LicenseWindowState extends ConsumerState<LicenseWindow> {
   final _codeController = TextEditingController();
+  final _emailController = TextEditingController();
   bool _busy = false;
   String? _message;
 
   @override
   void dispose() {
     _codeController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -47,8 +49,9 @@ class _LicenseWindowState extends ConsumerState<LicenseWindow> {
       _busy = true;
       _message = null;
     });
-    final (ok, message) =
-        await ref.read(licenseNotifierProvider.notifier).activate(code);
+    final (ok, message) = await ref
+        .read(licenseNotifierProvider.notifier)
+        .activate(code, email: _emailController.text.trim());
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -122,8 +125,20 @@ class _LicenseWindowState extends ConsumerState<LicenseWindow> {
             ),
             const SizedBox(height: AppSpacing.xl),
           ],
-          Text('输入授权码', style: theme.textTheme.titleSmall),
+          Text('购买邮箱（找回授权码用）', style: theme.textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _emailController,
+            enabled: !_busy,
+            keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(fontSize: 13),
+            decoration: const InputDecoration(
+              hintText: 'you@example.com',
+            ),
+          ),
           const SizedBox(height: AppSpacing.md),
+          Text('输入授权码', style: theme.textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.sm),
           TextField(
             controller: _codeController,
             enabled: !_busy,

@@ -27,6 +27,7 @@ class ActivateBody(BaseModel):
     code: str
     device_fp: str
     device_name: Optional[str] = None
+    email: Optional[str] = None
 
 
 class UnbindBody(BaseModel):
@@ -84,7 +85,13 @@ async def trial_status(device_fp: str, session: AsyncSession = Depends(get_sessi
 @router.post("/api/license/activate")
 async def activate(body: ActivateBody, session: AsyncSession = Depends(get_session)):
     try:
-        return await service.activate(session, body.code, body.device_fp, body.device_name)
+        return await service.activate(
+            session,
+            body.code,
+            body.device_fp,
+            body.device_name,
+            body.email,
+        )
     except service.LicenseError as e:
         _raise(e)
 

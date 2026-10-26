@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS licenses (
   code        VARCHAR(20)  NOT NULL PRIMARY KEY,
   type        ENUM('free','perpetual') NOT NULL DEFAULT 'perpetual',
   max_devices INT          NOT NULL DEFAULT 4,
+  email       VARCHAR(255) NULL,
   expire_at   BIGINT       NULL,
   status      ENUM('unused','activated','revoked') NOT NULL DEFAULT 'unused',
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP

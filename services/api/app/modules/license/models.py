@@ -18,6 +18,7 @@ class License(Base):
     code: Mapped[str] = mapped_column(String(20), primary_key=True)
     type: Mapped[str] = mapped_column(Enum("free", "perpetual"), nullable=False, default="perpetual")
     max_devices: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     expire_at: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     status: Mapped[str] = mapped_column(Enum("unused", "activated", "revoked"), nullable=False, default="unused")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default="CURRENT_TIMESTAMP")

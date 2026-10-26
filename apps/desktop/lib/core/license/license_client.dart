@@ -252,12 +252,14 @@ class LicenseClient {
     required String code,
     required String deviceFp,
     String? deviceName,
+    String? email,
   }) async {
     try {
       final resp = await _post('/api/license/activate', {
         'code': code,
         'device_fp': deviceFp,
         'device_name': deviceName ?? Platform.localHostname,
+        if (email != null && email.isNotEmpty) 'email': email,
       });
       final bodyStr = resp.body;
       final preview = bodyStr.length > 200 ? bodyStr.substring(0, 200) : bodyStr;

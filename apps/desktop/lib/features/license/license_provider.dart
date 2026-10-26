@@ -154,7 +154,10 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
 
   /// 激活激活码
   /// 流程: 本地验签 → 请求后端绑定设备 → 保存到本地
-  Future<(bool success, String message)> activate(String rawCode) async {
+  Future<(bool success, String message)> activate(
+    String rawCode, {
+    String? email,
+  }) async {
     final code = rawCode.trim();
     if (code.isEmpty) {
       return (false, '请输入激活码');
@@ -169,6 +172,7 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
         code: code,
         deviceFp: fp,
         deviceName: Platform.localHostname,
+        email: email,
       );
 
       if (!result.ok) {

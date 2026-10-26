@@ -59,7 +59,8 @@ def _to_epoch_ms(value: datetime) -> int:
 def _trial_payload(row: TrialDevice, now: datetime) -> dict[str, Any]:
     active = row.status == "active" and row.trial_end > now
     seconds = max(0.0, (row.trial_end - now).total_seconds())
-    days = max(0, math.ceil(seconds / 86400.0)) if active else 0
+    # 防止 MySQL DATETIME 秒级精度把 13d23h59m59.9s 向上取整成 15 天
+    days = min(TRIAL_DAYS, max(0, math.ceil(seconds / 86400.0))) if active else 0
     return {
         "ok": True,
         "trial": {
@@ -80,7 +81,7 @@ async def start_trial(
 ) -> dict[str, Any]:
     if not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
-    now = datetime.utcnow()
+    now = datetime.utcnow().replace(microsecond=0)
     async with session.begin():
         row = await session.get(TrialDevice, device_fp)
         if row is None:
@@ -116,7 +117,7 @@ async def trial_status(session: AsyncSession, device_fp: str) -> dict[str, Any]:
     row = await session.get(TrialDevice, device_fp)
     if row is None:
         return {"ok": True, "trial": None, "can_download": False}
-    now = datetime.utcnow()
+    now = datetime.utcnow().replace(microsecond=0)
     if row.status == "active" and row.trial_end <= now:
         row.status = "expired"
     payload = _trial_payload(row, now)
@@ -125,7 +126,13 @@ async def trial_status(session: AsyncSession, device_fp: str) -> dict[str, Any]:
     return payload
 
 
-async def activate(session: AsyncSession, code: str, device_fp: str, device_name: str | None) -> dict[str, Any]:
+async def activate(
+    session: AsyncSession,
+    code: str,
+    device_fp: str,
+    device_name: str | None,
+    email: str | None = None,
+) -> dict[str, Any]:
     normalized = normalize_code(code)
     if not normalized or not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
@@ -142,6 +149,8 @@ async def activate(session: AsyncSession, code: str, device_fp: str, device_name
                 select(DeviceBinding).where(DeviceBinding.code == normalized, DeviceBinding.status == "active")
             )
         ).all()
+        if email:
+            lic.email = email.strip()
         payload = _license_payload(lic)
 
         # 幂等：本设备已绑定，直接返回成功
