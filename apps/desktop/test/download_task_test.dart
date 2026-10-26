@@ -68,6 +68,14 @@ void main() {
     expect(cleared.progress, isNull);
   });
 
+  test('paused is neither running nor finished', () {
+    final paused = _task().copyWith(status: DownloadStatus.paused);
+    expect(paused.isPaused, isTrue);
+    expect(paused.isRunning, isFalse);
+    expect(paused.isFinished, isFalse);
+    expect(paused.statusText, '已暂停');
+  });
+
   test('rename title', () {
     final task = _task().copyWith(title: 'New title');
     expect(task.title, 'New title');

@@ -73,10 +73,11 @@ class DownloadRow extends ConsumerWidget {
                       ),
                     ),
                     IconButton(
-                      onPressed: task.isRunning
+                      onPressed: (task.isRunning || task.isPaused)
                           ? () => notifier.cancel(task.id)
                           : () => notifier.remove(task.id),
-                      tooltip: task.isRunning ? '取消下载' : '移除',
+                      tooltip:
+                          (task.isRunning || task.isPaused) ? '取消下载' : '移除',
                       icon: const Icon(Icons.close, size: 14),
                       color: Colors.white70,
                       padding: EdgeInsets.zero,
@@ -107,6 +108,30 @@ class DownloadRow extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    if (task.isPaused)
+                      IconButton(
+                        onPressed: () => notifier.resume(task.id),
+                        tooltip: '继续下载',
+                        icon: const Icon(Icons.play_arrow, size: 16),
+                        color: Colors.white70,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 24,
+                          height: 24,
+                        ),
+                      )
+                    else if (task.isRunning)
+                      IconButton(
+                        onPressed: () => notifier.pause(task.id),
+                        tooltip: '暂停下载',
+                        icon: const Icon(Icons.pause, size: 14),
+                        color: Colors.white70,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 24,
+                          height: 24,
+                        ),
+                      ),
                     if (task.status == DownloadStatus.completed &&
                         task.outputPath != null)
                       TextButton(
@@ -303,6 +328,12 @@ class DownloadRow extends ConsumerWidget {
             case 'priority:high':
               await notifier.setPriority(task.id, DownloadPriority.high);
               break;
+            case 'pause':
+              await notifier.pause(task.id);
+              break;
+            case 'resume':
+              await notifier.resume(task.id);
+              break;
             case 'retry':
               await notifier.retry(task.id);
               break;
@@ -325,6 +356,10 @@ class DownloadRow extends ConsumerWidget {
                 child: Text(priority.label),
               ),
           ],
+          if (task.isPaused)
+            const PopupMenuItem(value: 'resume', child: Text('继续下载'))
+          else if (task.isRunning)
+            const PopupMenuItem(value: 'pause', child: Text('暂停下载')),
           if (task.status == DownloadStatus.completed &&
               task.outputPath != null)
             const PopupMenuItem(value: 'open', child: Text('打开所在目录')),
@@ -405,6 +440,9 @@ class DownloadRow extends ConsumerWidget {
             : '失败：${task.error}';
       case DownloadStatus.cancelled:
         return '已取消';
+      case DownloadStatus.paused:
+        final percent = task.percentValue;
+        return percent > 0 ? '已暂停 · $percent%' : '已暂停';
     }
   }
 
@@ -421,6 +459,8 @@ class DownloadRow extends ConsumerWidget {
         return Icons.error_outline;
       case DownloadStatus.cancelled:
         return Icons.cancel_outlined;
+      case DownloadStatus.paused:
+        return Icons.pause_circle_outline;
     }
   }
 

@@ -1,8 +1,10 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
+import '../../core/server/browser_bridge.dart';
 import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/search_engines.dart';
 import '../../shared/theme/design_tokens.dart';
@@ -265,6 +267,116 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
                 child: const Text('清空'),
               ),
             ),
+          ],
+        );
+      case 4:
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            Text(
+              '读取浏览器登录状态',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '让 yt-dlp 直接复用本机浏览器里已登录的 cookie，适合 YouTube、'
+              'Instagram、X 等站点。默认关闭。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            DropdownButtonFormField<String>(
+              initialValue: settings.cookiesFromBrowser,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: '', child: Text('不使用浏览器 cookie')),
+                DropdownMenuItem(value: 'chrome', child: Text('Google Chrome')),
+                DropdownMenuItem(value: 'safari', child: Text('Safari')),
+                DropdownMenuItem(value: 'edge', child: Text('Microsoft Edge')),
+                DropdownMenuItem(value: 'firefox', child: Text('Firefox')),
+                DropdownMenuItem(value: 'brave', child: Text('Brave')),
+              ],
+              onChanged: (value) =>
+                  notifier.setCookiesFromBrowser(value ?? ''),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              '读取 Chrome/Edge 时可能需要关闭浏览器，macOS 可能弹出钥匙串授权。'
+              '读取失败不会影响普通下载；也可以继续用应用内登录。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.xxxl),
+            Text(
+              '浏览器书签',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('接收本机浏览器发来的页面'),
+              subtitle: Text(
+                '监听 127.0.0.1:${BrowserBridge.defaultPort}，在浏览器里点书签即可加入下载',
+              ),
+              value: settings.browserBridgeEnabled,
+              onChanged: notifier.setBrowserBridgeEnabled,
+            ),
+            if (settings.browserBridgeEnabled) ...[
+              if (settings.browserBridgeToken.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(AppRadius.button),
+                  ),
+                  child: SelectableText(
+                    BrowserBridge.bookmarklet(
+                      token: settings.browserBridgeToken,
+                    ),
+                    maxLines: 4,
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: () async {
+                        await Clipboard.setData(ClipboardData(
+                          text: BrowserBridge.bookmarklet(
+                            token: settings.browserBridgeToken,
+                          ),
+                        ));
+                        if (context.mounted) {
+                          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                            const SnackBar(content: Text('书签脚本已复制')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.copy, size: 14),
+                      label: const Text('复制书签脚本'),
+                    ),
+                    TextButton(
+                      onPressed: notifier.regenerateBrowserBridgeToken,
+                      child: const Text('重置 token'),
+                    ),
+                  ],
+                ),
+                Text(
+                  '新建一个浏览器书签，把上面的 javascript 代码粘贴到「网址」栏。'
+                  'token 只保存在本机，重置后旧书签会失效。',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
           ],
         );
       case 5:

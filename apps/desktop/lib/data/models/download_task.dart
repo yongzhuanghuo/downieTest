@@ -43,6 +43,7 @@ enum DownloadStatus {
   completed,
   failed,
   cancelled,
+  paused,
 }
 
 /// 下载任务
@@ -233,6 +234,7 @@ class DownloadTask {
       status == DownloadStatus.cancelled;
   bool get isFailed => status == DownloadStatus.failed;
   bool get isCompleted => status == DownloadStatus.completed;
+  bool get isPaused => status == DownloadStatus.paused;
 
   // ==================== 进度百分比（0-100） ====================
 
@@ -262,6 +264,8 @@ class DownloadTask {
         return '失败';
       case DownloadStatus.cancelled:
         return '已取消';
+      case DownloadStatus.paused:
+        return '已暂停';
     }
   }
 

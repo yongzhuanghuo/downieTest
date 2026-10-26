@@ -42,6 +42,15 @@ class AppSettings {
   /// 用户自定义视频提取地址栏的搜索引擎（0=Google, 1=Bing, 2=百度, 3=DuckDuckGo）
   final int searchEngine;
 
+  /// 从哪个本机浏览器读取登录 cookie（空=不读取）
+  final String cookiesFromBrowser;
+
+  /// 是否开启本机浏览器接收端口（书签/扩展把当前页面发到应用）
+  final bool browserBridgeEnabled;
+
+  /// 浏览器接收端口的鉴权 token
+  final String browserBridgeToken;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -54,6 +63,9 @@ class AppSettings {
     this.defaultDownloadCover = false,
     this.historyDays = 0,
     this.searchEngine = 1,
+    this.cookiesFromBrowser = '',
+    this.browserBridgeEnabled = false,
+    this.browserBridgeToken = '',
   });
 
   static const defaults = AppSettings(
@@ -68,6 +80,9 @@ class AppSettings {
     defaultDownloadCover: false,
     historyDays: 0,
     searchEngine: 1,
+    cookiesFromBrowser: '',
+    browserBridgeEnabled: false,
+    browserBridgeToken: '',
   );
 
   AppSettings copyWith({
@@ -82,6 +97,9 @@ class AppSettings {
     bool? defaultDownloadCover,
     int? historyDays,
     int? searchEngine,
+    String? cookiesFromBrowser,
+    bool? browserBridgeEnabled,
+    String? browserBridgeToken,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -97,6 +115,11 @@ class AppSettings {
       defaultDownloadCover: defaultDownloadCover ?? this.defaultDownloadCover,
       historyDays: historyDays ?? this.historyDays,
       searchEngine: searchEngine ?? this.searchEngine,
+      cookiesFromBrowser:
+          cookiesFromBrowser ?? this.cookiesFromBrowser,
+      browserBridgeEnabled:
+          browserBridgeEnabled ?? this.browserBridgeEnabled,
+      browserBridgeToken: browserBridgeToken ?? this.browserBridgeToken,
     );
   }
 
@@ -165,6 +188,11 @@ class SettingsStorage {
             (raw['defaultDownloadCover'] as bool?) ?? false,
         historyDays: (raw['historyDays'] as num?)?.toInt() ?? 0,
         searchEngine: (raw['searchEngine'] as num?)?.toInt() ?? 1,
+        cookiesFromBrowser: (raw['cookiesFromBrowser'] as String?) ?? '',
+        browserBridgeEnabled:
+            (raw['browserBridgeEnabled'] as bool?) ?? false,
+        browserBridgeToken:
+            (raw['browserBridgeToken'] as String?) ?? '',
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -210,6 +238,9 @@ class SettingsStorage {
       'defaultDownloadCover': settings.defaultDownloadCover,
       'historyDays': settings.historyDays,
       'searchEngine': settings.searchEngine,
+      'cookiesFromBrowser': settings.cookiesFromBrowser,
+      'browserBridgeEnabled': settings.browserBridgeEnabled,
+      'browserBridgeToken': settings.browserBridgeToken,
     });
     debugPrint('[Settings] saved: $settings');
   }

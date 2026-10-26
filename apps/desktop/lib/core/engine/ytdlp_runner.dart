@@ -99,7 +99,7 @@ class YtDlpRunner {
       '--no-warnings',
       '--no-playlist',
       if (proxy.isNotEmpty) ...['--proxy', proxy],
-      for (final cp in cookiePaths) ...['--cookies', cp],
+      ..._cookieArgs(cookiePaths),
       url,
     ]);
 
@@ -217,7 +217,7 @@ class YtDlpRunner {
       if (downloadSubtitles) ...['--write-subs', '--write-auto-subs'],
       // --write-thumbnail 只写一张默认封面（即最高清那张），--write-all-thumbnails 才会写多张
       if (downloadCover) ...['--write-thumbnail', '--convert-thumbnails', 'jpg'],
-      for (final cp in cookiePaths) ...['--cookies', cp],
+      ..._cookieArgs(cookiePaths),
       url,
     ];
 
@@ -311,6 +311,16 @@ class YtDlpRunner {
     return outputPathFinal;
   }
 
+  /// 站点登录 cookie 参数：内置 WebView 登录保存的 Netscape 文件，
+  /// 以及可选的浏览器原生 cookie（`--cookies-from-browser`）。
+  static List<String> _cookieArgs(List<String> paths) {
+    final browser = SettingsStorage.instance.current.cookiesFromBrowser;
+    return [
+      for (final cp in paths) ...['--cookies', cp],
+      if (browser.isNotEmpty) ...['--cookies-from-browser', browser],
+    ];
+  }
+
   /// 从输出模板推导实际文件路径
   ///
   /// yt-dlp 模板 `xxx.%(ext)s` 下载 mp4 后变成 `xxx.mp4`
@@ -321,10 +331,12 @@ class YtDlpRunner {
 
   /// 获取可用字幕语言列表
   static Future<List<String>> listSubtitles(String url) async {
+    final cookiePaths = await SiteCookies.allCookieFilePaths();
     final result = await _runCommand([
       '--list-subs',
       '--no-warnings',
       '--no-playlist',
+      ..._cookieArgs(cookiePaths),
       url,
     ]);
 

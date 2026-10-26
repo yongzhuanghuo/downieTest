@@ -38,6 +38,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   final Ref _ref;
   final DownloadsDao _dao = DownloadsDao.instance;
   final Set<String> _cancelled = {};
+  final Set<String> _paused = {};
   final Set<String> _activeIds = {}; // 正在执行中的任务 ID（避免并发重复启动）
   bool _initialized = false;
 
@@ -229,7 +230,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       while (attempt < _kMaxRetry) {
         // 用户取消？
         if (_cancelled.contains(task.id)) {
-          await _finishStatus(task.id, DownloadStatus.cancelled);
+          await _markStopped(task.id);
           return;
         }
 
@@ -265,7 +266,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             );
           }
           if (_cancelled.contains(task.id)) {
-            await _finishStatus(task.id, DownloadStatus.cancelled);
+            await _markStopped(task.id);
             return;
           }
           // 成功：按最新选择执行后处理
@@ -273,7 +274,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           final resultPath =
               await _applyPostprocessing(task.id, current, result);
           if (_cancelled.contains(task.id)) {
-            await _finishStatus(task.id, DownloadStatus.cancelled);
+            await _markStopped(task.id);
             return;
           }
           var finalSize = 0;
@@ -298,9 +299,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           }
           return;
         } on SitePluginException catch (e) {
-          // 用户取消：插件抛出异常时也按“已取消”处理
+          // 用户暂停/取消：插件抛出异常时按暂停或已取消处理
           if (_cancelled.contains(task.id)) {
-            await _finishStatus(task.id, DownloadStatus.cancelled);
+            await _markStopped(task.id);
             return;
           }
           // 需要登录：不重试，直接提示
@@ -345,10 +346,14 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
               ));
           await Future.delayed(delay);
           if (_cancelled.contains(task.id)) {
-            await _finishStatus(task.id, DownloadStatus.cancelled);
+            await _markStopped(task.id);
             return;
           }
         } on YtDlpException catch (e) {
+          if (_cancelled.contains(task.id)) {
+            await _markStopped(task.id);
+            return;
+          }
           // 需要登录/cookie：不重试，直接提示登录对应站点
           if (isCookieError(e.message)) {
             await _apply(task.id, (t) => t.copyWith(
@@ -381,10 +386,14 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
               ));
           await Future.delayed(delay);
           if (_cancelled.contains(task.id)) {
-            await _finishStatus(task.id, DownloadStatus.cancelled);
+            await _markStopped(task.id);
             return;
           }
         } catch (e) {
+          if (_cancelled.contains(task.id)) {
+            await _markStopped(task.id);
+            return;
+          }
           await _apply(task.id, (t) => t.copyWith(
                 status: DownloadStatus.failed,
                 error: e.toString(),
@@ -403,8 +412,46 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
 
   // ==================== 取消 / 重试 / 删除 ====================
 
+  /// 暂停下载。
+  ///
+  /// 正在跑的任务通过取消检查器终止子进程，已下载的 .part 保留，
+  /// 继续时 yt-dlp 会从断点续传。等待中的任务直接挂起。
+  Future<void> pause(String id) async {
+    final t = _find(id);
+    if (t == null || t.isFinished || t.isPaused) return;
+    _paused.add(id);
+    _cancelled.add(id);
+    if (t.status == DownloadStatus.pending) {
+      await _apply(id, (x) => x.copyWith(
+            status: DownloadStatus.paused,
+            speed: 0,
+          ));
+      return;
+    }
+    await _apply(id, (x) => x.copyWith(
+          status: DownloadStatus.paused,
+          speed: 0,
+        ));
+  }
+
+  /// 继续已暂停的任务
+  Future<void> resume(String id) async {
+    final t = _find(id);
+    if (t == null || !t.isPaused) return;
+    _paused.remove(id);
+    _cancelled.remove(id);
+    await _apply(id, (x) => x.copyWith(
+          status: DownloadStatus.pending,
+          speed: 0,
+          error: null,
+          completedAt: null,
+        ));
+    unawaited(_scheduler());
+  }
+
   /// 取消下载
   void cancel(String id) {
+    _paused.remove(id);
     _cancelled.add(id);
     final t = _find(id);
     if (t != null && !t.isFinished) {
@@ -420,6 +467,8 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     final t = _find(id);
     if (t == null) return;
     if (!t.isFailed && t.status != DownloadStatus.cancelled) return;
+    _paused.remove(id);
+    _cancelled.remove(id);
     await _apply(id, (x) => x.copyWith(
           status: DownloadStatus.pending,
           retryCount: 0,
@@ -436,6 +485,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   /// 删除任务（内存 + DB）
   Future<void> remove(String id) async {
     _cancelled.add(id);
+    _paused.remove(id);
     await _dao.deleteById(id);
     state = state.where((t) => t.id != id).toList();
   }
@@ -478,6 +528,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   }
 
   Future<void> _applyProgress(String id, DownloadProgress p) async {
+    if (_paused.contains(id) || _cancelled.contains(id)) return;
     final isMerging = p.stage == DownloadStage.merging;
     await _apply(id, (t) => t.copyWith(
           status: isMerging ? DownloadStatus.merging : DownloadStatus.downloading,
@@ -486,6 +537,18 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           speed: p.speed.toInt(),
           fileSize: (p.totalBytes ?? 0) > 0 ? (p.totalBytes ?? 0) : t.fileSize,
         ));
+  }
+
+  /// 下载被取消检查器终止后，根据是否暂停决定落成暂停还是取消。
+  Future<void> _markStopped(String id) async {
+    if (_paused.contains(id)) {
+      await _apply(id, (t) => t.copyWith(
+            status: DownloadStatus.paused,
+            speed: 0,
+          ));
+      return;
+    }
+    await _finishStatus(id, DownloadStatus.cancelled);
   }
 
   Future<void> _finishStatus(String id, DownloadStatus s) async {

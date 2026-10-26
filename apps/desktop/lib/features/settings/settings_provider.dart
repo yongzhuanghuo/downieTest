@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/server/browser_bridge.dart';
 import '../../core/storage/settings_storage.dart';
 
 /// 设置状态 Notifier
@@ -61,6 +62,36 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> setDefaultDownloadCover(bool value) async {
     final next = state.copyWith(defaultDownloadCover: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setBrowserBridgeEnabled(bool enabled) async {
+    var token = state.browserBridgeToken;
+    if (enabled && token.isEmpty) {
+      token = BrowserBridge.generateToken();
+    }
+    final next = state.copyWith(
+      browserBridgeEnabled: enabled,
+      browserBridgeToken: token,
+    );
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> regenerateBrowserBridgeToken() async {
+    final next = state.copyWith(
+      browserBridgeToken: BrowserBridge.generateToken(),
+    );
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setCookiesFromBrowser(String browser) async {
+    const allowed = {'', 'chrome', 'safari', 'edge', 'firefox', 'brave'};
+    final next = state.copyWith(
+      cookiesFromBrowser: allowed.contains(browser) ? browser : '',
+    );
     await SettingsStorage.instance.save(next);
     state = next;
   }
