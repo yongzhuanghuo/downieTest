@@ -15,8 +15,8 @@ import 'features/license/license_provider.dart';
 import 'shared/branding/app_brand.dart';
 
 /// 窗口配置常量
-const Size _defaultWindowSize = Size(640, 440);
-const Size _minWindowSize = Size(560, 380);
+const Size _defaultWindowSize = Size(1200, 750);
+const Size _minWindowSize = Size(800, 600);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

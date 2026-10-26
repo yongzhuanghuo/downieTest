@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../branding/app_brand.dart';
 import '../theme/design_tokens.dart';
+import 'window_menu_button.dart';
 
 /// 统一标题栏。
 ///
@@ -36,10 +37,11 @@ class WindowTitleBar extends StatelessWidget {
   Widget _macTitle(Color foreground) {
     return Row(
       children: [
-        // 给系统交通灯留位置，标题保持视觉居中
-        const SizedBox(width: 78),
+        // 给系统交通灯留位置；Downie 的标题在左侧，不在正中
+        const SizedBox(width: 92),
         Expanded(
-          child: Center(
+          child: Align(
+            alignment: Alignment.centerLeft,
             child: Text(
               AppBrand.name,
               maxLines: 1,
@@ -48,7 +50,8 @@ class WindowTitleBar extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 78),
+        const WindowMenuButton(),
+        const SizedBox(width: 6),
       ],
     );
   }
@@ -79,6 +82,7 @@ class WindowTitleBar extends StatelessWidget {
             style: AppTextStyles.windowTitle(foreground),
           ),
         ),
+        const WindowMenuButton(),
         _CaptionButton(
           icon: Icons.remove,
           tooltip: '最小化',

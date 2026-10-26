@@ -13,18 +13,20 @@ import '../home/home_provider.dart';
 import 'download_provider.dart';
 import 'web_capture_dialog.dart';
 
-/// Downie 风格「添加链接」浮层：粘贴/网页嗅探 → 解析 → 直接入队。
+/// Downie 风格「添加链接」浮层：粘贴/用户引导提取 → 解析 → 直接入队。
 class AddUrlsPanel extends ConsumerStatefulWidget {
-  const AddUrlsPanel({super.key});
+  final String? initialText;
 
-  static Future<bool?> show(BuildContext context) {
+  const AddUrlsPanel({super.key, this.initialText});
+
+  static Future<bool?> show(BuildContext context, {String? initialText}) {
     return showWindowPanel<bool>(
       context: context,
       title: '添加链接',
       width: 540,
       height: 340,
       barrierColor: Colors.black.withValues(alpha: 0.45),
-      child: const AddUrlsPanel(),
+      child: AddUrlsPanel(initialText: initialText),
     );
   }
 
@@ -33,9 +35,15 @@ class AddUrlsPanel extends ConsumerStatefulWidget {
 }
 
 class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
   bool _busy = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText ?? '');
+  }
 
   @override
   void dispose() {
@@ -140,7 +148,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
               'referer': media.referer,
               'cookie': media.cookie,
             }),
-            label: '网页嗅探 ${media.kind.toUpperCase()}',
+            label: '用户引导提取 ${media.kind.toUpperCase()}',
             height: 0,
             ext: 'mp4',
           ),
@@ -151,7 +159,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = '网页嗅探失败：$e';
+          _error = '用户引导提取失败：$e';
         });
       }
     }
@@ -224,7 +232,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
               TextButton.icon(
                 onPressed: _busy ? null : _capture,
                 icon: const Icon(Icons.travel_explore, size: 14),
-                label: const Text('网页嗅探'),
+                label: const Text('用户引导提取'),
               ),
               const Spacer(),
               if (_busy)

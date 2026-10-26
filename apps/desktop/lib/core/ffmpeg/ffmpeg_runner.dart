@@ -160,7 +160,7 @@ class FFmpegRunner {
 
   /// 用 FFmpeg 直接下载并转封装网络流。
   ///
-  /// 支持 HLS（.m3u8）、DASH（.mpd）和直链 MP4/FLV。适用于网页嗅探抓到的
+  /// 支持 HLS（.m3u8）、DASH（.mpd）和直链 MP4/FLV。适用于用户引导提取抓到的
   /// 媒体地址：不需要自己实现分片调度，ffmpeg 会处理 manifest、分片和 AES-128
   /// （非 DRM）解密。
   static Future<String> downloadUrl({

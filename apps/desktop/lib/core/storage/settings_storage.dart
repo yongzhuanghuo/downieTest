@@ -35,7 +35,7 @@ class AppSettings {
   static const defaults = AppSettings(
     downloadDir: '', // 空=系统默认
     maxConcurrent: 3,
-    themeMode: 2, // 默认深色（Downie 4 主视觉）
+    themeMode: 0, // 跟随系统（Downie 默认行为）
     autoStart: false,
     autoOpenFolder: false,
   );
@@ -109,7 +109,7 @@ class SettingsStorage {
       _cache = AppSettings(
         downloadDir: (raw['downloadDir'] as String?) ?? '',
         maxConcurrent: (raw['maxConcurrent'] as num?)?.toInt() ?? 3,
-        themeMode: (raw['themeMode'] as num?)?.toInt() ?? 2,
+        themeMode: (raw['themeMode'] as num?)?.toInt() ?? 0,
         autoStart: (raw['autoStart'] as bool?) ?? false,
         autoOpenFolder: (raw['autoOpenFolder'] as bool?) ?? false,
       );

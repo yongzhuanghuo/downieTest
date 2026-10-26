@@ -21,16 +21,16 @@ String? detectMediaKind(String url) {
   return null;
 }
 
-/// 通用网页嗅探下载插件。
+/// 通用用户引导提取下载插件。
 ///
-/// 它不参与 URL 匹配（[matches] 永远 false），只由「网页嗅探」对话框手动选中后
+/// 它不参与 URL 匹配（[matches] 永远 false），只由「用户引导提取」对话框手动选中后
 /// 通过 `extractor == 'GenericWeb'` 找回，使用 FFmpeg 下载 HLS/DASH/直链。
 class GenericWebPlugin extends SitePlugin {
   @override
   String get id => 'GenericWeb';
 
   @override
-  String get displayName => '网页嗅探';
+  String get displayName => '用户引导提取';
 
   @override
   int get priority => 0;
@@ -41,7 +41,7 @@ class GenericWebPlugin extends SitePlugin {
   @override
   Future<VideoInfo> parse(String url) async {
     throw const SitePluginException(
-      '请使用「网页嗅探」按钮打开页面后再选择媒体',
+      '请使用「用户引导提取」按钮打开页面后再选择媒体',
       retryable: false,
     );
   }
@@ -52,12 +52,12 @@ class GenericWebPlugin extends SitePlugin {
     try {
       spec = jsonDecode(request.task.formatId) as Map<String, dynamic>;
     } catch (_) {
-      throw const SitePluginException('网页嗅探下载参数无效', retryable: false);
+      throw const SitePluginException('用户引导提取下载参数无效', retryable: false);
     }
 
     final url = spec['url']?.toString() ?? '';
     if (url.isEmpty) {
-      throw const SitePluginException('网页嗅探地址为空', retryable: false);
+      throw const SitePluginException('用户引导提取地址为空', retryable: false);
     }
 
     try {

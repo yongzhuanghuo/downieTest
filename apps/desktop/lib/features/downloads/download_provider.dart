@@ -435,3 +435,6 @@ final downloadListProvider =
 final pendingCountProvider = Provider<int>((ref) {
   return ref.watch(downloadListProvider).where((t) => t.isRunning).length;
 });
+
+/// 主队列搜索关键词（空 = 显示全部）
+final downloadSearchProvider = StateProvider<String>((ref) => '');

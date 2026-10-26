@@ -98,11 +98,11 @@ class _Sidebar extends StatelessWidget {
                     AppRoutes.downloads),
                 _nav(context, '历史记录', Icons.history, AppRoutes.history),
                 _section('工具'),
-                _action(context, '网页嗅探', Icons.travel_explore, () {
+                _action(context, '用户引导提取', Icons.travel_explore, () {
                   context.go(AppRoutes.home);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('在首页粘贴链接后点击「网页嗅探」'),
+                      content: Text('在首页粘贴链接后点击「用户引导提取」'),
                     ),
                   );
                 }),
