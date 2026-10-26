@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/download_task.dart';
@@ -23,7 +24,7 @@ class DownloadRow extends ConsumerWidget {
         task.status == DownloadStatus.merging;
 
     return SizedBox(
-      height: 150,
+      height: 132,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -132,6 +133,8 @@ class DownloadRow extends ConsumerWidget {
                       ),
                     const SizedBox(width: 4),
                     _formatPill(task),
+                    const SizedBox(width: 4),
+                    _taskMenu(context, notifier, task),
                   ],
                 ),
               ],
@@ -205,6 +208,56 @@ class DownloadRow extends ConsumerWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 10, color: Colors.white70),
+      ),
+    );
+  }
+
+  Widget _taskMenu(
+    BuildContext context,
+    DownloadListNotifier notifier,
+    DownloadTask task,
+  ) {
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: PopupMenuButton<String>(
+        tooltip: '操作',
+        padding: EdgeInsets.zero,
+        iconSize: 14,
+        icon: const Icon(Icons.more_horiz, color: Colors.white70),
+        onSelected: (value) async {
+          switch (value) {
+            case 'copy':
+              await Clipboard.setData(ClipboardData(text: task.url));
+              break;
+            case 'open':
+              if (task.outputPath != null) {
+                await _openContainingFolder(task.outputPath!);
+              }
+              break;
+            case 'retry':
+              await notifier.retry(task.id);
+              break;
+            case 'cancel':
+              await notifier.cancel(task.id);
+              break;
+            case 'remove':
+              await notifier.remove(task.id);
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(value: 'copy', child: Text('复制链接')),
+          if (task.status == DownloadStatus.completed &&
+              task.outputPath != null)
+            const PopupMenuItem(value: 'open', child: Text('打开所在目录')),
+          if (task.isFailed || task.status == DownloadStatus.cancelled)
+            const PopupMenuItem(value: 'retry', child: Text('重试')),
+          if (task.isRunning)
+            const PopupMenuItem(value: 'cancel', child: Text('取消下载')),
+          if (task.isFinished)
+            const PopupMenuItem(value: 'remove', child: Text('移除')),
+        ],
       ),
     );
   }
