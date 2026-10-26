@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../shared/routes/navigator_key.dart';
+import 'update_installer.dart';
 
 /// 后端 API 基础地址（与 license_client 同源，独立声明避免动授权契约）
 const String _kApiBase = String.fromEnvironment(
@@ -68,7 +69,7 @@ Future<bool> refreshUpdateState(WidgetRef ref) async {
   return info != null;
 }
 
-/// 弹「发现新版本」对话框，引导用户打开浏览器下载安装。
+/// 弹「发现新版本」窗口：应用内下载、安装并重启。
 Future<void> showUpdateDialog(UpdateInfo info) async {
   final ctx = rootNavigatorKey.currentContext;
   if (ctx == null) return;
@@ -76,26 +77,144 @@ Future<void> showUpdateDialog(UpdateInfo info) async {
   await showDialog<void>(
     context: ctx,
     barrierDismissible: !info.force,
-    builder: (dialogCtx) => AlertDialog(
+    builder: (_) => _UpdateDialog(info: info),
+  );
+}
+
+class _UpdateDialog extends StatefulWidget {
+  final UpdateInfo info;
+
+  const _UpdateDialog({required this.info});
+
+  @override
+  State<_UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<_UpdateDialog> {
+  bool _installing = false;
+  double? _progress;
+  String _status = '';
+  String? _error;
+
+  Future<void> _install() async {
+    if (_installing) return;
+    setState(() {
+      _installing = true;
+      _error = null;
+      _progress = null;
+      _status = '正在下载…';
+    });
+    try {
+      final file = await UpdateInstaller.download(
+        widget.info.url,
+        onProgress: (received, total) {
+          if (!mounted) return;
+          setState(() {
+            _progress = total > 0 ? received / total : null;
+            _status = total > 0
+                ? '正在下载 ${_formatBytes(received)} / ${_formatBytes(total)}'
+                : '正在下载 ${_formatBytes(received)}';
+          });
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _progress = null;
+        _status = '下载完成，正在安装…';
+      });
+      if (Platform.isMacOS) {
+        await UpdateInstaller.installMacOS(
+          file,
+          onStatus: (status) {
+            if (mounted) setState(() => _status = status);
+          },
+        );
+      } else {
+        await UpdateInstaller.installWindows(
+          file,
+          onStatus: (status) {
+            if (mounted) setState(() => _status = status);
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('[更新] 安装失败: $e');
+      if (mounted) {
+        setState(() {
+          _installing = false;
+          _error = '$e';
+          _status = '';
+        });
+      }
+    }
+  }
+
+  Future<void> _openBrowser() async {
+    final uri = Uri.parse(widget.info.url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      debugPrint('[更新] 打开下载链接失败: ${widget.info.url}');
+    }
+  }
+
+  String _formatBytes(int bytes) {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    double value = bytes.toDouble();
+    var unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+      value /= 1024;
+      unit++;
+    }
+    return '${value.toStringAsFixed(unit == 0 ? 0 : 1)}${units[unit]}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final info = widget.info;
+    return AlertDialog(
       title: Text('发现新版本 v${info.version}'),
-      content: Text(info.changelog.isEmpty ? '点击下方按钮前往下载最新版。' : info.changelog),
+      content: SizedBox(
+        width: 440,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(info.changelog.isEmpty ? '有新版本可用。' : info.changelog),
+            if (_installing) ...[
+              const SizedBox(height: 20),
+              LinearProgressIndicator(value: _progress),
+              const SizedBox(height: 8),
+              Text(_status, style: const TextStyle(fontSize: 12)),
+            ],
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                '应用内更新失败：$_error',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '可以改用浏览器下载安装包。',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
       actions: [
         if (!info.force)
           TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
+            onPressed: _installing ? null : () => Navigator.of(context).pop(),
             child: const Text('稍后'),
           ),
+        TextButton(
+          onPressed: _installing ? null : _openBrowser,
+          child: const Text('浏览器下载'),
+        ),
         FilledButton(
-          onPressed: () async {
-            Navigator.of(dialogCtx).pop();
-            final uri = Uri.parse(info.url);
-            if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-              debugPrint('[更新] 打开下载链接失败: ${info.url}');
-            }
-          },
-          child: const Text('立即更新'),
+          onPressed: _installing ? null : _install,
+          child: Text(_installing ? '正在更新…' : '下载并安装'),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
