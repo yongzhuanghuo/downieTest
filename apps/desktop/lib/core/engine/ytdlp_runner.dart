@@ -8,6 +8,7 @@ import '../../data/models/download_progress.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../platform/binary_locator.dart';
+import '../storage/settings_storage.dart';
 import '../storage/site_cookies.dart';
 
 /// yt-dlp 解析异常
@@ -91,11 +92,13 @@ class YtDlpRunner {
         debugPrint('[解析]   读 cookie 文件失败: $e');
       }
     }
+    final proxy = SettingsStorage.instance.current.proxy;
     // 使用 --dump-json 输出单行 JSON
     final result = await _runCommand([
       '--dump-json',
       '--no-warnings',
       '--no-playlist',
+      if (proxy.isNotEmpty) ...['--proxy', proxy],
       for (final cp in cookiePaths) ...['--cookies', cp],
       url,
     ]);
@@ -200,10 +203,12 @@ class YtDlpRunner {
     debugPrint(
         '[YtDlp] 下载使用 cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}');
 
+    final proxy = SettingsStorage.instance.current.proxy;
     final args = <String>[
       '--newline', // 每行一个进度，便于解析
       '--no-warnings',
       '--no-playlist',
+      if (proxy.isNotEmpty) ...['--proxy', proxy],
       '-f', formatId,
       '-o', outputPath,
       '--ffmpeg-location', actualFfmpegPath,

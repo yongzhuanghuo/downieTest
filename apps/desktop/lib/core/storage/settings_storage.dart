@@ -24,12 +24,16 @@ class AppSettings {
   /// 下载完成后自动打开文件夹
   final bool autoOpenFolder;
 
+  /// 代理服务器地址（空=不使用）；支持 http://、https://、socks5://
+  final String proxy;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
     required this.themeMode,
     required this.autoStart,
     required this.autoOpenFolder,
+    this.proxy = '',
   });
 
   static const defaults = AppSettings(
@@ -38,6 +42,7 @@ class AppSettings {
     themeMode: 0, // 跟随系统（Downie 默认行为）
     autoStart: false,
     autoOpenFolder: false,
+    proxy: '',
   );
 
   AppSettings copyWith({
@@ -46,6 +51,7 @@ class AppSettings {
     int? themeMode,
     bool? autoStart,
     bool? autoOpenFolder,
+    String? proxy,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -53,6 +59,7 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       autoStart: autoStart ?? this.autoStart,
       autoOpenFolder: autoOpenFolder ?? this.autoOpenFolder,
+      proxy: proxy ?? this.proxy,
     );
   }
 
@@ -112,6 +119,7 @@ class SettingsStorage {
         themeMode: (raw['themeMode'] as num?)?.toInt() ?? 0,
         autoStart: (raw['autoStart'] as bool?) ?? false,
         autoOpenFolder: (raw['autoOpenFolder'] as bool?) ?? false,
+        proxy: (raw['proxy'] as String?) ?? '',
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -151,6 +159,7 @@ class SettingsStorage {
       'themeMode': settings.themeMode,
       'autoStart': settings.autoStart,
       'autoOpenFolder': settings.autoOpenFolder,
+      'proxy': settings.proxy,
     });
     debugPrint('[Settings] saved: $settings');
   }

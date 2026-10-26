@@ -37,7 +37,7 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
     _PrefItem('浏览器扩展', Icons.extension_outlined, 4, false, Colors.indigo),
     _PrefItem('后处理', Icons.tune, 5, false, Colors.grey),
     _PrefItem('字幕与音频', Icons.subtitles_outlined, 6, false, Colors.deepOrange),
-    _PrefItem('代理服务器', Icons.vpn_lock_outlined, 7, false, Colors.green),
+    _PrefItem('代理服务器', Icons.vpn_lock_outlined, 7, true, Colors.green),
     _PrefItem('支持站点', Icons.public, 8, true, Colors.lightBlue),
     _PrefItem('搜索引擎', Icons.search, 9, false, Colors.blueAccent),
     _PrefItem('家长控制与隐私', Icons.lock_outline, 10, false, Colors.amber),
@@ -216,6 +216,31 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               subtitle: Text(settings.downloadDirLabel),
               trailing: const Icon(Icons.chevron_right, size: 16),
               onTap: () => _pickDirectory(notifier),
+            ),
+          ],
+        );
+      case 7:
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            Text(
+              '代理服务器',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              initialValue: settings.proxy,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                hintText: 'http://127.0.0.1:7890 或 socks5://127.0.0.1:7891',
+              ),
+              onChanged: notifier.setProxy,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              '代理会传给 yt-dlp，用于解析和下载。留空表示不使用代理；'
+              '修改后对之后新发起的任务生效。',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         );

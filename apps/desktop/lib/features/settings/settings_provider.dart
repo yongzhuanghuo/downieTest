@@ -41,6 +41,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setProxy(String value) async {
+    final next = state.copyWith(proxy: value.trim());
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   /// 重置为默认
   Future<void> reset() async {
     await SettingsStorage.instance.save(AppSettings.defaults);

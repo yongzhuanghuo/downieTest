@@ -57,6 +57,13 @@ jobs:
       - name: 单元测试
         run: flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart
 
+      - name: 测试失败注解
+        if: failure()
+        run: |
+          flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart 2>&1 | tail -80 | while IFS= read -r line; do
+            echo "::error::$line"
+          done || true
+
       - name: 打包 macOS
         run: flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000
 
