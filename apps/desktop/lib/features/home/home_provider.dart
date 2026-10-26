@@ -228,6 +228,12 @@ String _friendlyError(String message) {
   if (m.contains('not found') || m.contains('404')) {
     return '视频不存在或已被删除';
   }
+  if (m.contains('drm') ||
+      m.contains('widevine') ||
+      m.contains('fairplay') ||
+      m.contains('playready')) {
+    return '该内容受 DRM 保护，无法下载';
+  }
   if (m.contains('private') || m.contains('members only') || m.contains('premium')) {
     return '该视频需要会员或登录才能访问';
   }

@@ -31,19 +31,19 @@ bash tools/generate_icons.sh                                        # 重新生�
   - `engine/douyin_downloader.dart`：抖音 HTTP 直链下载（桌面 UA + Referer douyin.com 绕过防盗链，带进度回调）
   - `ffmpeg/ffmpeg_runner.dart`：FFmpeg 子进程封装（合并音视频、MP3 转换、字幕嵌入）
   - `platform/`：二进制定位（`binary_locator.dart`）+ 首次运行从 assets 提取（`binary_initializer.dart`）
-  - `storage/`：Hive 设置（`settings_storage.dart`，含 LicenseStorage 和每日配额）、SQLite 下载历史（`downloads_dao.dart`）、站点 cookie（`site_cookies.dart` + `site_registry.dart`）
+  - `storage/`：Hive 设置（`settings_storage.dart`）、SQLite 下载历史（`downloads_dao.dart`）、站点 cookie（`site_cookies.dart` + `site_registry.dart`）
   - `license/`：许可证客户端（`license_client.dart`）
 - `data/models/` — 不可变数据模型（DownloadTask、VideoInfo、FormatOption 等）
-- `features/` — 按业务模块：`home/`（解析/下载入口）、`downloads/`（队列/历史/站点登录弹窗、抖音 WebView 解析 `douyin_web_dialog.dart`）、`license/`、`settings/`、`history/`
-- `shared/` — 路由（`routes/app_routes.dart`）、导航壳（`widgets/app_shell.dart`）、主题
+- `features/` — 按业务模块：`home/`（仅解析 provider）、`downloads/`（队列/添加链接/搜索/站点登录/用户自定义提取）、`license/`、`settings/`（设置 provider）、`preferences/`（12 图标设置窗口）、`history/`、`help/`
+- `shared/` — 路由（`routes/app_routes.dart`）、窗口壳（`widgets/window_shell.dart` + 标题栏/底部胶囊）、主题
 
-状态用 **flutter_riverpod**（`StateNotifier` + `Provider`）；路由用 **go_router**（`ShellRoute` + 侧边栏 4 项：首页/下载/历史/设置）。
+状态用 **flutter_riverpod**（`StateNotifier` + `Provider`）；路由用 **go_router**（`ShellRoute` + 主窗口下载队列）。设置/历史/帮助是单窗口内的窗样式浮层，不是真多窗口。
 
 ## 关键流程（跨文件）
 
 ### 下载闭环
 
-`home_page.dart` → `parseProvider`（`home_provider.dart`）→ 解析（分两条路）→ 选格式 → `DownloadListNotifier.startDownload`（`download_provider.dart`，并发队列 + 失败重试 + SQLite 持久化）→ 下载 → 需要合并时 `FFmpegRunner.mergeVideoAudio`。
+`add_urls_panel.dart` → `parseProvider`（`home_provider.dart`）→ 解析（分两条路）→ 选格式 → `DownloadListNotifier.startDownload`（`download_provider.dart`，并发队列 + 失败重试 + SQLite 持久化 + 暂停/优先级）→ 下载 → 需要合并时 `FFmpegRunner.mergeVideoAudio`。
 
 解析/下载按站点分两条路：
 

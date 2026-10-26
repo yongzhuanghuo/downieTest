@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/downloads/downloads_page.dart';
 import '../../features/history/history_page.dart';
-import '../../features/home/home_page.dart';
-import '../../features/settings/settings_page.dart';
 import '../widgets/window_shell.dart';
 import 'navigator_key.dart';
 
@@ -31,10 +29,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: AppRoutes.home,
-            name: 'home',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: HomePage(),
-            ),
+            // 旧首页已退役，主窗口就是下载队列
+            redirect: (_, __) => AppRoutes.downloads,
           ),
           GoRoute(
             path: AppRoutes.downloads,
@@ -52,10 +48,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.settings,
-            name: 'settings',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SettingsPage(),
-            ),
+            // 设置改为窗口式浮层（PreferencesWindow）
+            redirect: (_, __) => AppRoutes.downloads,
           ),
         ],
       ),
@@ -67,51 +61,3 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
-
-/// 当前选中的导航索引 Provider
-final selectedNavIndexProvider = StateProvider<int>((ref) => 0);
-
-/// 导航项配置
-final navItemsProvider = Provider<List<NavigationItem>>((ref) {
-  return const [
-    NavigationItem(
-      icon: Icons.home_outlined,
-      selectedIcon: Icons.home,
-      label: '首页',
-      route: AppRoutes.home,
-    ),
-    NavigationItem(
-      icon: Icons.download_outlined,
-      selectedIcon: Icons.download,
-      label: '下载',
-      route: AppRoutes.downloads,
-    ),
-    NavigationItem(
-      icon: Icons.history_outlined,
-      selectedIcon: Icons.history,
-      label: '历史',
-      route: AppRoutes.history,
-    ),
-    NavigationItem(
-      icon: Icons.settings_outlined,
-      selectedIcon: Icons.settings,
-      label: '设置',
-      route: AppRoutes.settings,
-    ),
-  ];
-});
-
-/// 导航项数据模型
-class NavigationItem {
-  final IconData icon;
-  final IconData selectedIcon;
-  final String label;
-  final String route;
-
-  const NavigationItem({
-    required this.icon,
-    required this.selectedIcon,
-    required this.label,
-    required this.route,
-  });
-}

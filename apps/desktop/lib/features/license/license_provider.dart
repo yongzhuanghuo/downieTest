@@ -11,8 +11,7 @@ import '../../core/storage/settings_storage.dart';
 /// ===================================================================
 /// 许可证本地持久化（Hive KV）
 /// 存储内容:
-///   - 'activated': ActivatedLicense 的 Map
-///   - 'quota_YYYYMMDD': 当天已下载次数
+///   - 'license': ActivatedLicense 的 Map
 /// ===================================================================
 class LicenseStorage {
   LicenseStorage._();
@@ -51,12 +50,6 @@ class LicenseStorage {
   /// 是否已激活 PRO
   bool get isPro => _cached?.isPro ?? false;
 
-  /// 当前最大清晰度（已取消免费版清晰度限制，所有用户均可下载全部清晰度）
-  int get maxHeight => 10000;
-
-  /// 每日限额（免费 2 个，PRO 不限）
-  int? get dailyQuota => isPro ? null : 2;
-
   /// 保存（覆盖）激活信息
   Future<void> save(ActivatedLicense license) async {
     _cached = license;
@@ -69,51 +62,10 @@ class LicenseStorage {
     await _box?.delete(_keyLicense);
   }
 
-  // ================= 每日限额 =================
-
-  static String _todayKey() {
-    final now = DateTime.now();
-    return 'quota_${now.year}'
-        '${now.month.toString().padLeft(2, '0')}'
-        '${now.day.toString().padLeft(2, '0')}';
-  }
-
-  /// 今日已下载次数
-  int get todayUsed {
-    return (_box?.get(_todayKey()) as int?) ?? 0;
-  }
-
-  /// 今日剩余可下载（null=不限）
-  int? get todayRemaining {
-    final limit = dailyQuota;
-    if (limit == null) return null;
-    return (limit - todayUsed).clamp(0, 99999);
-  }
-
-  /// 记录一次下载成功（调用点在任务 completed）
-  Future<void> recordSuccess() async {
-    final key = _todayKey();
-    final cur = (_box?.get(key) as int?) ?? 0;
-    await _box?.put(key, cur + 1);
-  }
-
-  /// 是否达到限额（PRO 永远 false）
-  bool get isQuotaReached {
-    final rem = todayRemaining;
-    if (rem == null) return false;
-    return rem <= 0;
-  }
-
-  /// 尝试占坑（先判断限额），true=可以下载
-  bool acquireSlot() {
-    final rem = todayRemaining;
-    if (rem == null) return true;
-    return rem > 0;
-  }
 }
 
 /// ===================================================================
-/// License Provider：UI 可直接 watch 监听激活状态/限额变化
+/// License Provider：UI 可直接 watch 监听激活状态变化
 /// 使用 StateProvider 直接更新 .state，避免 ref.invalidate 导致的依赖冲突
 /// ===================================================================
 
@@ -127,25 +79,6 @@ final isProProvider = Provider<bool>((ref) {
   return ref.watch(activatedLicenseProvider)?.isPro ?? false;
 });
 
-/// 最大允许高度（已取消清晰度限制，所有用户均不限）
-final maxAllowedHeightProvider = Provider<int>((ref) {
-  return 10000;
-});
-
-/// 今日已用次数
-final todayUsedProvider = StateProvider<int>((ref) {
-  return LicenseStorage.instance.todayUsed;
-});
-
-/// 今日剩余次数（null=不限）
-final todayRemainingProvider = StateProvider<int?>((ref) {
-  return LicenseStorage.instance.todayRemaining;
-});
-
-/// 是否达到限额
-final isQuotaReachedProvider = StateProvider<bool>((ref) {
-  return LicenseStorage.instance.isQuotaReached;
-});
 
 /// Notifier：激活码激活（调用 verify + 绑定设备指纹 + 保存）
 class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
