@@ -6,9 +6,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/storage/settings_storage.dart';
 import '../../core/version/version_check.dart';
+import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/help/help_window.dart';
 import '../../features/help/support_dialog.dart';
+import '../../features/history/history_window.dart';
+import '../../features/preferences/preferences_window.dart';
 import '../routes/app_routes.dart';
 import '../theme/design_tokens.dart';
 
@@ -26,7 +29,6 @@ class WindowStatusBar extends ConsumerWidget {
     final text = dark ? AppTokens.textPrimary : AppTokens.textPrimaryLight;
     final secondary =
         dark ? AppTokens.textSecondary : AppTokens.textSecondaryLight;
-    final accent = dark ? AppTokens.accent : AppTokens.accentLight;
 
     final tasks = ref.watch(downloadListProvider);
     final hasFinished = tasks.any((t) => t.isFinished);
@@ -68,7 +70,7 @@ class WindowStatusBar extends ConsumerWidget {
                 icon: Icons.add,
                 tooltip: '添加链接',
                 color: secondary,
-                onTap: () => context.go(AppRoutes.home),
+                onTap: () => AddUrlsPanel.show(context),
               ),
               _StatusIcon(
                 icon: Icons.folder_open,
@@ -90,14 +92,14 @@ class WindowStatusBar extends ConsumerWidget {
               _StatusIcon(
                 icon: Icons.history,
                 tooltip: '历史记录',
-                color: location == AppRoutes.history ? accent : secondary,
-                onTap: () => context.go(AppRoutes.history),
+                color: secondary,
+                onTap: () => HistoryWindow.show(context),
               ),
               _StatusIcon(
                 icon: Icons.settings_outlined,
                 tooltip: '设置',
-                color: location == AppRoutes.settings ? accent : secondary,
-                onTap: () => context.go(AppRoutes.settings),
+                color: secondary,
+                onTap: () => PreferencesWindow.show(context),
               ),
               _StatusIcon(
                 icon: Icons.help_outline,
