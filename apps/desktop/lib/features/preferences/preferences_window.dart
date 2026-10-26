@@ -29,18 +29,18 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
   int? _selected;
 
   static const _items = <_PrefItem>[
-    _PrefItem('通用', Icons.settings_outlined, 0, true),
-    _PrefItem('外观', Icons.palette_outlined, 1, true),
-    _PrefItem('下载位置', Icons.folder_outlined, 2, true),
-    _PrefItem('历史记录', Icons.history, 3, false),
-    _PrefItem('浏览器扩展', Icons.extension_outlined, 4, false),
-    _PrefItem('后处理', Icons.tune, 5, false),
-    _PrefItem('字幕与音频', Icons.subtitles_outlined, 6, false),
-    _PrefItem('代理服务器', Icons.vpn_lock_outlined, 7, false),
-    _PrefItem('支持站点', Icons.public, 8, false),
-    _PrefItem('搜索引擎', Icons.search, 9, false),
-    _PrefItem('家长控制与隐私', Icons.lock_outline, 10, false),
-    _PrefItem('高级', Icons.build_outlined, 11, false),
+    _PrefItem('通用', Icons.settings_outlined, 0, true, Colors.blue),
+    _PrefItem('外观', Icons.palette_outlined, 1, true, Colors.purple),
+    _PrefItem('下载位置', Icons.folder_outlined, 2, true, Colors.orange),
+    _PrefItem('历史记录', Icons.history, 3, false, Colors.teal),
+    _PrefItem('浏览器扩展', Icons.extension_outlined, 4, false, Colors.indigo),
+    _PrefItem('后处理', Icons.tune, 5, false, Colors.grey),
+    _PrefItem('字幕与音频', Icons.subtitles_outlined, 6, false, Colors.deepOrange),
+    _PrefItem('代理服务器', Icons.vpn_lock_outlined, 7, false, Colors.green),
+    _PrefItem('支持站点', Icons.public, 8, false, Colors.lightBlue),
+    _PrefItem('搜索引擎', Icons.search, 9, false, Colors.blueAccent),
+    _PrefItem('家长控制与隐私', Icons.lock_outline, 10, false, Colors.amber),
+    _PrefItem('高级', Icons.build_outlined, 11, false, Colors.blueGrey),
   ];
 
   static const _titles = {
@@ -258,8 +258,15 @@ class _PrefItem {
   final IconData icon;
   final int index;
   final bool available;
+  final Color color;
 
-  const _PrefItem(this.title, this.icon, this.index, this.available);
+  const _PrefItem(
+    this.title,
+    this.icon,
+    this.index,
+    this.available,
+    this.color,
+  );
 }
 
 class _PrefTile extends StatefulWidget {
@@ -301,7 +308,9 @@ class _PrefTileState extends State<_PrefTile> {
               Icon(
                 widget.item.icon,
                 size: 30,
-                color: widget.item.available ? text : secondary,
+                color: widget.item.available
+                    ? widget.item.color
+                    : widget.item.color.withValues(alpha: 0.45),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(

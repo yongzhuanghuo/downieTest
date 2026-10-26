@@ -16,6 +16,7 @@ class SupportDialog extends StatefulWidget {
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
+      barrierColor: Colors.transparent,
       builder: (_) => SupportDialog(reportUrl: reportUrl),
     );
   }
@@ -32,6 +33,7 @@ class _SupportDialogState extends State<SupportDialog> {
     final theme = Theme.of(context);
     final size = MediaQuery.sizeOf(context);
     final width = size.width * 0.78 > 920 ? 920.0 : size.width * 0.78;
+    final height = size.height - 48 > 560 ? 560.0 : size.height - 48;
 
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
@@ -39,7 +41,7 @@ class _SupportDialogState extends State<SupportDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: SizedBox(
         width: width,
-        height: 560,
+        height: height,
         child: Column(
           children: [
             _buildHeader(theme),

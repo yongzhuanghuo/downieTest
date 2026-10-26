@@ -12,6 +12,7 @@ class HelpWindow extends StatefulWidget {
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
+      barrierColor: Colors.transparent,
       builder: (_) => const HelpWindow(),
     );
   }
