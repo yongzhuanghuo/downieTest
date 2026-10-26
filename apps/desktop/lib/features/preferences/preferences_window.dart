@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/sites/plugin_registry.dart';
 import '../../shared/theme/design_tokens.dart';
 import '../../shared/widgets/window_panel.dart';
 import '../license/license_window.dart';
@@ -37,7 +38,7 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
     _PrefItem('后处理', Icons.tune, 5, false, Colors.grey),
     _PrefItem('字幕与音频', Icons.subtitles_outlined, 6, false, Colors.deepOrange),
     _PrefItem('代理服务器', Icons.vpn_lock_outlined, 7, false, Colors.green),
-    _PrefItem('支持站点', Icons.public, 8, false, Colors.lightBlue),
+    _PrefItem('支持站点', Icons.public, 8, true, Colors.lightBlue),
     _PrefItem('搜索引擎', Icons.search, 9, false, Colors.blueAccent),
     _PrefItem('家长控制与隐私', Icons.lock_outline, 10, false, Colors.amber),
     _PrefItem('高级', Icons.build_outlined, 11, false, Colors.blueGrey),
@@ -215,6 +216,43 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               subtitle: Text(settings.downloadDirLabel),
               trailing: const Icon(Icons.chevron_right, size: 16),
               onTap: () => _pickDirectory(notifier),
+            ),
+          ],
+        );
+      case 8:
+        final plugins = PluginRegistry.instance.all
+            .where((plugin) => plugin.id != 'GenericWeb')
+            .toList();
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            Text(
+              '原生站点插件',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final plugin in plugins)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.check_circle,
+                  size: 16,
+                  color: AppTokens.success,
+                ),
+                title: Text(plugin.displayName),
+                subtitle: Text(plugin.id),
+              ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              '其他站点',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              '未命中原生插件时，自动回退 yt-dlp；也可以使用「用户自定义视频提取」'
+              '打开页面捕获 m3u8/mpd/mp4。',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         );

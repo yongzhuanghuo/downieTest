@@ -1,9 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:convert';
+
 import '../../core/engine/ytdlp_runner.dart';
+import '../../core/sites/generic_html_extractor.dart';
 import '../../core/sites/plugin_registry.dart';
+import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../core/sites/site_plugin.dart';
+import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../downloads/site_login_prompt.dart';
 
@@ -46,6 +51,36 @@ class ParseNotifier extends StateNotifier<ParseState> {
     final target = _extractUrl(trimmed) ?? trimmed;
     state = const ParseState(status: ParseStatus.loading);
 
+    // 直接媒体地址：不抓页面，直接生成可下载格式
+    final directKind = detectMediaKind(target);
+    if (directKind != null) {
+      final uri = Uri.tryParse(target);
+      final info = VideoInfo(
+        url: target,
+        title: uri?.host ?? target,
+        duration: 0,
+        uploader: uri?.host ?? '',
+        thumbnail: '',
+        extractor: 'GenericWeb',
+        videoId: target.hashCode.abs().toString(),
+        formats: [
+          FormatOption(
+            formatId: jsonEncode({
+              'url': target,
+              'kind': directKind,
+              'referer': target,
+              'cookie': '',
+            }),
+            label: '直链 ${directKind.toUpperCase()}',
+            height: 0,
+            ext: 'mp4',
+          ),
+        ],
+      );
+      state = ParseState(status: ParseStatus.success, videoInfo: info);
+      return;
+    }
+
     // 站点插件优先（抖音等自研解析）；没有命中再走 yt-dlp 兜底
     final plugin = PluginRegistry.instance.find(target);
     if (plugin != null) {
@@ -78,6 +113,13 @@ class ParseNotifier extends StateNotifier<ParseState> {
         );
         return;
       }
+    }
+
+    // 通用 HTML 提取：在 yt-dlp 之前找 og:video / video / JSON-LD / m3u8
+    final htmlInfo = await GenericHtmlExtractor.tryParse(target);
+    if (htmlInfo != null) {
+      state = ParseState(status: ParseStatus.success, videoInfo: htmlInfo);
+      return;
     }
 
     try {
