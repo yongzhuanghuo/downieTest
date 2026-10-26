@@ -141,7 +141,7 @@ class GenericHtmlExtractor {
 
     // 任意脚本/属性里的直链（转义斜杠已在此处兼容）
     for (final match in RegExp(
-      r'''https?(?:\\?/){2}[^\s"'<>]+?\.(?:m3u8|mpd|mp4|flv|m4v)(?:\?[^\s"'<>]*)?''',
+      r'''https?:(?:\\?/){2}[^\s"'<>]+?\.(?:m3u8|mpd|mp4|flv|m4v)(?:\?[^\s"'<>]*)?''',
       caseSensitive: false,
     ).allMatches(html)) {
       add(match.group(0)!);
