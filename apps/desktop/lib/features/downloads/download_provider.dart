@@ -246,7 +246,10 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
 
         try {
           final String result;
-          final plugin = PluginRegistry.instance.byId(task.extractor);
+          // 播放列表条目统一用 yt-dlp 的最佳流选择器，避免误走站点插件
+          final plugin = task.formatId == 'bv*+ba/b'
+              ? null
+              : PluginRegistry.instance.byId(task.extractor);
           if (plugin != null) {
             // 站点插件：formatId 由插件解释（抖音是直链，HLS/DASH 可以是清单）
             result = await plugin.download(PluginDownloadRequest(
