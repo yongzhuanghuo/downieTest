@@ -222,6 +222,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       // 确定输出目录（从设置读取，空则用系统默认 Downloads）
       final settings = SettingsStorage.instance.current;
       final outputDir = await settings.resolveDownloadDir();
+      await Directory(outputDir).create(recursive: true);
       var targetDir = outputDir;
       if (settings.subfolderBySite) {
         final site = sanitizePathSegment(task.extractor);

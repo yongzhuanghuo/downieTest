@@ -12,8 +12,17 @@ import '../storage/settings_storage.dart';
 class SystemNotifications {
   SystemNotifications._();
 
+  static DateTime? _lastShown;
+
   static Future<void> downloadComplete(String title) async {
     if (!SettingsStorage.instance.current.notifyOnComplete) return;
+    // 播放列表/并发下载完成时间很近，节流避免刷屏
+    final now = DateTime.now();
+    if (_lastShown != null &&
+        now.difference(_lastShown!) < const Duration(seconds: 3)) {
+      return;
+    }
+    _lastShown = now;
     final body = _clean(title.isEmpty ? '下载完成' : title);
     try {
       if (Platform.isMacOS) {

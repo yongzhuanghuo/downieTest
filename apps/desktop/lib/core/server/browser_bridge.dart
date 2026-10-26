@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -110,11 +111,21 @@ class BrowserBridge {
         return;
       }
       final ok = await handler(url);
-      await _text(
-        response,
-        ok ? HttpStatus.ok : HttpStatus.unprocessableEntity,
-        ok ? '已加入下载队列：$url' : '解析失败或试用已结束',
-      );
+      final message = ok ? '已加入下载队列：$url' : '解析失败或试用已结束';
+      if (uri.queryParameters['response'] == 'html') {
+        await _html(
+          response,
+          ok ? HttpStatus.ok : HttpStatus.unprocessableEntity,
+          message,
+          autoClose: ok,
+        );
+      } else {
+        await _text(
+          response,
+          ok ? HttpStatus.ok : HttpStatus.unprocessableEntity,
+          message,
+        );
+      }
     } catch (e) {
       debugPrint('[浏览器接收] 处理失败: $e');
       try {
@@ -142,6 +153,29 @@ class BrowserBridge {
     await response.close();
   }
 
+  static Future<void> _html(
+    HttpResponse response,
+    int status,
+    String message, {
+    required bool autoClose,
+  }) async {
+    response.statusCode = status;
+    response.headers.contentType = ContentType.html;
+    final safe = const HtmlEscape().convert(message);
+    response.write('''<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>Downie6</title>
+<style>
+body{margin:0;padding:18px;font:14px/1.5 -apple-system,"Segoe UI","PingFang SC",sans-serif;
+background:#1e1e1e;color:#f5f5f5}
+p{word-break:break-all}
+</style></head><body>
+<p>$safe</p>
+${autoClose ? '<script>setTimeout(function(){window.close()},1200)</script>' : ''}
+</body></html>''');
+    await response.close();
+  }
+
   /// 把内置浏览器扩展写到应用数据目录，返回目录路径。
   ///
   /// 打包后资源在 assets 里，不能直接让浏览器加载；复制出来再
@@ -161,8 +195,10 @@ class BrowserBridge {
   /// 给设置页展示的书签脚本：把当前页 URL 发给应用。
   static String bookmarklet({required String token, int port = defaultPort}) {
     final base = 'http://127.0.0.1:$port/add';
-    return "javascript:location.href='$base?url='"
+    // 用新窗口而不是 location.href，避免把原视频页面替换成结果页
+    return "javascript:(function(){window.open('$base?url='"
         "+encodeURIComponent(location.href)"
-        "+'&token=${Uri.encodeQueryComponent(token)}'";
+        "+'&token=${Uri.encodeQueryComponent(token)}&response=html',"
+        "'downie6','width=420,height=180')})()";
   }
 }

@@ -57,6 +57,20 @@ void main() {
       expect(received, isEmpty);
     });
 
+    test('returns an HTML result page for the bookmarklet', () async {
+      final response = await http.get(
+        Uri.parse(
+          'http://127.0.0.1:${bridge.port}/add'
+          '?token=test-token&url=https%3A%2F%2Fexample.com%2Fv'
+          '&response=html',
+        ),
+      );
+      expect(response.statusCode, 200);
+      expect(response.headers['content-type'], contains('text/html'));
+      expect(response.body, contains('已加入下载队列'));
+      expect(response.body, contains('window.close'));
+    });
+
     test('ping does not require a token', () async {
       final response = await http.get(
         Uri.parse('http://127.0.0.1:${bridge.port}/ping'),
@@ -71,6 +85,8 @@ void main() {
     expect(script, startsWith('javascript:'));
     expect(script, contains('127.0.0.1:9999/add'));
     expect(script, contains('token=abc'));
+    expect(script, contains('window.open'));
+    expect(script, contains('&response=html'));
     expect(script, contains('encodeURIComponent(location.href)'));
   });
 }
