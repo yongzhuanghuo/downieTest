@@ -239,7 +239,7 @@ class DownloadRow extends ConsumerWidget {
               await notifier.retry(task.id);
               break;
             case 'cancel':
-              await notifier.cancel(task.id);
+              notifier.cancel(task.id);
               break;
             case 'remove':
               await notifier.remove(task.id);
