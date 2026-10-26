@@ -234,6 +234,31 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
     }
   }
 
+  /// 拉取设备列表（用于设备管理窗口）
+  Future<List<DeviceInfo>?> listDevices() async {
+    final current = LicenseStorage.instance.current;
+    if (current == null) return null;
+    try {
+      final fp = await DeviceFingerprint.get();
+      final status = await LicenseClient.instance.status(
+        code: current.code,
+        deviceFp: fp,
+      );
+      if (status == null) return null;
+
+      final boundFps = status.boundDevices
+          .map((d) => d.deviceFp ?? '')
+          .where((fp) => fp.isNotEmpty)
+          .toList();
+      final next = current.copyWith(boundDevices: boundFps);
+      await LicenseStorage.instance.save(next);
+      ref.read(activatedLicenseProvider.notifier).state = next;
+      return status.boundDevices;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// 查询后端设备列表（刷新本地绑定状态）
   Future<(bool success, String message)> refreshDeviceList() async {
     final storage = LicenseStorage.instance;
