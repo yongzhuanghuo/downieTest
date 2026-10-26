@@ -11,7 +11,6 @@ import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/site_plugin.dart';
 import '../../core/storage/downloads_dao.dart';
 import '../../core/storage/settings_storage.dart';
-import '../license/license_provider.dart';
 import '../../data/models/download_progress.dart';
 import '../../data/models/download_task.dart';
 import '../../data/models/format_option.dart';
@@ -250,16 +249,6 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   stage: DownloadStage.downloading,
                 ),
               ));
-          // 记录今日限额 + 触发 UI 刷新限额横幅
-          try {
-            await LicenseStorage.instance.recordSuccess();
-            // 使用 StateProvider.state = 直接更新，避免 invalidate 导致的依赖冲突
-            _ref.read(todayUsedProvider.notifier).state = LicenseStorage.instance.todayUsed;
-            _ref.read(todayRemainingProvider.notifier).state = LicenseStorage.instance.todayRemaining;
-            _ref.read(isQuotaReachedProvider.notifier).state = LicenseStorage.instance.isQuotaReached;
-          } catch (e) {
-            debugPrint('[DownloadList] 写入限额失败: $e');
-          }
           // 下载完成自动打开文件夹（按设置）
           if (SettingsStorage.instance.current.autoOpenFolder) {
             unawaited(_revealFile(resultPath));

@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/engine/ytdlp_runner.dart';
 import '../../core/sites/plugin_registry.dart';
 import '../../shared/theme/design_tokens.dart';
 import '../../shared/widgets/window_panel.dart';
@@ -41,7 +42,7 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
     _PrefItem('支持站点', Icons.public, 8, true, Colors.lightBlue),
     _PrefItem('搜索引擎', Icons.search, 9, false, Colors.blueAccent),
     _PrefItem('家长控制与隐私', Icons.lock_outline, 10, false, Colors.amber),
-    _PrefItem('高级', Icons.build_outlined, 11, false, Colors.blueGrey),
+    _PrefItem('高级', Icons.build_outlined, 11, true, Colors.blueGrey),
   ];
 
   static const _titles = {
@@ -281,6 +282,8 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             ),
           ],
         );
+      case 11:
+        return const _AdvancedPane();
       default:
         return Center(
           child: Column(
@@ -313,6 +316,97 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
       await notifier.setDownloadDir(result);
       if (mounted) setState(() {});
     }
+  }
+}
+
+class _AdvancedPane extends StatefulWidget {
+  const _AdvancedPane();
+
+  @override
+  State<_AdvancedPane> createState() => _AdvancedPaneState();
+}
+
+class _AdvancedPaneState extends State<_AdvancedPane> {
+  String? _version;
+  bool _updating = false;
+  String? _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final version = await YtDlpRunner.getVersion();
+      if (mounted) setState(() => _version = version);
+    } catch (e) {
+      if (mounted) setState(() => _message = '读取版本失败：$e');
+    }
+  }
+
+  Future<void> _update() async {
+    if (_updating) return;
+    setState(() {
+      _updating = true;
+      _message = null;
+    });
+    try {
+      final result = await YtDlpRunner.update()
+          .timeout(const Duration(seconds: 60));
+      if (!mounted) return;
+      setState(() {
+        _updating = false;
+        _version = result.version;
+        _message = result.message;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _updating = false;
+        _message = '检查更新失败：$e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      children: [
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.terminal, size: 18),
+          title: const Text('yt-dlp 版本'),
+          subtitle: Text(_version ?? '读取中…'),
+          trailing: _updating
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : TextButton(
+                  onPressed: _update,
+                  child: const Text('检查更新'),
+                ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          '内嵌 yt-dlp 和 ffmpeg 会在首次运行时复制到应用数据目录；'
+          '日志按天保存在 logs/ 下。',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        if (_message != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            _message!,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
   }
 }
 
