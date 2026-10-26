@@ -15,8 +15,8 @@ import 'features/license/license_provider.dart';
 import 'shared/branding/app_brand.dart';
 
 /// 窗口配置常量
-const Size _defaultWindowSize = Size(1100, 750);
-const Size _minWindowSize = Size(800, 600);
+const Size _defaultWindowSize = Size(640, 440);
+const Size _minWindowSize = Size(560, 380);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,7 +50,8 @@ Future<void> _initWindowManager() async {
     minimumSize: _minWindowSize,
     center: true,
     title: AppBrand.name,
-    titleBarStyle: TitleBarStyle.normal,
+    titleBarStyle: TitleBarStyle.hidden,
+    windowButtonVisibility: true,
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {

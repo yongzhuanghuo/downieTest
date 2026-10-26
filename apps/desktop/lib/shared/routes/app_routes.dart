@@ -6,7 +6,7 @@ import '../../features/downloads/downloads_page.dart';
 import '../../features/history/history_page.dart';
 import '../../features/home/home_page.dart';
 import '../../features/settings/settings_page.dart';
-import '../widgets/app_shell.dart';
+import '../widgets/window_shell.dart';
 import 'navigator_key.dart';
 
 /// 路由名称常量
@@ -23,11 +23,11 @@ class AppRoutes {
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.downloads,
     routes: [
       ShellRoute(
         builder: (context, state, child) =>
-            AppShell(location: state.uri.path, child: child),
+            WindowShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(
             path: AppRoutes.home,
