@@ -31,6 +31,17 @@ void main() {
       );
     });
 
+    test('wholeHttpUrl keeps Chinese characters in the path', () {
+      const url = 'https://example.com/视频/第一集';
+      expect(wholeHttpUrl(url), url);
+      expect(wholeHttpUrl('看这个 $url 很好看'), isNull);
+      expect(wholeHttpUrl('example.com/video'), isNull);
+      expect(
+        wholeHttpUrl('https://example.com/video。'),
+        'https://example.com/video',
+      );
+    });
+
     test('returns empty for text without a URL', () {
       expect(extractUrls('没有链接'), isEmpty);
       expect(extractFirstUrl('没有链接'), isNull);

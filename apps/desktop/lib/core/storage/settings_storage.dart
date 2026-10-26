@@ -51,6 +51,9 @@ class AppSettings {
   /// 浏览器接收端口的鉴权 token
   final String browserBridgeToken;
 
+  /// 下载完成后发送系统通知
+  final bool notifyOnComplete;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -66,6 +69,7 @@ class AppSettings {
     this.cookiesFromBrowser = '',
     this.browserBridgeEnabled = false,
     this.browserBridgeToken = '',
+    this.notifyOnComplete = true,
   });
 
   static const defaults = AppSettings(
@@ -83,6 +87,7 @@ class AppSettings {
     cookiesFromBrowser: '',
     browserBridgeEnabled: false,
     browserBridgeToken: '',
+    notifyOnComplete: true,
   );
 
   AppSettings copyWith({
@@ -100,6 +105,7 @@ class AppSettings {
     String? cookiesFromBrowser,
     bool? browserBridgeEnabled,
     String? browserBridgeToken,
+    bool? notifyOnComplete,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -120,6 +126,7 @@ class AppSettings {
       browserBridgeEnabled:
           browserBridgeEnabled ?? this.browserBridgeEnabled,
       browserBridgeToken: browserBridgeToken ?? this.browserBridgeToken,
+      notifyOnComplete: notifyOnComplete ?? this.notifyOnComplete,
     );
   }
 
@@ -193,6 +200,7 @@ class SettingsStorage {
             (raw['browserBridgeEnabled'] as bool?) ?? false,
         browserBridgeToken:
             (raw['browserBridgeToken'] as String?) ?? '',
+        notifyOnComplete: (raw['notifyOnComplete'] as bool?) ?? true,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -241,6 +249,7 @@ class SettingsStorage {
       'cookiesFromBrowser': settings.cookiesFromBrowser,
       'browserBridgeEnabled': settings.browserBridgeEnabled,
       'browserBridgeToken': settings.browserBridgeToken,
+      'notifyOnComplete': settings.notifyOnComplete,
     });
     debugPrint('[Settings] saved: $settings');
   }

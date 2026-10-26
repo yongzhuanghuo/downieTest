@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/ffmpeg/ffmpeg_runner.dart';
+import '../../core/platform/notifications.dart';
 import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/site_plugin.dart';
 import '../../core/storage/downloads_dao.dart';
@@ -293,6 +294,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   stage: DownloadStage.downloading,
                 ),
               ));
+          unawaited(SystemNotifications.downloadComplete(current.title));
           // 下载完成自动打开文件夹（按设置）
           if (SettingsStorage.instance.current.autoOpenFolder) {
             unawaited(_revealFile(resultPath));

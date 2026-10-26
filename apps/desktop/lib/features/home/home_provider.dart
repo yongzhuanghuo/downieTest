@@ -48,7 +48,9 @@ class ParseNotifier extends StateNotifier<ParseState> {
       return;
     }
     // 从分享文本里提取真正的 URL（抖音/B站等复制的链接常带标题等文字）
-    final target = extractFirstUrl(trimmed) ?? trimmed;
+    final target = wholeHttpUrl(trimmed) ??
+        extractFirstUrl(trimmed) ??
+        trimmed;
     state = const ParseState(status: ParseStatus.loading);
 
     // 直接媒体地址：不抓页面，直接生成可下载格式
@@ -168,6 +170,25 @@ final _urlPattern =
 /// 中文/全角标点常被复制进分享文本，不能当成 URL 的一部分。
 const _trailingPunctuation = '.,;:!?)]}>"\'、。，；：'
     '！？）】》”’';
+
+/// 整段输入本身就是一个 http(s) URL 时原样返回。
+///
+/// 这样 URL 路径/参数里的中文不会被分享文案的提取规则截断。
+String? wholeHttpUrl(String text) {
+  var value = text.trim();
+  while (value.isNotEmpty &&
+      _trailingPunctuation.contains(value[value.length - 1])) {
+    value = value.substring(0, value.length - 1);
+  }
+  if (value.isEmpty || RegExp(r'\s').hasMatch(value)) return null;
+  final uri = Uri.tryParse(value);
+  if (uri == null ||
+      (uri.scheme != 'http' && uri.scheme != 'https') ||
+      uri.host.isEmpty) {
+    return null;
+  }
+  return value;
+}
 
 /// 从分享文本里提取全部 URL，按出现顺序去重。
 ///

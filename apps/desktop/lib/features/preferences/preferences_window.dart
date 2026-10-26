@@ -174,6 +174,13 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               value: settings.autoStart,
               onChanged: notifier.setAutoStart,
             ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('下载完成后发送系统通知'),
+              value: settings.notifyOnComplete,
+              onChanged: notifier.setNotifyOnComplete,
+            ),
             const SizedBox(height: AppSpacing.lg),
             Text(
               '并行下载数：${settings.maxConcurrent}',

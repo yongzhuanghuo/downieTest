@@ -79,7 +79,8 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
     }
 
     // 一次粘贴多条链接时逐条解析入队；没有 URL 的纯文本仍交给解析器判断。
-    final urls = extractUrls(text);
+    final whole = wholeHttpUrl(text);
+    final urls = whole != null ? [whole] : extractUrls(text);
     final targets = urls.isEmpty ? [text] : urls;
 
     setState(() {
@@ -174,7 +175,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
   Future<void> _capture() async {
     if (_busy) return;
     final text = _controller.text.trim();
-    final url = extractFirstUrl(text) ?? text;
+    final url = wholeHttpUrl(text) ?? extractFirstUrl(text) ?? text;
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
       setState(() => _error = '请先输入一个网页链接');
