@@ -26,7 +26,7 @@ class AddUrlsPanel extends ConsumerStatefulWidget {
       context: context,
       title: '添加链接',
       width: 540,
-      height: 340,
+      height: 380,
       barrierColor: Colors.black.withValues(alpha: 0.45),
       child: AddUrlsPanel(initialText: initialText),
     );
@@ -39,6 +39,8 @@ class AddUrlsPanel extends ConsumerStatefulWidget {
 class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
   late final TextEditingController _controller;
   bool _busy = false;
+  bool _downloadSubtitles = false;
+  bool _downloadCover = false;
   String? _error;
 
   @override
@@ -191,6 +193,8 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
     await ref.read(downloadListProvider.notifier).startDownload(
           videoInfo: info,
           format: format,
+          downloadSubtitles: _downloadSubtitles,
+          downloadCover: _downloadCover,
         );
     if (mounted) Navigator.of(context).pop(true);
   }
@@ -232,6 +236,27 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
               style: TextStyle(fontSize: 11, color: error),
             ),
           ],
+          Row(
+            children: [
+              Checkbox(
+                value: _downloadSubtitles,
+                onChanged: _busy
+                    ? null
+                    : (value) =>
+                        setState(() => _downloadSubtitles = value ?? false),
+              ),
+              const Text('下载字幕', style: TextStyle(fontSize: 12)),
+              const SizedBox(width: AppSpacing.lg),
+              Checkbox(
+                value: _downloadCover,
+                onChanged: _busy
+                    ? null
+                    : (value) =>
+                        setState(() => _downloadCover = value ?? false),
+              ),
+              const Text('下载封面', style: TextStyle(fontSize: 12)),
+            ],
+          ),
           const Spacer(),
           Row(
             children: [
