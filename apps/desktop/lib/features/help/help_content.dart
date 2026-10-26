@@ -120,6 +120,7 @@ final List<HelpTopic> kHelpTopics = [
     paragraphs: [
       '下载时可以勾选「同时下载字幕」。支持 WebVTT、SRT、DFXP、'
           'SMPTE-TT 等常见格式，具体取决于站点提供什么。',
+      '偏好设置 → 字幕与音频可以限制字幕语言（如 zh,en）；留空时下载站点提供的全部字幕。',
     ],
   ),
   const HelpTopic(

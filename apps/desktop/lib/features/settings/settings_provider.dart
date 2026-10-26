@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/platform/auto_start.dart';
 import '../../core/server/browser_bridge.dart';
 import '../../core/storage/settings_storage.dart';
 
@@ -31,6 +32,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   Future<void> setAutoStart(bool v) async {
+    final applied = await AutoStart.setEnabled(v);
+    if (!applied) return;
     final next = state.copyWith(autoStart: v);
     await SettingsStorage.instance.save(next);
     state = next;
@@ -62,6 +65,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> setDefaultDownloadCover(bool value) async {
     final next = state.copyWith(defaultDownloadCover: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setSubtitleLangs(String value) async {
+    final next = state.copyWith(subtitleLangs: value.trim());
     await SettingsStorage.instance.save(next);
     state = next;
   }

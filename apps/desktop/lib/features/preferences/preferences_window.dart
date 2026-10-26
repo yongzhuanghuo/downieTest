@@ -477,6 +477,20 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
+              '字幕语言（逗号分隔，留空表示全部）',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              initialValue: settings.subtitleLangs,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                hintText: 'zh,en',
+              ),
+              onChanged: notifier.setSubtitleLangs,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
               '这些选项只是新任务的默认值，添加链接时仍可临时勾选/取消。',
               style: Theme.of(context).textTheme.bodySmall,
             ),

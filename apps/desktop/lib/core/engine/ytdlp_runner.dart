@@ -311,6 +311,8 @@ class YtDlpRunner {
         '[YtDlp] 下载使用 cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}');
 
     final proxy = SettingsStorage.instance.current.proxy;
+    final subtitleLangs =
+        SettingsStorage.instance.current.subtitleLangs.trim();
     final args = <String>[
       '--newline', // 每行一个进度，便于解析
       '--no-warnings',
@@ -321,7 +323,11 @@ class YtDlpRunner {
       '--ffmpeg-location', actualFfmpegPath,
       if (audioOnly) ...['-x', '--audio-format', 'mp3'],
       if (!audioOnly) ...['--merge-output-format', 'mp4'],
-      if (downloadSubtitles) ...['--write-subs', '--write-auto-subs'],
+      if (downloadSubtitles) ...[
+        '--write-subs',
+        '--write-auto-subs',
+        if (subtitleLangs.isNotEmpty) ...['--sub-langs', subtitleLangs],
+      ],
       // --write-thumbnail 只写一张默认封面（即最高清那张），--write-all-thumbnails 才会写多张
       if (downloadCover) ...['--write-thumbnail', '--convert-thumbnails', 'jpg'],
       ..._cookieArgs(cookiePaths),

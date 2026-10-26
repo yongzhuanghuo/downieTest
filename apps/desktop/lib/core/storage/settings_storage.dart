@@ -54,6 +54,9 @@ class AppSettings {
   /// 下载完成后发送系统通知
   final bool notifyOnComplete;
 
+  /// 字幕语言（逗号分隔，如 zh,en；空=全部）
+  final String subtitleLangs;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -70,6 +73,7 @@ class AppSettings {
     this.browserBridgeEnabled = false,
     this.browserBridgeToken = '',
     this.notifyOnComplete = true,
+    this.subtitleLangs = '',
   });
 
   static const defaults = AppSettings(
@@ -88,6 +92,7 @@ class AppSettings {
     browserBridgeEnabled: false,
     browserBridgeToken: '',
     notifyOnComplete: true,
+    subtitleLangs: '',
   );
 
   AppSettings copyWith({
@@ -106,6 +111,7 @@ class AppSettings {
     bool? browserBridgeEnabled,
     String? browserBridgeToken,
     bool? notifyOnComplete,
+    String? subtitleLangs,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -127,6 +133,7 @@ class AppSettings {
           browserBridgeEnabled ?? this.browserBridgeEnabled,
       browserBridgeToken: browserBridgeToken ?? this.browserBridgeToken,
       notifyOnComplete: notifyOnComplete ?? this.notifyOnComplete,
+      subtitleLangs: subtitleLangs ?? this.subtitleLangs,
     );
   }
 
@@ -201,6 +208,7 @@ class SettingsStorage {
         browserBridgeToken:
             (raw['browserBridgeToken'] as String?) ?? '',
         notifyOnComplete: (raw['notifyOnComplete'] as bool?) ?? true,
+        subtitleLangs: (raw['subtitleLangs'] as String?) ?? '',
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -250,6 +258,7 @@ class SettingsStorage {
       'browserBridgeEnabled': settings.browserBridgeEnabled,
       'browserBridgeToken': settings.browserBridgeToken,
       'notifyOnComplete': settings.notifyOnComplete,
+      'subtitleLangs': settings.subtitleLangs,
     });
     debugPrint('[Settings] saved: $settings');
   }

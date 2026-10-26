@@ -212,11 +212,14 @@ class _HistoryRow extends ConsumerWidget {
 
   Future<void> _openContainingFolder(String path) async {
     try {
-      final dir = File(path).parent.path;
-      await Process.run(
-        Platform.isMacOS ? 'open' : 'explorer',
-        [dir],
-      );
+      if (Platform.isMacOS) {
+        await Process.run('open', ['-R', path]);
+      } else if (Platform.isWindows) {
+        await Process.run(
+          'explorer',
+          ['/select,${path.replaceAll('/', '\\')}'],
+        );
+      }
     } catch (e) {
       debugPrint('[历史] 打开目录失败: $e');
     }
