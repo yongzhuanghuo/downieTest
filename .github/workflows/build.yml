@@ -60,6 +60,13 @@ jobs:
       - name: 打包 macOS
         run: flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000
 
+      - name: 编译失败时输出分析注解
+        if: failure()
+        run: |
+          flutter analyze 2>&1 | head -80 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+
       - name: 组装 DMG（.app + 安装说明）
         run: |
           APP_DIR="dist/Downie6-macos"
