@@ -63,3 +63,6 @@ flutter:
     - assets/bin/macos/
     - assets/bin/windows/
     - assets/douyin_sign/
+    - browser-extension/manifest.json
+    - browser-extension/popup.html
+    - browser-extension/popup.js

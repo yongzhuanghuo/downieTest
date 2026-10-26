@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -335,6 +337,40 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             if (settings.browserBridgeEnabled) ...[
               if (settings.browserBridgeToken.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
+                Text(
+                  '扩展 token（浏览器扩展弹窗里填写）',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        settings.browserBridgeToken,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () async {
+                        await Clipboard.setData(ClipboardData(
+                          text: settings.browserBridgeToken,
+                        ));
+                        if (context.mounted) {
+                          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                            const SnackBar(content: Text('token 已复制')),
+                          );
+                        }
+                      },
+                      tooltip: '复制 token',
+                      icon: const Icon(Icons.copy, size: 14),
+                      constraints: const BoxConstraints.tightFor(
+                        width: 30,
+                        height: 30,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
@@ -375,11 +411,17 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
                       onPressed: notifier.regenerateBrowserBridgeToken,
                       child: const Text('重置 token'),
                     ),
+                    TextButton.icon(
+                      onPressed: () => _exportExtension(context),
+                      icon: const Icon(Icons.extension_outlined, size: 14),
+                      label: const Text('导出浏览器扩展'),
+                    ),
                   ],
                 ),
                 Text(
-                  '新建一个浏览器书签，把上面的 javascript 代码粘贴到「网址」栏。'
-                  'token 只保存在本机，重置后旧书签会失效。',
+                  '可以复制书签脚本作为浏览器书签，或导出 Chrome/Edge 扩展后'
+                  '在扩展管理页「加载已解压的扩展程序」。'
+                  'token 只保存在本机，重置后旧书签/扩展需要重新填写。',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -552,6 +594,27 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             ],
           ),
         );
+    }
+  }
+
+  Future<void> _exportExtension(BuildContext context) async {
+    try {
+      final path = await BrowserBridge.exportExtension();
+      await Process.run(
+        Platform.isMacOS ? 'open' : 'explorer',
+        [path],
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text('扩展已导出到 $path')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text('导出扩展失败：$e')),
+        );
+      }
     }
   }
 

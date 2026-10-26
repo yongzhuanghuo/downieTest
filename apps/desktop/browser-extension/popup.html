@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>发送到 Downie6</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        width: 300px;
+        margin: 0;
+        padding: 14px;
+        font: 12px/1.5 -apple-system, "Segoe UI", "PingFang SC", sans-serif;
+      }
+      h1 { margin: 0 0 8px; font-size: 14px; }
+      p { margin: 0 0 10px; opacity: 0.72; word-break: break-all; }
+      label { display: block; margin-bottom: 4px; opacity: 0.72; }
+      input {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid rgba(127, 127, 127, 0.45);
+        border-radius: 5px;
+        font: inherit;
+        background: transparent;
+        color: inherit;
+      }
+      button {
+        width: 100%;
+        margin-top: 10px;
+        padding: 7px 8px;
+        border: 0;
+        border-radius: 5px;
+        background: #7c5cff;
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled { opacity: 0.55; cursor: default; }
+      #status { min-height: 18px; margin-top: 8px; font-size: 11px; }
+      #status.error { color: #d33; }
+      #status.ok { color: #18864b; }
+    </style>
+  </head>
+  <body>
+    <h1>发送到 Downie6</h1>
+    <p id="page-url">读取当前页面…</p>
+    <label for="token">本机 token（偏好设置 → 浏览器扩展）</label>
+    <input id="token" type="text" autocomplete="off" spellcheck="false" />
+    <button id="send" type="button">加入下载队列</button>
+    <div id="status"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>

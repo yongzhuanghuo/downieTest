@@ -2,6 +2,9 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
+import '../storage/settings_storage.dart';
 
 /// 本机浏览器接收端口。
 ///
@@ -137,6 +140,22 @@ class BrowserBridge {
     response.headers.contentType = ContentType.text;
     response.write(message);
     await response.close();
+  }
+
+  /// 把内置浏览器扩展写到应用数据目录，返回目录路径。
+  ///
+  /// 打包后资源在 assets 里，不能直接让浏览器加载；复制出来再
+  /// 在 Chrome/Edge 里「加载已解压的扩展程序」。
+  static Future<String> exportExtension() async {
+    final base = await SettingsStorage.getStorageDir();
+    final dir = Directory('${base.path}/browser-extension');
+    await dir.create(recursive: true);
+    const files = ['manifest.json', 'popup.html', 'popup.js'];
+    for (final name in files) {
+      final content = await rootBundle.loadString('browser-extension/$name');
+      await File('${dir.path}/$name').writeAsString(content);
+    }
+    return dir.path;
   }
 
   /// 给设置页展示的书签脚本：把当前页 URL 发给应用。
