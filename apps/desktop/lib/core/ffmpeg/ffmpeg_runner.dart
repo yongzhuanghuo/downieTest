@@ -122,6 +122,33 @@ class FFmpegRunner {
     return outputPath;
   }
 
+  /// 转码为兼容性更好的 MP4（H.264 + AAC）。
+  static Future<String> convertToMp4({
+    required String inputPath,
+    required String outputPath,
+  }) async {
+    final ffmpegPath = await BinaryLocator.getFFmpegPath();
+    final args = <String>[
+      '-y',
+      '-i', inputPath,
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-crf', '20',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-movflags', '+faststart',
+      outputPath,
+    ];
+    final result = await Process.run(ffmpegPath, args);
+    if (result.exitCode != 0) {
+      throw FFmpegException(
+        'MP4 转换失败: ${result.stderr}',
+        exitCode: result.exitCode,
+      );
+    }
+    return outputPath;
+  }
+
   /// 嵌入字幕到视频
   ///
   /// [videoPath] 视频文件

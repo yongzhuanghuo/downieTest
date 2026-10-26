@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/download_task.dart';
+import '../../../data/models/format_option.dart';
 import '../../../shared/branding/app_brand.dart';
 import '../../../shared/theme/design_tokens.dart';
 import '../download_provider.dart';
@@ -132,7 +133,9 @@ class DownloadRow extends ConsumerWidget {
                         ),
                       ),
                     const SizedBox(width: 4),
-                    _formatPill(task),
+                    _postprocessingMenu(notifier, task),
+                    const SizedBox(width: 4),
+                    _formatMenu(notifier, task),
                     const SizedBox(width: 4),
                     _taskMenu(context, notifier, task),
                   ],
@@ -191,23 +194,76 @@ class DownloadRow extends ConsumerWidget {
     );
   }
 
-  Widget _formatPill(DownloadTask task) {
+  Widget _postprocessingMenu(
+    DownloadListNotifier notifier,
+    DownloadTask task,
+  ) {
+    final enabled = task.status != DownloadStatus.completed;
+    return PopupMenuButton<PostprocessingMode>(
+      enabled: enabled,
+      tooltip: '后处理',
+      onSelected: (mode) => notifier.setPostprocessing(task.id, mode),
+      itemBuilder: (context) => [
+        for (final mode in PostprocessingMode.values)
+          PopupMenuItem(value: mode, child: Text(mode.label)),
+      ],
+      child: _pill(task.postprocessing.label, chevron: enabled),
+    );
+  }
+
+  Widget _formatMenu(
+    DownloadListNotifier notifier,
+    DownloadTask task,
+  ) {
+    final formats = task.availableFormats;
+    final canChange = task.status == DownloadStatus.pending && formats.isNotEmpty;
     final label = task.formatLabel.isEmpty
         ? (task.audioOnly ? 'AUDIO' : task.ext.toUpperCase())
         : task.formatLabel;
+    if (!canChange) return _pill(label);
+
+    return PopupMenuButton<FormatOption>(
+      tooltip: '画质',
+      onSelected: (format) => notifier.setFormat(task.id, format),
+      itemBuilder: (context) => [
+        for (final format in formats)
+          PopupMenuItem(
+            value: format,
+            child: Text(
+              '${format.label}'
+              '${format.fileSize == null ? '' : ' · ${format.fileSizeText}'}',
+            ),
+          ),
+      ],
+      child: _pill(label, chevron: true),
+    );
+  }
+
+  Widget _pill(String label, {bool chevron = false}) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 120),
+      constraints: const BoxConstraints(maxWidth: 150),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.white24),
       ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 10, color: Colors.white70),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10, color: Colors.white70),
+            ),
+          ),
+          if (chevron) ...[
+            const SizedBox(width: 2),
+            const Icon(Icons.expand_more, size: 11, color: Colors.white54),
+          ],
+        ],
       ),
     );
   }

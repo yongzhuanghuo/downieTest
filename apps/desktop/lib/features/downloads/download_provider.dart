@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
+import '../../core/ffmpeg/ffmpeg_runner.dart';
 import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/site_plugin.dart';
 import '../../core/storage/downloads_dao.dart';
@@ -123,6 +124,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       extractor: videoInfo.extractor,
       formatId: format.formatId,
       formatLabel: format.label,
+      availableFormats: videoInfo.formats,
       height: format.height,
       ext: format.ext,
       fileSize: format.fileSize ?? 0,
@@ -138,6 +140,30 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
 
     // 触发调度器
     unawaited(_scheduler());
+  }
+
+  /// 修改下载完成后的处理方式（下载中也可改，完成时读取最新值）
+  Future<void> setPostprocessing(String id, PostprocessingMode mode) async {
+    final task = _find(id);
+    if (task == null || task.status == DownloadStatus.completed) return;
+    await _apply(id, (t) => t.copyWith(postprocessing: mode));
+  }
+
+  /// 在任务开始前切换画质/格式
+  Future<void> setFormat(String id, FormatOption format) async {
+    final task = _find(id);
+    if (task == null || task.status != DownloadStatus.pending) return;
+    await _apply(
+      id,
+      (t) => t.copyWith(
+        formatId: format.formatId,
+        formatLabel: format.label,
+        height: format.height,
+        ext: format.ext,
+        audioOnly: format.audioOnly,
+        fileSize: format.fileSize ?? t.fileSize,
+      ),
+    );
   }
 
   // ==================== 执行单个任务（含重试/续传/取消） ====================
@@ -200,10 +226,22 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             await _finishStatus(task.id, DownloadStatus.cancelled);
             return;
           }
-          // 成功
+          // 成功：按最新选择执行后处理
+          final current = _find(task.id) ?? task;
+          final resultPath =
+              await _applyPostprocessing(task.id, current, result);
+          if (_cancelled.contains(task.id)) {
+            await _finishStatus(task.id, DownloadStatus.cancelled);
+            return;
+          }
+          var finalSize = 0;
+          try {
+            finalSize = await File(resultPath).length();
+          } catch (_) {}
           await _apply(task.id, (t) => t.copyWith(
                 status: DownloadStatus.completed,
-                outputPath: result,
+                outputPath: resultPath,
+                fileSize: finalSize > 0 ? finalSize : t.fileSize,
                 completedAt: DateTime.now(),
                 speed: 0,
                 progress: const DownloadProgress(
@@ -224,7 +262,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           }
           // 下载完成自动打开文件夹（按设置）
           if (SettingsStorage.instance.current.autoOpenFolder) {
-            unawaited(_revealFile(result));
+            unawaited(_revealFile(resultPath));
           }
           return;
         } on SitePluginException catch (e) {
@@ -424,6 +462,75 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           speed: 0,
           completedAt: s == DownloadStatus.cancelled ? DateTime.now() : null,
         ));
+  }
+
+  Future<String> _applyPostprocessing(
+    String id,
+    DownloadTask task,
+    String inputPath,
+  ) async {
+    if (task.postprocessing == PostprocessingMode.none) return inputPath;
+    final ext = _extensionOf(inputPath);
+
+    if (task.postprocessing == PostprocessingMode.audio) {
+      if (ext == 'mp3' || ext == 'm4a') return inputPath;
+      final output = _replaceExtension(inputPath, 'mp3');
+      await _apply(id, (t) => t.copyWith(
+            status: DownloadStatus.merging,
+            progress: const DownloadProgress(
+              downloadedBytes: 0,
+              speed: 0,
+              stage: DownloadStage.postProcessing,
+              detail: '转换为 MP3',
+            ),
+          ));
+      final converted = await FFmpegRunner.convertToMp3(
+        inputPath: inputPath,
+        outputPath: output,
+      );
+      await _apply(id, (t) => t.copyWith(
+            ext: 'mp3',
+            formatLabel: 'MP3',
+            audioOnly: true,
+          ));
+      return converted;
+    }
+
+    if (ext == 'mp4') return inputPath;
+    final output = _replaceExtension(inputPath, 'mp4');
+    await _apply(id, (t) => t.copyWith(
+          status: DownloadStatus.merging,
+          progress: const DownloadProgress(
+            downloadedBytes: 0,
+            speed: 0,
+            stage: DownloadStage.postProcessing,
+            detail: '转换为 MP4',
+          ),
+        ));
+    final converted = await FFmpegRunner.convertToMp4(
+      inputPath: inputPath,
+      outputPath: output,
+    );
+    await _apply(id, (t) => t.copyWith(
+          ext: 'mp4',
+          formatLabel: 'MP4',
+          audioOnly: false,
+        ));
+    return converted;
+  }
+
+  String _extensionOf(String path) {
+    final slash = path.lastIndexOf(RegExp(r'[\\/]'));
+    final dot = path.lastIndexOf('.');
+    if (dot <= slash) return '';
+    return path.substring(dot + 1).toLowerCase();
+  }
+
+  String _replaceExtension(String path, String ext) {
+    final slash = path.lastIndexOf(RegExp(r'[\\/]'));
+    final dot = path.lastIndexOf('.');
+    if (dot <= slash) return '$path.$ext';
+    return '${path.substring(0, dot)}.$ext';
   }
 }
 

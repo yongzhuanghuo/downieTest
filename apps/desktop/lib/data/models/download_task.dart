@@ -1,6 +1,23 @@
 import 'package:flutter/foundation.dart';
 
 import 'download_progress.dart';
+import 'format_option.dart';
+
+/// 下载完成后的处理方式
+enum PostprocessingMode { none, mp4, audio }
+
+extension PostprocessingModeX on PostprocessingMode {
+  String get label {
+    switch (this) {
+      case PostprocessingMode.none:
+        return '无后处理';
+      case PostprocessingMode.mp4:
+        return 'MP4';
+      case PostprocessingMode.audio:
+        return '仅音频';
+    }
+  }
+}
 
 /// 下载任务状态
 enum DownloadStatus {
@@ -35,6 +52,12 @@ class DownloadTask {
 
   /// 格式显示标签（如 "1080P MP4"）
   final String formatLabel;
+
+  /// 解析时拿到的可切换格式（任务重启/DB 恢复后可能为空）
+  final List<FormatOption> availableFormats;
+
+  /// 下载完成后的处理方式
+  final PostprocessingMode postprocessing;
 
   /// 高度（纯音频=0）
   final int height;
@@ -92,6 +115,8 @@ class DownloadTask {
     required this.extractor,
     required this.formatId,
     required this.formatLabel,
+    this.availableFormats = const [],
+    this.postprocessing = PostprocessingMode.none,
     required this.height,
     required this.ext,
     required this.audioOnly,
@@ -113,6 +138,13 @@ class DownloadTask {
   DownloadTask copyWith({
     DownloadStatus? status,
     DownloadProgress? progress,
+    String? formatId,
+    String? formatLabel,
+    int? height,
+    String? ext,
+    bool? audioOnly,
+    List<FormatOption>? availableFormats,
+    PostprocessingMode? postprocessing,
     int? fileSize,
     int? downloadedBytes,
     int? speed,
@@ -128,11 +160,13 @@ class DownloadTask {
       title: title,
       thumbnail: thumbnail,
       extractor: extractor,
-      formatId: formatId,
-      formatLabel: formatLabel,
-      height: height,
-      ext: ext,
-      audioOnly: audioOnly,
+      formatId: formatId ?? this.formatId,
+      formatLabel: formatLabel ?? this.formatLabel,
+      availableFormats: availableFormats ?? this.availableFormats,
+      postprocessing: postprocessing ?? this.postprocessing,
+      height: height ?? this.height,
+      ext: ext ?? this.ext,
+      audioOnly: audioOnly ?? this.audioOnly,
       downloadSubtitles: downloadSubtitles,
       downloadCover: downloadCover,
       status: status ?? this.status,
@@ -206,6 +240,10 @@ class DownloadTask {
       extractor: (map['source'] as String?) ?? 'Unknown',
       formatId: map['format_id'] as String,
       formatLabel: (map['format_label'] as String?) ?? '',
+      postprocessing: PostprocessingMode.values.firstWhere(
+        (mode) => mode.name == map['postprocessing'],
+        orElse: () => PostprocessingMode.none,
+      ),
       height: (map['height'] as num?)?.toInt() ?? 0,
       ext: (map['ext'] as String?) ?? 'mp4',
       audioOnly: (map['height'] as num?)?.toInt() == 0 &&
@@ -235,6 +273,7 @@ class DownloadTask {
       'thumb_url': thumbnail,
       'format_id': formatId,
       'format_label': formatLabel,
+      'postprocessing': postprocessing.name,
       'height': height,
       'ext': ext,
       'file_size': fileSize,

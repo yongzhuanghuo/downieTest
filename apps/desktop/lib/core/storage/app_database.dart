@@ -11,7 +11,7 @@ class AppDatabase {
   AppDatabase._();
 
   static const _dbName = 'downlo_pro.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 2;
 
   static Database? _instance;
 
@@ -34,6 +34,7 @@ class AppDatabase {
       dbPath,
       version: _dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -52,6 +53,7 @@ class AppDatabase {
         thumb_url TEXT,
         format_id TEXT NOT NULL,
         format_label TEXT,
+        postprocessing TEXT DEFAULT 'none',
         height INTEGER DEFAULT 0,
         ext TEXT,
         file_size INTEGER DEFAULT 0,
@@ -75,6 +77,14 @@ class AppDatabase {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_downloads_status ON downloads(status)',
     );
+  }
+
+  static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        "ALTER TABLE downloads ADD COLUMN postprocessing TEXT DEFAULT 'none'",
+      );
+    }
   }
 
   /// 仅用于测试：关闭数据库
