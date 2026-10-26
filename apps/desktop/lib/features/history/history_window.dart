@@ -12,8 +12,8 @@ import 'history_page.dart';
 class HistoryWindow extends ConsumerWidget {
   const HistoryWindow({super.key});
 
-  static Future<void?> show(BuildContext context) {
-    return showWindowPanel<void>(
+  static Future<void> show(BuildContext context) async {
+    await showWindowPanel<void>(
       context: context,
       title: '历史记录',
       width: 600,
