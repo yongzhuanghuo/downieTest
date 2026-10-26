@@ -82,7 +82,7 @@ rea analyze "/Applications/Downie 4.app"
 | 登录/网络 | Cookie/登录助手、代理、本地 HTTP 服务、IP 转发 | 部分：WebView 登录 + cookie；扩展/本地服务/代理未做 |
 | UX | 浏览器扩展、剪贴板/拖拽、通知、外观、导入 | 部分：Downie 风格主界面 + 中文帮助/支持；扩展/拖拽/通知未做 |
 | 高级 | 自定义集成（Registry/提交/控制台/JS 执行）、快速预览 | 未开始 |
-| 授权 | 15 天试用、邮箱绑定、4 设备、反激活、找回、撤销 | 设计完成，未实现；线上仍是旧授权 |
+| 授权 | 14 天试用、邮箱绑定、4 设备、反激活、找回、撤销 | 设计完成，未实现；线上仍是旧授权 |
 | 发布 | macOS/Windows 安装包、更新提示、OTA/OSS | 已完成 DMG + EXE + OSS + 版本接口；签名/公证未做 |
 
 ### 2.2 明确不做
@@ -238,7 +238,7 @@ Downie 二进制中的证据：
 
 ### 5.1 目标模型
 
-- 15 天全功能试用，服务端记录，卸载重装不能重置。
+- 14 天全功能试用，服务端记录，卸载重装不能重置。
 - 邮箱验证 + 授权码绑定；授权码只存哈希。
 - 默认 4 台活跃设备，支持反激活/设备列表/管理员重置。
 - 服务端用 Ed25519 签发令牌；客户端内置公钥离线验签。
@@ -266,19 +266,16 @@ Downie 二进制中的证据：
 
 ## 6. UI / UX
 
-- 目标：对齐 Downie 的信息架构和操作路径，视觉资产由项目方提供/自研，不复制 Downie 的 nib/图片/文案。
-- 已完成：
-  - Downie 风格主框架：侧边栏 + 顶部工具栏 + 内容区。
-  - 中文帮助窗口（17 个主题）+ 搜索。
-  - 支持/报告窗口，收件邮箱 `huoyongzhuang@qq.com`。
-  - 设置页「帮助与支持」；品牌名/图标集中配置。
-  - DMG 安装窗口：左侧安装说明，右侧应用，双击说明查看步骤。
-- 待做：
-  - 主下载列表 + 详情面板的最终布局。
-  - 偏好设置分类页、授权/设备管理页。
-  - Windows 菜单栏、快捷键、通知。
-  - 浏览器扩展/拖拽导入/剪贴板监听。
-- UI 计划详见 `docs/downie5-ui-plan.md`。
+- 目标：布局/信息架构/操作路径对齐 Downie 4；视觉资产由项目方提供/自研，不复制 Downie 的 nib/图片/文案。
+- Downie 4 实际主窗口（来自 App 自带 Help 截图）：
+  - 无侧边栏、无顶部工具栏；深色原生窗口约 600×420；空状态中央大 logo；底部状态栏显示计数和操作。
+  - 下载项是全宽缩略图行，标题/URL/画质/后处理/操作都叠在行内；没有独立详情面板。
+  - 偏好设置是独立「All Preferences」窗口，12 个图标分 3 行：General/Appearance/Destination/History/Browser Extensions；Postprocessing/Subtitles & Audio/Proxy Server；Supported Sites/Search Engines/Parental Controls & Privacy/Advanced。
+  - 历史是独立简单列表窗口；菜单有 File > Open URLs、Window > Show History、Downie > Settings、Browser > Login Browser。
+- 当前状态（2.0.7）：侧边栏 + 顶部工具栏 + Material 卡片 + 首页解析页；与 Downie 差距大，需要按第 12 节重做。
+- 已完成：中文帮助/支持（17 主题，邮箱 `huoyongzhuang@qq.com`）、品牌/DMG/EXE 发布链。
+- 待做：无侧边栏主窗口、全宽下载行、底部状态栏、12 图标偏好、历史/帮助浮层、菜单/快捷键、Windows 适配。
+- 旧 UI 计划 `docs/downie5-ui-plan.md` 仅保留为历史参考，以第 12 节为准。
 
 ---
 
@@ -290,7 +287,7 @@ Downie 二进制中的证据：
 | Phase 1 | 下载引擎抽象 + 5–10 站 + macOS 跑通 | 3–6 周 | 部分完成：插件层 + 抖音/B站 + FFmpeg HLS/DASH；原生分片引擎未完成 |
 | Phase 2 | Windows 平台层、WebView2、本地服务、扩展 | 3–5 周 | 部分完成：Windows 构建/安装包/WebView2 依赖已有；扩展/本地服务未做 |
 | Phase 3 | 授权 v2（试用/邮箱/设备/撤销/管理端） | 3–6 周 | 设计完成，未实现 |
-| Phase 4 | 自定义集成、字幕/后处理、Top 30、UI 打磨 | 3–6 周 | UI 框架/安装体验已完成；其余未做 |
+| Phase 4 | 自定义集成、字幕/后处理、Top 30、UI 打磨 | 3–6 周 | 安装体验已完成；UI 需按第 12 节重做 |
 | 持续 | 站点维护、token 更新、双端兼容、签名发布 | 长期 | 进行中 |
 
 **现实预期**：核心引擎 + 30 站 + 双端 + 授权约 **3–5 人月**；接近 Downie 全站覆盖是人年级 + 持续维护。
@@ -309,7 +306,7 @@ Downie 二进制中的证据：
 
 ### 8.2 授权
 
-- 15 天试用、邮箱验证、授权码激活、4 设备、反激活、找回、撤销全链路可用。
+- 14 天试用、邮箱验证、授权码激活、4 设备、反激活、找回、撤销全链路可用。
 - 客户端不存明文 PRO；离线宽限和服务端时间校验生效。
 - 授权接口 HTTPS；错误契约与客户端一致。
 
@@ -369,6 +366,163 @@ Downie 二进制中的证据：
 5. **字幕/后处理/自定义集成**：补齐 Downie 的高级功能面。
 6. **签名与公证**：macOS notarization、Windows Authenticode，解决 Gatekeeper/SmartScreen。
 7. **站点运营**：失败率监控、插件 SDK、站点更新流水线。
+
+---
+
+## 12. Downie 4 高保真 UI 重做 + 14 天试用实施计划
+
+- **状态**：2026-10-26 设计稿，待实施
+- **依据**：Downie 4 v4.13.3 自带 Help Book 截图 + 主窗口/偏好设置 nib/字符串 + 当前 Flutter 代码审计
+- **已确认决策**：14 天全功能试用、取消每日免费次数、前后端一起改；偏好设置做完整 12 图标网格 + 占位；设置/历史/帮助用单 OS 窗口 + 窗样式浮层。
+
+### 12.1 参考截图（只读）
+
+目录：`/Applications/Downie 4.app/Contents/Resources/DownieHelp.help/Contents/Resources/English.lproj/`
+
+- `main_window.png`：空主窗口
+- `processed.png`：一条下载记录
+- `error.png`：错误状态
+- `preferences.png`：All Preferences 图标网格
+- `menu_bar_item.png`：菜单栏 popover
+- `unsupported.png`：不支持链接 sheet
+
+Downie 主窗口不是主 nib 构建的，Help Book 截图是当前最可靠的视觉参考；要像素级接近，实施第一步需运行 Downie 截 1x/2x 图并量取颜色/尺寸。
+
+### 12.2 差距表
+
+| 区域 | 当前 | Downie 4 | 严重度 | 改法 |
+| --- | --- | --- | --- | --- |
+| 主框架 | 244/224px 侧边栏 + 56px 顶栏 | 无侧边栏/无顶栏 | 高 | 删除侧边栏，改标题栏 + 内容 + 底部状态栏 |
+| 窗口 | 1100×750，普通标题栏 | 约 600×420，深色原生 | 高 | 默认 640×440、最小 560×380、hidden title bar |
+| 首页 | 解析表单 + PRO 横幅 | 队列主窗口 | 高 | 首页改队列；添加 URL 改 +/剪贴板/Open URLs 浮层 |
+| 下载行 | 卡片 + 状态图标 + 进度条 | 全宽缩略图 + 覆盖控件 | 高 | 新 `DownloadRow`，缩略图 banner + overlay |
+| 详情 | 无 | 行内控件即详情 | 中 | 不新增详情面板，画质/后处理/操作放行内 |
+| 底部栏 | 无 | 状态栏 + 操作 + 计数 | 高 | 新 `StatusBar` |
+| 设置 | 长滚动 Card 列表 | 12 图标网格 + 面板 | 高 | 新 Preferences 浮层 |
+| 历史 | 页面列表 | 独立简单窗口 | 中 | 窗样式浮层，复用 history provider |
+| 菜单/快捷键 | 基本没有 | File/Window/Browser/Help + ⌘ | 高 | PlatformMenuBar + Shortcuts/Actions |
+| 帮助/支持 | 大 Modal | Help Book / 支持窗口 | 中 | 窗样式浮层，保留中文主题 |
+| 授权 | PRO 横幅 + 每日 2 次 | 14 天试用 + 授权窗口 | 高 | 去每日额度；前后端 14 天试用 |
+| 视觉 | Material 3 紫色/卡片 | 深色原生/系统蓝/紧凑 | 高 | 设计 token + 自定义组件，禁用 ripple/Card |
+
+### 12.3 主窗口
+
+- 默认 **640×440**，最小 **560×380**；标题栏 32–34px；底部状态栏 32px。
+- macOS：`TitleBarStyle.hidden`，保留红黄绿交通灯；32px 拖拽区 + 居中标题；内容延伸到标题栏下方。
+- Windows：自绘 32px caption（左图标/标题，右最小化/最大化/关闭）；双击最大化；Segoe UI / Microsoft YaHei UI。
+- 空状态：中央 `assets/logo.png` 灰度/低透明度约 120px，不加说明文字；状态栏中间显示「暂无下载」。
+- 主体：全宽下载行纵向列表；无侧边栏、无顶栏、无会员横幅。
+- 底部状态栏：
+  - 左：`+` 添加、打开下载目录、清空已完成；
+  - 中：`N 个下载` / `暂无下载`；
+  - 右：搜索/网页嗅探、用户引导提取、历史、帮助、支持；
+  - 更新红点/版本收进「关于/帮助」或最右侧小入口。
+
+### 12.4 下载行与添加链接
+
+- 行高 140–160px（最小 120），全宽；缩略图 `BoxFit.cover`，无图用深色渐变 + 品牌水印。
+- 顶部/底部黑色渐变遮罩；标题 15/600，站点/URL 11px；右上取消 ×；左下播放/暂停、后处理下拉、画质下拉、Actions、齿轮。
+- 底部 2px 进度条 + 状态文字（百分比/速度/ETA/阶段）；完成显示打开文件/目录；失败显示红色错误 + 重试；后处理显示阶段进度。
+- 行内下拉用深色 popup 样式，不用 Material `DropdownButtonFormField` 默认外观。
+- 不新增详情面板；`DownloadTask`/`DownloadProgress` 已够用，补充 `availableFormats`/`selectedFormat`/`postprocessing`/`priority`。
+- 添加链接：`+` 有剪贴板 URL 直接入队，否则打开 `AddUrlsPanel`（约 520×360 深色浮层，多行输入/粘贴/解析）；`File > Open URLs…` 同一面板；支持拖拽和 ⌘V/Ctrl+V。
+- 解析后直接生成队列行，默认最佳画质，行内可改画质/后处理；不再有独立解析结果卡片。
+
+### 12.5 偏好设置与次级页面
+
+- Preferences 窗样式浮层约 660×400；工具栏 44px，网格图标 +「全部设置」；进入面板后返回箭头 + 标题。
+- 12 图标分 3 行、带分隔线：
+  - 通用 / 外观 / 下载位置 / 历史记录 / 浏览器扩展
+  - 后处理 / 字幕与音频 / 代理服务器
+  - 支持站点 / 搜索引擎 / 家长控制与隐私 / 高级
+- 已实现面板复用 `settings_provider`：并发、自动开始、打开目录、默认画质、主题、下载目录、保留数量、站点列表、yt-dlp 更新等。
+- 未实现面板显示「开发中」占位，保持 12 图标完整。
+- 授权不放进 12 图标；应用菜单「授权…」打开独立授权/试用窗口。
+- 历史约 600×420，简单行列表 + reveal/删除/清空/右键原始链接；帮助约 760×560，保留 17 个中文主题/搜索/支持；支持约 700×500，保留邮箱 `huoyongzhuang@qq.com`。
+- 登录/网页嗅探/用户引导提取沿用现有 WebView，改成深色窗样式并适配 560×380 最小窗口。
+
+### 12.6 菜单、Windows 与设计 token
+
+- macOS `PlatformMenuBar` 或改 `MainMenu.xib` 接 action：
+  - 应用菜单：关于、设置…（⌘,）、授权…、检查更新、退出；
+  - 文件：打开链接…（⌘O）、清空已完成、关闭窗口；
+  - 编辑：粘贴并添加（⌘V）、全选；
+  - 浏览器：登录浏览器…、用户引导提取…；
+  - 窗口：历史记录（⌘⇧H）、主窗口；
+  - 帮助：帮助、报告问题。
+- Windows：自绘菜单栏或 caption 下 `MenuBar`，快捷键用 Ctrl 对应；列表 Delete/Space/↑↓/⌘F 搜索队列。
+- Windows：同一深色布局，自绘 caption 按钮，Segoe UI / Microsoft YaHei UI；第一版用实色，Mica/Acrylic 可选；验证 100–150% DPI。
+- 新 `lib/shared/theme/design_tokens.dart`：
+  - 深色：`window #1E1E1E`、`titleBar #2A2A2A`、`statusBar #181818`、`panel #242424`、`divider #3A3A3A`、`textPrimary #F5F5F5`、`textSecondary #A0A0A0`、`accent #0A84FF`、`error #FF453A`、`success #30D158`；
+  - 间距 2/4/6/8/12/16/20/24/32；圆角 4/6/8/10/12；图标 14/16/18/20/24；
+  - 字体 macOS `.SF Pro Text`/`PingFang SC`，Windows `Segoe UI`/`Microsoft YaHei UI`；
+  - 标题 13/600、行标题 15/600、meta 11/400、状态栏 11/500、面板标题 20/600、正文 13/400；
+  - 去 Card 阴影/边框、`NoSplash`、紧凑 density、自定义 hover/pressed；图标用 SF Symbols 风格（`cupertino_icons`，必要时加依赖），不复制 Downie 图标资源。
+
+### 12.7 授权：14 天试用 + 去每日额度
+
+**Downie 证据**：`Licensing.framework` 有 `CMTrialHeaderView`、`CMTrialProgressBar`、`%i days`、`Continue Trial`、`Enter License Code…`、`Lost License Code?`、`Deactivate License Code…`；帮助写明默认激活次数 3。只借鉴用户可见流程，不复用 Paddle 协议/密钥/授权码格式。
+
+#### 产品规则
+
+- 14 天全功能试用，从首次启动/设备注册开始，服务端记录；卸载重装不能重置。
+- 删除客户端/服务端每日免费次数；试用期内不限下载次数。
+- 试用到期禁止新下载，保留历史/设置/帮助；弹出授权窗口。
+- 付费：邮箱 + 授权码，默认 4 台活跃设备；反激活/设备列表/找回/撤销；离线宽限付费 14 天、试用 3 天；服务端时间；Ed25519 签名 token；Keychain/DPAPI。
+
+#### 客户端
+
+- 新 `LicenseWindow`（约 480×360 窗样式浮层）：试用进度条 + 剩余天数、继续试用、邮箱 + 授权码、找回授权码、反激活、设备列表、到期文案。
+- `license_provider.dart` 删除 `dailyQuota`/`todayUsed`/`todayRemaining`/`isQuotaReached`/`recordSuccess`/`acquireSlot`/`maxHeight` 配额 provider；新增 `TrialStatus`/`LicenseStatus`/`daysRemaining`/`deviceId`/`canDownload`；启动请求 trial/status，离线走缓存。
+- `license_client.dart` 增加 trial/status、trial/start、activate(email)、deactivate、recover；保留旧接口。
+- 引入 `flutter_secure_storage` 保存签名 token；旧 Hive 数据一次性迁移。
+- 移除首页 PRO/免费次数横幅；授权入口放应用菜单/状态栏小入口。
+
+#### 服务端
+
+- 现有表 `licenses`/`device_bindings`/`unbind_log` 与 `/api/license/*` 契约不能破坏（老客户端在外）。
+- 新增 `trial_devices`（device_fp、first_seen、trial_start、trial_end、email、status、last_seen）；`licenses.email` 或 `license_emails`；Ed25519 私钥放环境变量。
+- 新接口：`GET /api/license/trial/status`、`POST /api/license/trial/start`、`POST /api/license/activate`（扩展 email）、`POST /api/license/deactivate`、`POST /api/license/recover`、`POST /api/license/heartbeat`。
+- 服务端强制到期/撤销/设备上限；统一顶层 `ok/error/message`；移除每日次数；管理端试用/设备/撤销/延长试用。
+- 迁移：现有付费卡密继续有效；schema 增量迁移，不重建表。
+
+### 12.8 实施阶段
+
+| 阶段 | 内容 | 估算 |
+| --- | --- | --- |
+| Phase 0 | 截 Downie 参考图并量取；`design_tokens`/主题；`WindowShell`/标题栏/状态栏；空主窗口；删侧边栏 | 2–3 天 |
+| Phase 1 | `DownloadRow` 全宽行；主队列；`AddUrlsPanel`/剪贴板/拖拽/⌘V；行内画质/后处理；底部栏接线 | 4–6 天 |
+| Phase 2 | Preferences 12 图标网格 + 面板 + 占位；History/Help/Support/登录/嗅探窗样式 | 3–5 天 |
+| Phase 3 | 14 天试用后端 + 客户端 + LicenseWindow + 安全存储 + 删每日额度（可与 Phase 1 并行） | 1–2 周 |
+| Phase 4 | 菜单/快捷键/右键；Windows caption/字体/DPI；golden/截图/CI/回归 | 3–5 天 |
+| 可选 | 真正多窗口（`desktop_multi_window`） | 后续 |
+
+### 12.9 文件级改动
+
+| 区域 | 文件 |
+| --- | --- |
+| 窗口/主题 | `lib/main.dart`、`lib/app.dart`、`lib/shared/theme/app_theme.dart`、新建 `lib/shared/theme/design_tokens.dart` |
+| 主框架 | `lib/shared/widgets/app_shell.dart` → 新建 `window_shell.dart`/`window_title_bar.dart`/`status_bar.dart` |
+| 主队列 | `lib/features/downloads/downloads_page.dart`、新建 `widgets/download_row.dart`/`widgets/download_overlay_controls.dart` |
+| 添加链接 | 新建 `lib/features/downloads/add_urls_panel.dart`；`home_provider.dart` 抽 `AddUrlsController`；`home_page.dart` 退役 |
+| 模型/状态 | `lib/data/models/download_task.dart`、`lib/features/downloads/download_provider.dart` |
+| 偏好 | 新建 `lib/features/preferences/preferences_window.dart`、`panes/*.dart`；复用 `settings_page.dart`/`settings_provider.dart` |
+| 历史 | `lib/features/history/history_page.dart` → `history_window.dart` |
+| 帮助/支持 | `lib/features/help/help_window.dart`、`support_dialog.dart` |
+| 授权 | `lib/features/license/license_card.dart` → `license_window.dart`；`license_provider.dart`；`lib/core/license/license_client.dart` |
+| 服务端 | `services/api/app/modules/license/{models,router,service}.py`、`sql/schema.sql`、迁移脚本 |
+| 管理端 | `apps/admin-web/src/views/*`（试用/设备/撤销，可 P2） |
+| 菜单 | `lib/app.dart`、新 `menus.dart`、`macos/Runner/Base.lproj/MainMenu.xib` |
+| 测试 | `test/` 新增 widget/golden；现有插件/单元测试保持 |
+
+### 12.10 验证与风险
+
+- **视觉**：同一 640×440 截图与 `main_window.png`/`processed.png`/`preferences.png` 并排；检查无侧边栏/顶栏、底部栏、行布局、偏好网格。
+- **功能回归**：URL 解析、抖音/B站插件、网页嗅探、队列/重试/取消、历史、设置、帮助/支持、更新提示。
+- **授权**：首次启动 14 天；到期禁止新下载；激活/反激活/找回；离线宽限；改时钟不延长；老客户端接口不坏。
+- **双端**：macOS 交通灯/拖拽区/菜单；Windows caption/最小化/最大化/关闭/DPI 100–150%。
+- **自动化**：`flutter analyze`/`flutter test`（本机当前无 Flutter，用 CI）、现有插件测试、新增 widget/golden、双端 CI 构建。
+- **风险**：布局接近 ≠ 复制资产；单窗口浮层不是真 NSWindow；14 天试用改造跨度大，先设计迁移；删每日额度要客户端/服务端同步；640×440 对长标题/中文需实测；Windows 自绘 caption 与 DPI 有细节差异。
 
 ---
 
