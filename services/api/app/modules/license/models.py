@@ -39,6 +39,24 @@ class DeviceBinding(Base):
     status: Mapped[str] = mapped_column(Enum("active", "unbound"), nullable=False, default="active")
 
 
+class TrialDevice(Base):
+    __tablename__ = "trial_devices"
+
+    device_fp: Mapped[str] = mapped_column(String(64), primary_key=True)
+    device_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    platform: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    first_seen: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default="CURRENT_TIMESTAMP")
+    trial_start: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default="CURRENT_TIMESTAMP")
+    trial_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(
+        Enum("active", "expired", "converted", "revoked"),
+        nullable=False,
+        default="active",
+    )
+    last_seen: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default="CURRENT_TIMESTAMP")
+
+
 class UnbindLog(Base):
     __tablename__ = "unbind_log"
     __table_args__ = (Index("idx_code_time", "code", "unbound_at"),)

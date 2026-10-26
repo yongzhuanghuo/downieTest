@@ -16,6 +16,13 @@ from . import service
 router = APIRouter()
 
 
+class TrialBody(BaseModel):
+    device_fp: str
+    device_name: Optional[str] = None
+    platform: Optional[str] = None
+    email: Optional[str] = None
+
+
 class ActivateBody(BaseModel):
     code: str
     device_fp: str
@@ -50,6 +57,28 @@ def _raise(e: service.LicenseError):
 async def health():
     # 契约兼容：桌面端（若）探测根路径时拿到与旧服务一致的标识
     return {"service": "Downie License API", "version": "2.0.0", "status": "ok"}
+
+
+@router.post("/api/license/trial/start")
+async def trial_start(body: TrialBody, session: AsyncSession = Depends(get_session)):
+    try:
+        return await service.start_trial(
+            session,
+            body.device_fp,
+            body.device_name,
+            body.platform,
+            body.email,
+        )
+    except service.LicenseError as e:
+        _raise(e)
+
+
+@router.get("/api/license/trial/status")
+async def trial_status(device_fp: str, session: AsyncSession = Depends(get_session)):
+    try:
+        return await service.trial_status(session, device_fp)
+    except service.LicenseError as e:
+        _raise(e)
 
 
 @router.post("/api/license/activate")

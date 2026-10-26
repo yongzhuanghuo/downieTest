@@ -11,7 +11,7 @@ import '../../features/downloads/download_provider.dart';
 import '../../features/help/help_window.dart';
 import '../../features/help/support_dialog.dart';
 import '../../features/history/history_window.dart';
-import '../../features/license/license_card.dart';
+import '../../features/license/license_window.dart';
 import '../../features/preferences/preferences_window.dart';
 import '../branding/app_brand.dart';
 import '../theme/design_tokens.dart';
@@ -113,12 +113,12 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
         _item(
           '显示许可证代码…',
           icon: Icons.key_outlined,
-          onTap: () => showProUpgradeDialog(context, ref),
+          onTap: () => LicenseWindow.show(context),
         ),
         _item(
           '停用用户许可证',
           icon: Icons.key_off_outlined,
-          onTap: () => showProUpgradeDialog(context, ref),
+          onTap: () => LicenseWindow.show(context),
         ),
         const Divider(height: 8),
         _item(

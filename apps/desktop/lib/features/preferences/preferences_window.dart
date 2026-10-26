@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../shared/theme/design_tokens.dart';
 import '../../shared/widgets/window_panel.dart';
-import '../license/license_card.dart';
+import '../license/license_window.dart';
 import '../settings/settings_provider.dart';
 
 /// Downie 4 风格「All Preferences」：12 个图标网格 + 面板 + 占位。
@@ -89,7 +89,7 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: TextButton.icon(
-              onPressed: () => showProUpgradeDialog(context, ref),
+              onPressed: () => LicenseWindow.show(context),
               icon: const Icon(Icons.key_outlined, size: 14),
               label: const Text('授权…'),
             ),

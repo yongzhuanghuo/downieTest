@@ -10,6 +10,8 @@ import '../../data/models/video_info.dart';
 import '../../shared/theme/design_tokens.dart';
 import '../../shared/widgets/window_panel.dart';
 import '../home/home_provider.dart';
+import '../license/license_provider.dart';
+import '../license/license_window.dart';
 import 'download_provider.dart';
 import 'web_capture_dialog.dart';
 
@@ -166,6 +168,16 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
   }
 
   Future<void> _startInfo(VideoInfo info) async {
+    if (!ref.read(canDownloadProvider)) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = '14 天试用已结束，请输入授权码';
+        });
+        await LicenseWindow.show(context);
+      }
+      return;
+    }
     final format = info.recommendedFormat;
     if (format == null) {
       if (mounted) {

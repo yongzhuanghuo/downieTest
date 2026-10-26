@@ -332,6 +332,48 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
   }
 }
 
+/// ===================================================================
+/// 14 天试用（服务端按设备记录，本地只缓存展示状态）
+/// ===================================================================
+class TrialNotifier extends StateNotifier<AsyncValue<TrialInfo?>> {
+  TrialNotifier() : super(const AsyncValue.loading());
+
+  bool _started = false;
+
+  Future<void> ensureStarted() async {
+    if (_started) return;
+    _started = true;
+    try {
+      final deviceFp = await DeviceFingerprint.get();
+      final info = await LicenseClient.instance.startTrial(
+        deviceFp: deviceFp,
+        platform: Platform.isMacOS ? 'macos' : 'windows',
+      );
+      state = AsyncValue.data(info);
+      if (info == null) _started = false;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      _started = false;
+    }
+  }
+}
+
+final trialProvider =
+    StateNotifierProvider<TrialNotifier, AsyncValue<TrialInfo?>>(
+  (ref) => TrialNotifier(),
+);
+
+/// 是否允许发起新下载：已授权 PRO，或 14 天试用仍有效。
+/// 试用状态加载中/网络失败时先放行，避免误伤已有用户。
+final canDownloadProvider = Provider<bool>((ref) {
+  if (ref.watch(isProProvider)) return true;
+  final trial = ref.watch(trialProvider);
+  return trial.maybeWhen(
+    data: (info) => info?.isActive ?? true,
+    orElse: () => true,
+  );
+});
+
 final licenseNotifierProvider =
     StateNotifierProvider<LicenseNotifier, AsyncValue<ActivatedLicense?>>(
       (ref) => LicenseNotifier(ref),

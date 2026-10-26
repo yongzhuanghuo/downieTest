@@ -5,8 +5,9 @@
   - SELECT ... FOR UPDATE 防超绑（必须与写操作在同一事务、同一连接上）
   - ON DUPLICATE KEY UPDATE 复用解绑后的旧行，避免唯一键冲突
 """
+import math
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import func, select, text, update
@@ -14,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 from .codes import normalize_code
-from .models import DeviceBinding, License, UnbindLog
+from .models import DeviceBinding, License, TrialDevice, UnbindLog
+
+TRIAL_DAYS = 14
 
 
 class LicenseError(Exception):
@@ -46,6 +49,80 @@ def _device_dict(d: DeviceBinding) -> dict:
         "last_seen": d.last_seen.isoformat() if d.last_seen else None,
         "status": d.status,
     }
+
+
+def _to_epoch_ms(value: datetime) -> int:
+    # DB 里是 naive UTC；按 UTC 解释，避免服务器本地时区影响
+    return int(value.replace(tzinfo=timezone.utc).timestamp() * 1000)
+
+
+def _trial_payload(row: TrialDevice, now: datetime) -> dict[str, Any]:
+    active = row.status == "active" and row.trial_end > now
+    seconds = max(0.0, (row.trial_end - now).total_seconds())
+    days = max(0, math.ceil(seconds / 86400.0)) if active else 0
+    return {
+        "ok": True,
+        "trial": {
+            "status": "active" if active else row.status,
+            "trial_end": _to_epoch_ms(row.trial_end),
+            "days_remaining": days,
+        },
+        "can_download": active,
+    }
+
+
+async def start_trial(
+    session: AsyncSession,
+    device_fp: str,
+    device_name: str | None = None,
+    platform: str | None = None,
+    email: str | None = None,
+) -> dict[str, Any]:
+    if not device_fp:
+        raise LicenseError(400, "MISSING_PARAMS")
+    now = datetime.utcnow()
+    async with session.begin():
+        row = await session.get(TrialDevice, device_fp)
+        if row is None:
+            row = TrialDevice(
+                device_fp=device_fp,
+                device_name=device_name,
+                platform=platform,
+                first_seen=now,
+                trial_start=now,
+                trial_end=now + timedelta(days=TRIAL_DAYS),
+                email=email,
+                status="active",
+                last_seen=now,
+            )
+            session.add(row)
+        else:
+            row.last_seen = now
+            if device_name:
+                row.device_name = device_name
+            if platform:
+                row.platform = platform
+            if email:
+                row.email = email
+            if row.status == "active" and row.trial_end <= now:
+                row.status = "expired"
+        payload = _trial_payload(row, now)
+    return payload
+
+
+async def trial_status(session: AsyncSession, device_fp: str) -> dict[str, Any]:
+    if not device_fp:
+        raise LicenseError(400, "MISSING_PARAMS")
+    row = await session.get(TrialDevice, device_fp)
+    if row is None:
+        return {"ok": True, "trial": None, "can_download": False}
+    now = datetime.utcnow()
+    if row.status == "active" and row.trial_end <= now:
+        row.status = "expired"
+    payload = _trial_payload(row, now)
+    if row.status == "expired":
+        await session.commit()
+    return payload
 
 
 async def activate(session: AsyncSession, code: str, device_fp: str, device_name: str | None) -> dict[str, Any]:

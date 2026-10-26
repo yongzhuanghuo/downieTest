@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/version/version_check.dart';
+import '../../features/license/license_provider.dart';
 import 'window_status_bar.dart';
 import 'window_title_bar.dart';
 
@@ -28,6 +29,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
   @override
   void initState() {
     super.initState();
+    unawaited(ref.read(trialProvider.notifier).ensureStarted());
     unawaited(() async {
       await Future<void>.delayed(const Duration(seconds: 3));
       if (!mounted) return;

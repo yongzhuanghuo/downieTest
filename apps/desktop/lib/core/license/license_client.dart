@@ -167,6 +167,32 @@ class StatusResult {
   }
 }
 
+/// 14 天试用状态（服务端权威）
+class TrialInfo {
+  final String status;
+  final int trialEnd;
+  final int daysRemaining;
+  final bool canDownload;
+
+  const TrialInfo({
+    required this.status,
+    required this.trialEnd,
+    required this.daysRemaining,
+    required this.canDownload,
+  });
+
+  bool get isActive => status == 'active' && canDownload && daysRemaining > 0;
+
+  factory TrialInfo.fromJson(Map<String, dynamic> json, bool canDownload) {
+    return TrialInfo(
+      status: (json['status'] as String?) ?? 'expired',
+      trialEnd: (json['trial_end'] as num?)?.toInt() ?? 0,
+      daysRemaining: (json['days_remaining'] as num?)?.toInt() ?? 0,
+      canDownload: canDownload,
+    );
+  }
+}
+
 /// ===================================================================
 /// LicenseClient - HTTP 通信层
 /// ===================================================================
@@ -191,6 +217,34 @@ class LicenseClient {
       uri = uri.replace(queryParameters: queryParams);
     }
     return http.get(uri).timeout(const Duration(seconds: 15));
+  }
+
+  /// 启动/查询 14 天试用（服务端按设备记录，重复调用不会重置）
+  Future<TrialInfo?> startTrial({
+    required String deviceFp,
+    String? deviceName,
+    String? platform,
+  }) async {
+    try {
+      final resp = await _post('/api/license/trial/start', {
+        'device_fp': deviceFp,
+        'device_name': deviceName ?? Platform.localHostname,
+        'platform': platform ?? (Platform.isMacOS ? 'macos' : 'windows'),
+      });
+      final j = jsonDecode(resp.body) as Map<String, dynamic>;
+      final trial = j['trial'];
+      if (j['ok'] != true || trial is! Map) {
+        debugPrint('[LicenseClient] 试用接口返回异常: ${resp.body}');
+        return null;
+      }
+      return TrialInfo.fromJson(
+        Map<String, dynamic>.from(trial),
+        j['can_download'] == true,
+      );
+    } catch (e) {
+      debugPrint('[LicenseClient] 试用请求失败: $e');
+      return null;
+    }
   }
 
   /// 激活（绑定设备）
