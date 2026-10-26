@@ -110,7 +110,7 @@ class _LicenseWindowState extends ConsumerState<LicenseWindow> {
                 const Spacer(),
                 TextButton.icon(
                   onPressed: _busy ? null : _manageDevices,
-                  icon: const Icon(Icons.devices_outlined, size: 14),
+                  icon: const Icon(Icons.devices, size: 14),
                   label: const Text('设备管理'),
                 ),
               ],

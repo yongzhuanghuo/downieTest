@@ -311,8 +311,8 @@ class YtDlpRunner {
         '[YtDlp] 下载使用 cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}');
 
     final proxy = SettingsStorage.instance.current.proxy;
-    final subtitleLangs =
-        SettingsStorage.instance.current.subtitleLangs.trim();
+    final subtitleLangs = SettingsStorage.instance.current.subtitleLangs
+        .replaceAll(RegExp(r'\s+'), '');
     final args = <String>[
       '--newline', // 每行一个进度，便于解析
       '--no-warnings',

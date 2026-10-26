@@ -67,7 +67,7 @@ const List<SiteConfig> kLoginSites = [
   SiteConfig(
     id: 'weibo',
     name: '微博',
-    domains: ['weibo.com'],
+    domains: ['weibo.com', 'weibo.cn'],
     loginUrl: 'https://weibo.com',
     cookieDomain: '.weibo.com',
   ),
