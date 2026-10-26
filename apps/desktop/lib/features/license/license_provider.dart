@@ -250,6 +250,14 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
     }
   }
 
+  /// 反激活当前设备
+  Future<(bool success, String message)> deactivateCurrentDevice() async {
+    final fp = await DeviceFingerprint.get();
+    final (ok, message) = await unbindDevice(fp);
+    if (ok) return (true, '当前设备已反激活');
+    return (false, message);
+  }
+
   /// 解绑设备（远程解绑 + 本地更新）
   Future<(bool success, String message)> unbindDevice(String deviceFp) async {
     final storage = LicenseStorage.instance;

@@ -98,7 +98,16 @@ class _LicenseWindowState extends ConsumerState<LicenseWindow> {
                 license.code,
                 style: TextStyle(fontSize: 12, color: secondary),
               ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _busy ? null : _deactivate,
+                icon: const Icon(Icons.key_off_outlined, size: 14),
+                label: const Text('反激活此设备'),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
           ] else ...[
             Text(
               trial == null
@@ -154,7 +163,8 @@ class _LicenseWindowState extends ConsumerState<LicenseWindow> {
               _message!,
               style: TextStyle(
                 fontSize: 11,
-                color: _message!.startsWith('激活成功')
+                color: (_message!.contains('成功') ||
+                        _message!.contains('已反激活'))
                     ? AppTokens.success
                     : AppTokens.error,
               ),
@@ -189,6 +199,45 @@ class _LicenseWindowState extends ConsumerState<LicenseWindow> {
         ],
       ),
     );
+  }
+
+  Future<void> _deactivate() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('反激活此设备'),
+        content: const Text(
+          '反激活后本机将不能再使用该授权，需要重新激活才能继续下载。'
+          '服务器会释放一个设备名额，确定继续吗？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('反激活'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    final (success, message) = await ref
+        .read(licenseNotifierProvider.notifier)
+        .deactivateCurrentDevice();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _message = message;
+    });
+    if (!success) return;
+    // 反激活成功后 isPro 变 false，保留窗口让用户看到试用/激活界面
   }
 
   Future<void> _openRecovery() async {

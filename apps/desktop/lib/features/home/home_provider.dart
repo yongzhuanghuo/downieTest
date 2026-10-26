@@ -161,7 +161,9 @@ class ParseNotifier extends StateNotifier<ParseState> {
 final parseProvider =
     StateNotifierProvider<ParseNotifier, ParseState>((ref) => ParseNotifier());
 
-final _urlPattern = RegExp(r'https?://[^\s一-鿿]+');
+// 遇到空白、中文或全角标点就结束，避免把分享文案里的下一段文字吞进 URL。
+final _urlPattern =
+    RegExp('https?://[^\\s\\u3000-\\u303f\\u4e00-\\u9fff\\uff00-\\uffef]+');
 
 /// 中文/全角标点常被复制进分享文本，不能当成 URL 的一部分。
 const _trailingPunctuation = '.,;:!?)]}>"\'、。，；：'
@@ -174,7 +176,12 @@ const _trailingPunctuation = '.,;:!?)]}>"\'、。，；：'
 List<String> extractUrls(String text) {
   final result = <String>[];
   final seen = <String>{};
-  for (final match in _urlPattern.allMatches(text)) {
+  // `https://a,https://b` 这种半角分隔也拆开
+  final normalized = text.replaceAllMapped(
+    RegExp(r'[,;](?=https?://)'),
+    (_) => '\n',
+  );
+  for (final match in _urlPattern.allMatches(normalized)) {
     var url = match.group(0)!;
     while (url.isNotEmpty && _trailingPunctuation.contains(url[url.length - 1])) {
       url = url.substring(0, url.length - 1);

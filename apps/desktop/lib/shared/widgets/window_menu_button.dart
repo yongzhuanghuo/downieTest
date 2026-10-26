@@ -1,13 +1,16 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/storage/site_registry.dart';
 import '../../core/version/version_check.dart';
 import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
+import '../../features/downloads/site_login_dialog.dart';
 import '../../features/help/help_window.dart';
 import '../../features/help/support_dialog.dart';
 import '../../features/history/history_window.dart';
@@ -27,7 +30,6 @@ class WindowMenuButton extends ConsumerStatefulWidget {
 class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
   final _controller = MenuController();
 
-  String get _cmd => Platform.isMacOS ? '⌘' : 'Ctrl+';
   String _shortcut(String key, {bool shift = false}) =>
       Platform.isMacOS ? '⌘${shift ? '⇧' : ''}$key' : 'Ctrl+${shift ? 'Shift+' : ''}$key';
 
@@ -61,14 +63,12 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
         _item(
           '从粘贴板添加…',
           icon: Icons.content_paste,
-          shortcut: _shortcut('V'),
           onTap: _addFromClipboard,
         ),
         _item(
           '从文件导入…',
           icon: Icons.file_open_outlined,
-          shortcut: _cmd + 'O',
-          onTap: () => _hint('从文件导入将在后续版本接入'),
+          onTap: _importFromFile,
         ),
         SubmenuButton(
           leadingIcon: const Icon(Icons.list_alt, size: 14),
@@ -93,8 +93,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
         _item(
           '打开登录浏览器…',
           icon: Icons.login,
-          shortcut: _shortcut('L'),
-          onTap: () => _hint('请在添加链接后按站点提示登录'),
+          onTap: _openLoginBrowser,
         ),
         _item(
           '设置…',
@@ -204,6 +203,50 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
     final data = await Clipboard.getData('text/plain');
     if (!mounted) return;
     await AddUrlsPanel.show(context, initialText: data?.text);
+  }
+
+  Future<void> _importFromFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: '选择包含链接的文本文件',
+      type: FileType.custom,
+      allowedExtensions: const ['txt', 'text', 'csv', 'md'],
+    );
+    final path = result?.files.firstOrNull?.path;
+    if (path == null || !mounted) return;
+    try {
+      final content = await File(path).readAsString();
+      if (!mounted) return;
+      await AddUrlsPanel.show(context, initialText: content);
+    } catch (e) {
+      debugPrint('[导入] 读取文件失败: $e');
+      _hint('读取文件失败：$e');
+    }
+  }
+
+  Future<void> _openLoginBrowser() async {
+    final site = await showDialog<SiteConfig>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('登录浏览器'),
+        children: [
+          for (final site in kLoginSites)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(site),
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(site.name),
+                subtitle: Text(site.domains.join(', ')),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (site == null || !mounted) return;
+    final ok = await SiteLoginDialog.show(context, site);
+    if (ok && mounted) {
+      _hint('${site.name} 登录成功，cookie 已保存');
+    }
   }
 
   Future<void> _checkUpdate() async {

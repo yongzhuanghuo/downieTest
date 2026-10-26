@@ -55,17 +55,32 @@ jobs:
         run: flutter pub get
 
       - name: 单元测试
-        run: flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart test/window_panel_test.dart test/url_extraction_test.dart test/search_engines_test.dart test/browser_bridge_test.dart
+        run: |
+          set -o pipefail
+          flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart test/window_panel_test.dart test/url_extraction_test.dart test/search_engines_test.dart test/browser_bridge_test.dart 2>&1 | tee test_output.log
 
       - name: 测试失败注解
         if: failure()
         run: |
-          flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart test/window_panel_test.dart test/url_extraction_test.dart test/search_engines_test.dart test/browser_bridge_test.dart 2>&1 | tail -80 | while IFS= read -r line; do
-            echo "::error::$line"
-          done || true
+          if [ -f test_output.log ]; then
+            grep -n -E '\[E\]|Expected:|Actual:|Test failed|Some tests failed|Failed to load|Error:|Exception|error:' test_output.log | tail -80 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          fi || true
 
       - name: 打包 macOS
-        run: flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000
+        run: |
+          set -o pipefail
+          flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000 2>&1 | tee build_macos.log
+
+      - name: macOS 构建失败注解
+        if: failure()
+        run: |
+          if [ -f build_macos.log ]; then
+            grep -n -E 'Error:|error:|Exception|FAILURE|Failed' build_macos.log | tail -80 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          fi || true
 
       - name: 组装 DMG（.app + 安装说明）
         run: |
@@ -122,7 +137,21 @@ jobs:
         run: flutter pub get
 
       - name: 打包 Windows
-        run: flutter build windows --release --dart-define=API_BASE=http://8.153.99.239:3000
+        shell: pwsh
+        run: |
+          flutter build windows --release --dart-define=API_BASE=http://8.153.99.239:3000 2>&1 | Tee-Object -FilePath build_windows.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Windows 构建失败注解
+        if: failure()
+        shell: pwsh
+        run: |
+          if (Test-Path build_windows.log) {
+            Get-Content build_windows.log |
+              Select-String -Pattern 'Error|error|Exception|FAILED' |
+              Select-Object -Last 80 |
+              ForEach-Object { Write-Output "::error::$_" }
+          }
 
       - name: 下载 WebView2 运行时安装器
         shell: pwsh

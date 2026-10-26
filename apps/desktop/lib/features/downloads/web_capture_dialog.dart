@@ -265,8 +265,7 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
                   ),
                   const SizedBox(width: 4),
                   IconButton(
-                    icon: const Icon(Icons.arrow_forward_circle_outlined,
-                        size: 20),
+                    icon: const Icon(Icons.arrow_forward, size: 20),
                     tooltip: '前往',
                     onPressed: () => _go(_addressController.text),
                   ),

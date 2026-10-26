@@ -134,8 +134,7 @@ class BrowserBridge {
     String message,
   ) async {
     response.statusCode = status;
-    response.headers.contentType =
-        ContentType('text', 'plain', charset: 'utf-8');
+    response.headers.contentType = ContentType.text;
     response.write(message);
     await response.close();
   }

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../core/server/browser_bridge.dart';
 import '../../core/version/version_check.dart';
@@ -122,6 +123,16 @@ class _WindowShellState extends ConsumerState<WindowShell> {
           meta: isMac,
           control: !isMac,
         ): () => QueueSearchPanel.show(context),
+        SingleActivator(
+          LogicalKeyboardKey.keyE,
+          meta: isMac,
+          control: !isMac,
+        ): () => AddUrlsPanel.show(context),
+        SingleActivator(
+          LogicalKeyboardKey.keyQ,
+          meta: isMac,
+          control: !isMac,
+        ): () => windowManager.close(),
       },
       child: Focus(
         autofocus: true,
