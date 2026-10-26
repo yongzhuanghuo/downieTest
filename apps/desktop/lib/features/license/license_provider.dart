@@ -244,7 +244,7 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
         code: current.code,
         deviceFp: fp,
       );
-      if (status == null) return null;
+      if (status == null || !status.ok) return null;
 
       final boundFps = status.boundDevices
           .map((d) => d.deviceFp ?? '')
@@ -274,8 +274,8 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
         deviceFp: fp,
       );
 
-      if (status == null) {
-        return (false, '无法连接服务器');
+      if (status == null || !status.ok) {
+        return (false, '无法连接服务器或授权状态异常');
       }
 
       // 更新本地绑定设备列表
