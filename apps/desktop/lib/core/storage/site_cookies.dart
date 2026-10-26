@@ -65,6 +65,21 @@ class SiteCookies {
     } catch (_) {}
   }
 
+  /// 清除所有站点的登录 cookie 文件
+  static Future<int> clearAllSites() async {
+    var removed = 0;
+    try {
+      final dir = await _cookieDir();
+      await for (final entity in dir.list()) {
+        if (entity is File && entity.path.endsWith('.txt')) {
+          await entity.delete();
+          removed++;
+        }
+      }
+    } catch (_) {}
+    return removed;
+  }
+
   /// 读取某站点 cookie 文件，拼成 HTTP `Cookie` 头。
   /// 没有文件或解析失败返回空字符串；插件直接发 HTTP 请求时用。
   static Future<String> loadCookieHeader(String siteId) async {

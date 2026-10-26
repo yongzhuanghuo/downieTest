@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/server/browser_bridge.dart';
+import '../../core/storage/site_cookies.dart';
 import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/search_engines.dart';
 import '../../shared/theme/design_tokens.dart';
@@ -48,7 +49,7 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
     _PrefItem('代理服务器', Icons.vpn_lock_outlined, 7, true, Colors.green),
     _PrefItem('支持站点', Icons.public, 8, true, Colors.lightBlue),
     _PrefItem('搜索引擎', Icons.search, 9, true, Colors.blueAccent),
-    _PrefItem('家长控制与隐私', Icons.lock_outline, 10, false, Colors.amber),
+    _PrefItem('家长控制与隐私', Icons.lock_outline, 10, true, Colors.amber),
     _PrefItem('高级', Icons.build_outlined, 11, true, Colors.blueGrey),
   ];
 
@@ -585,6 +586,43 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               ),
           ],
         );
+      case 10:
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            Text(
+              '本地数据',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '解析、下载和站点 cookie 都在本机处理；应用只会在授权校验、'
+              '版本检查和主动反馈时联网。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('清除站点登录数据'),
+              subtitle: const Text('删除内置浏览器保存的所有站点 cookie'),
+              trailing: TextButton(
+                onPressed: () => _clearCookies(context),
+                child: const Text('清除'),
+              ),
+            ),
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('清空下载历史'),
+              subtitle: const Text('移除已完成/失败/取消的记录，不删除文件'),
+              trailing: TextButton(
+                onPressed: () => _clearFinished(context),
+                child: const Text('清空'),
+              ),
+            ),
+          ],
+        );
       case 11:
         return const _AdvancedPane();
       default:
@@ -629,6 +667,33 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
           SnackBar(content: Text('导出扩展失败：$e')),
         );
       }
+    }
+  }
+
+  Future<void> _clearCookies(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('清除站点登录数据'),
+        content: const Text('清除后需要重新登录各站点，下载历史不受影响。确定继续吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('清除'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final removed = await SiteCookies.clearAllSites();
+    if (context.mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text('已清除 $removed 个站点的登录数据')),
+      );
     }
   }
 
