@@ -46,6 +46,7 @@ class DownloadsDao {
       'downloads',
       {
         'status': task.status.index,
+        'title': task.title,
         'postprocessing': task.postprocessing.name,
         'format_id': task.formatId,
         'format_label': task.formatLabel,

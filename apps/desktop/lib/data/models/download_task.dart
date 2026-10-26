@@ -138,6 +138,7 @@ class DownloadTask {
   DownloadTask copyWith({
     DownloadStatus? status,
     DownloadProgress? progress,
+    String? title,
     String? formatId,
     String? formatLabel,
     int? height,
@@ -157,7 +158,7 @@ class DownloadTask {
     return DownloadTask(
       id: id,
       url: url,
-      title: title,
+      title: title ?? this.title,
       thumbnail: thumbnail,
       extractor: extractor,
       formatId: formatId ?? this.formatId,

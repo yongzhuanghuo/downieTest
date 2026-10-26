@@ -148,6 +148,13 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     await _apply(id, (t) => t.copyWith(postprocessing: mode));
   }
 
+  /// 重命名任务标题
+  Future<void> rename(String id, String title) async {
+    final value = title.trim();
+    if (value.isEmpty) return;
+    await _apply(id, (t) => t.copyWith(title: value));
+  }
+
   /// 在任务开始前切换画质/格式
   Future<void> setFormat(String id, FormatOption format) async {
     final task = _find(id);

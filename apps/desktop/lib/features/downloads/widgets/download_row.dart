@@ -291,6 +291,9 @@ class DownloadRow extends ConsumerWidget {
                 await _openContainingFolder(task.outputPath!);
               }
               break;
+            case 'rename':
+              await _rename(context, notifier, task);
+              break;
             case 'retry':
               await notifier.retry(task.id);
               break;
@@ -304,6 +307,7 @@ class DownloadRow extends ConsumerWidget {
         },
         itemBuilder: (context) => [
           const PopupMenuItem(value: 'copy', child: Text('复制链接')),
+          const PopupMenuItem(value: 'rename', child: Text('重命名')),
           if (task.status == DownloadStatus.completed &&
               task.outputPath != null)
             const PopupMenuItem(value: 'open', child: Text('打开所在目录')),
@@ -316,6 +320,40 @@ class DownloadRow extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _rename(
+    BuildContext context,
+    DownloadListNotifier notifier,
+    DownloadTask task,
+  ) async {
+    final controller = TextEditingController(text: task.title);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重命名'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(fontSize: 13),
+          onSubmitted: (text) => Navigator.of(ctx).pop(text),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value != null && value.trim().isNotEmpty) {
+      await notifier.rename(task.id, value);
+    }
   }
 
   String _metaText(DownloadTask task) {

@@ -32,6 +32,12 @@ void main() {
     expect(restored.availableFormats, isEmpty); // 格式列表不持久化
   });
 
+  test('rename title', () {
+    final task = _task().copyWith(title: 'New title');
+    expect(task.title, 'New title');
+    expect(task.toMap()['title'], 'New title');
+  });
+
   test('format fields can be replaced', () {
     final task = _task().copyWith(
       formatId: 'b',

@@ -55,12 +55,12 @@ jobs:
         run: flutter pub get
 
       - name: 单元测试
-        run: flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart
+        run: flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart test/window_panel_test.dart
 
       - name: 测试失败注解
         if: failure()
         run: |
-          flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart 2>&1 | tail -80 | while IFS= read -r line; do
+          flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart test/window_panel_test.dart 2>&1 | tail -80 | while IFS= read -r line; do
             echo "::error::$line"
           done || true
 
