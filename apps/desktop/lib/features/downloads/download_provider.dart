@@ -11,6 +11,7 @@ import '../../core/platform/notifications.dart';
 import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/site_plugin.dart';
 import '../../core/storage/downloads_dao.dart';
+import '../../core/storage/file_naming.dart';
 import '../../core/storage/settings_storage.dart';
 import '../../data/models/download_progress.dart';
 import '../../data/models/download_task.dart';
@@ -219,13 +220,21 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
 
     try {
       // 确定输出目录（从设置读取，空则用系统默认 Downloads）
-      final outputDir =
-          await SettingsStorage.instance.current.resolveDownloadDir();
-      final safeTitle =
-          task.title.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_').trim();
-      final videoId = task.url.hashCode.abs().toString();
-      final titlePart = safeTitle.isEmpty ? videoId : safeTitle;
-      final outputTemplate = '$outputDir/$titlePart.${task.ext}';
+      final settings = SettingsStorage.instance.current;
+      final outputDir = await settings.resolveDownloadDir();
+      var targetDir = outputDir;
+      if (settings.subfolderBySite) {
+        final site = sanitizePathSegment(task.extractor);
+        targetDir = '$outputDir/${site.isEmpty ? 'Other' : site}';
+        await Directory(targetDir).create(recursive: true);
+      }
+      final baseName = renderFilenameTemplate(
+        settings.filenameTemplate,
+        title: task.title,
+        extractor: task.extractor,
+        url: task.url,
+      );
+      final outputTemplate = '$targetDir/$baseName.${task.ext}';
 
       // 重试循环（yt-dlp 已内置 --continue，.part 自动续传）
       int attempt = task.retryCount;

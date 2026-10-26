@@ -233,6 +233,29 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               trailing: const Icon(Icons.chevron_right, size: 16),
               onTap: () => _pickDirectory(notifier),
             ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('按站点分文件夹'),
+              subtitle: const Text('例如 YouTube/视频标题.mp4'),
+              value: settings.subfolderBySite,
+              onChanged: notifier.setSubfolderBySite,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              '文件名模板',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              initialValue: settings.filenameTemplate,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                hintText: '{title}',
+                helperText: '可用占位符：{title} {extractor} {id} {date}',
+              ),
+              onChanged: notifier.setFilenameTemplate,
+            ),
           ],
         );
       case 3:

@@ -57,6 +57,12 @@ class AppSettings {
   /// 字幕语言（逗号分隔，如 zh,en；空=全部）
   final String subtitleLangs;
 
+  /// 文件名模板，支持 {title}/{extractor}/{id}/{date}
+  final String filenameTemplate;
+
+  /// 是否按来源站点建子文件夹
+  final bool subfolderBySite;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -74,6 +80,8 @@ class AppSettings {
     this.browserBridgeToken = '',
     this.notifyOnComplete = true,
     this.subtitleLangs = '',
+    this.filenameTemplate = '{title}',
+    this.subfolderBySite = false,
   });
 
   static const defaults = AppSettings(
@@ -93,6 +101,8 @@ class AppSettings {
     browserBridgeToken: '',
     notifyOnComplete: true,
     subtitleLangs: '',
+    filenameTemplate: '{title}',
+    subfolderBySite: false,
   );
 
   AppSettings copyWith({
@@ -112,6 +122,8 @@ class AppSettings {
     String? browserBridgeToken,
     bool? notifyOnComplete,
     String? subtitleLangs,
+    String? filenameTemplate,
+    bool? subfolderBySite,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -134,6 +146,8 @@ class AppSettings {
       browserBridgeToken: browserBridgeToken ?? this.browserBridgeToken,
       notifyOnComplete: notifyOnComplete ?? this.notifyOnComplete,
       subtitleLangs: subtitleLangs ?? this.subtitleLangs,
+      filenameTemplate: filenameTemplate ?? this.filenameTemplate,
+      subfolderBySite: subfolderBySite ?? this.subfolderBySite,
     );
   }
 
@@ -209,6 +223,9 @@ class SettingsStorage {
             (raw['browserBridgeToken'] as String?) ?? '',
         notifyOnComplete: (raw['notifyOnComplete'] as bool?) ?? true,
         subtitleLangs: (raw['subtitleLangs'] as String?) ?? '',
+        filenameTemplate:
+            (raw['filenameTemplate'] as String?) ?? '{title}',
+        subfolderBySite: (raw['subfolderBySite'] as bool?) ?? false,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -259,6 +276,8 @@ class SettingsStorage {
       'browserBridgeToken': settings.browserBridgeToken,
       'notifyOnComplete': settings.notifyOnComplete,
       'subtitleLangs': settings.subtitleLangs,
+      'filenameTemplate': settings.filenameTemplate,
+      'subfolderBySite': settings.subfolderBySite,
     });
     debugPrint('[Settings] saved: $settings');
   }

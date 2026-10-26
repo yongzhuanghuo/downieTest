@@ -69,6 +69,20 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setFilenameTemplate(String value) async {
+    final next = state.copyWith(
+      filenameTemplate: value.trim().isEmpty ? '{title}' : value.trim(),
+    );
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setSubfolderBySite(bool value) async {
+    final next = state.copyWith(subfolderBySite: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setSubtitleLangs(String value) async {
     final next = state.copyWith(subtitleLangs: value.trim());
     await SettingsStorage.instance.save(next);
