@@ -84,6 +84,18 @@ class AppSettings {
   /// 全部下载结束后退出应用
   final bool quitWhenDone;
 
+  /// yt-dlp 每个下载的分片并发数（1-16）
+  final int connectionsPerDownload;
+
+  /// yt-dlp 全局限速（kB/s，0=不限）
+  final int throttleKbps;
+
+  /// 下载完成后保存元数据 JSON
+  final bool saveMetadataJson;
+
+  /// 下载完成/失败播放系统提示音
+  final bool playSounds;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -110,6 +122,10 @@ class AppSettings {
     this.queueSort = 0,
     this.queueSortDesc = false,
     this.quitWhenDone = false,
+    this.connectionsPerDownload = 4,
+    this.throttleKbps = 0,
+    this.saveMetadataJson = false,
+    this.playSounds = false,
   });
 
   static const defaults = AppSettings(
@@ -138,6 +154,10 @@ class AppSettings {
     queueSort: 0,
     queueSortDesc: false,
     quitWhenDone: false,
+    connectionsPerDownload: 4,
+    throttleKbps: 0,
+    saveMetadataJson: false,
+    playSounds: false,
   );
 
   AppSettings copyWith({
@@ -166,6 +186,10 @@ class AppSettings {
     int? queueSort,
     bool? queueSortDesc,
     bool? quitWhenDone,
+    int? connectionsPerDownload,
+    int? throttleKbps,
+    bool? saveMetadataJson,
+    bool? playSounds,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -199,6 +223,11 @@ class AppSettings {
       queueSort: queueSort ?? this.queueSort,
       queueSortDesc: queueSortDesc ?? this.queueSortDesc,
       quitWhenDone: quitWhenDone ?? this.quitWhenDone,
+      connectionsPerDownload:
+          connectionsPerDownload ?? this.connectionsPerDownload,
+      throttleKbps: throttleKbps ?? this.throttleKbps,
+      saveMetadataJson: saveMetadataJson ?? this.saveMetadataJson,
+      playSounds: playSounds ?? this.playSounds,
     );
   }
 
@@ -286,6 +315,11 @@ class SettingsStorage {
         queueSort: (raw['queueSort'] as num?)?.toInt() ?? 0,
         queueSortDesc: (raw['queueSortDesc'] as bool?) ?? false,
         quitWhenDone: (raw['quitWhenDone'] as bool?) ?? false,
+        connectionsPerDownload:
+            (raw['connectionsPerDownload'] as num?)?.toInt() ?? 4,
+        throttleKbps: (raw['throttleKbps'] as num?)?.toInt() ?? 0,
+        saveMetadataJson: (raw['saveMetadataJson'] as bool?) ?? false,
+        playSounds: (raw['playSounds'] as bool?) ?? false,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -345,6 +379,10 @@ class SettingsStorage {
       'queueSort': settings.queueSort,
       'queueSortDesc': settings.queueSortDesc,
       'quitWhenDone': settings.quitWhenDone,
+      'connectionsPerDownload': settings.connectionsPerDownload,
+      'throttleKbps': settings.throttleKbps,
+      'saveMetadataJson': settings.saveMetadataJson,
+      'playSounds': settings.playSounds,
     });
     debugPrint('[Settings] saved: $settings');
   }

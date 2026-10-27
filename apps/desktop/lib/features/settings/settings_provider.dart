@@ -131,6 +131,30 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setConnectionsPerDownload(int value) async {
+    final next = state.copyWith(connectionsPerDownload: value.clamp(1, 16));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setThrottleKbps(int value) async {
+    final next = state.copyWith(throttleKbps: value.clamp(0, 1000000));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setSaveMetadataJson(bool value) async {
+    final next = state.copyWith(saveMetadataJson: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setPlaySounds(bool value) async {
+    final next = state.copyWith(playSounds: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setNotifyOnComplete(bool value) async {
     final next = state.copyWith(notifyOnComplete: value);
     await SettingsStorage.instance.save(next);

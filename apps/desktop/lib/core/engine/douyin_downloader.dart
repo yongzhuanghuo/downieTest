@@ -30,21 +30,25 @@ class DouyinDownloader {
       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
   /// 下载播放地址 [url] 到 [outputPath]（完整文件路径，含扩展名）
+  ///
+  /// [client] 仅供测试注入；为空时使用默认 http.Client 并在结束时关闭。
   static Future<String> download({
     required String url,
     required String outputPath,
     required void Function(DownloadProgress) onProgress,
     bool Function()? shouldCancel,
+    http.Client? client,
   }) async {
     debugPrint('[抖音下载] 开始: $url');
     final cookie = await SiteCookies.loadCookieHeader('douyin');
-    final client = http.Client();
+    final ownsClient = client == null;
+    final effectiveClient = client ?? http.Client();
     try {
       final req = http.Request('GET', Uri.parse(url));
       req.headers['User-Agent'] = ua;
       req.headers['Referer'] = 'https://www.douyin.com/';
       if (cookie.isNotEmpty) req.headers['Cookie'] = cookie;
-      final resp = await client.send(req);
+      final resp = await effectiveClient.send(req);
       if (resp.statusCode != 200 && resp.statusCode != 206) {
         throw DouyinDownloadException('下载失败 HTTP ${resp.statusCode}');
       }
@@ -79,7 +83,7 @@ class DouyinDownloader {
       debugPrint('[抖音下载] 完成: $outputPath ($downloaded 字节)');
       return outputPath;
     } finally {
-      client.close();
+      if (ownsClient) effectiveClient.close();
     }
   }
 

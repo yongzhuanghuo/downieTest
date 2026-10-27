@@ -6,7 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
+import '../../core/ffmpeg/ffmpeg_runner.dart';
+import '../../core/platform/binary_locator.dart';
 import '../../core/server/browser_bridge.dart';
+import '../../core/storage/settings_storage.dart';
 import '../../core/storage/site_cookies.dart';
 import '../../core/sites/search_engines.dart';
 import '../../core/sites/site_coverage.dart';
@@ -1085,16 +1088,17 @@ class _SupportedSitesPaneState extends ConsumerState<_SupportedSitesPane> {
   }
 }
 
-class _AdvancedPane extends StatefulWidget {
+class _AdvancedPane extends ConsumerStatefulWidget {
   const _AdvancedPane();
 
   @override
-  State<_AdvancedPane> createState() => _AdvancedPaneState();
+  ConsumerState<_AdvancedPane> createState() => _AdvancedPaneState();
 }
 
-class _AdvancedPaneState extends State<_AdvancedPane> {
+class _AdvancedPaneState extends ConsumerState<_AdvancedPane> {
   String? _version;
   bool _updating = false;
+  bool _selfTesting = false;
   String? _message;
 
   @override
@@ -1136,8 +1140,82 @@ class _AdvancedPaneState extends State<_AdvancedPane> {
     }
   }
 
+  Future<void> _selfTest() async {
+    if (_selfTesting) return;
+    setState(() => _selfTesting = true);
+    final lines = <String>[];
+    Future<void> check(String name, Future<String> Function() fn) async {
+      try {
+        final value = await fn().timeout(const Duration(seconds: 20));
+        lines.add('✅ $name：$value');
+      } catch (e) {
+        lines.add('❌ $name：$e');
+      }
+    }
+
+    await check('yt-dlp', () async {
+      final path = await BinaryLocator.getYtDlpPath();
+      final v = await YtDlpRunner.getVersion();
+      return '$v  ($path)';
+    });
+    await check('ffmpeg', () async {
+      final path = await BinaryLocator.getFFmpegPath();
+      final v = await FFmpegRunner.getVersion();
+      return '$v  ($path)';
+    });
+    await check('node（抖音签名）', () async {
+      final path = await BinaryLocator.getNodePath();
+      final r = await Process.run(path, ['--version']);
+      if (r.exitCode != 0) throw Exception('exit ${r.exitCode}');
+      return '${(r.stdout as String).trim()}  ($path)';
+    });
+    await check('应用数据目录', () async {
+      final dir = await SettingsStorage.getStorageDir();
+      return dir.path;
+    });
+    try {
+      final dir = await SettingsStorage.getStorageDir();
+      final logDir = Directory('${dir.path}/logs');
+      lines.add(logDir.existsSync()
+          ? '✅ 日志目录：${logDir.path}'
+          : '⚠️ 日志目录尚未创建：${logDir.path}');
+    } catch (e) {
+      lines.add('❌ 日志目录：$e');
+    }
+    if (!mounted) return;
+    setState(() => _selfTesting = false);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('环境自检'),
+        content: SizedBox(
+          width: 520,
+          child: SelectableText(
+            lines.join('\n'),
+            style: const TextStyle(fontSize: 11, height: 1.5),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+            child: const Text('复制并关闭'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
+    final notifier = ref.read(settingsProvider.notifier);
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.xl),
       children: [
@@ -1156,6 +1234,80 @@ class _AdvancedPaneState extends State<_AdvancedPane> {
               : TextButton(
                   onPressed: _update,
                   child: const Text('检查更新'),
+                ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          '每个下载的连接数：${settings.connectionsPerDownload}',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        Slider(
+          min: 1,
+          max: 16,
+          divisions: 15,
+          value: settings.connectionsPerDownload.toDouble(),
+          label: '${settings.connectionsPerDownload}',
+          onChanged: (v) => notifier.setConnectionsPerDownload(v.round()),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          '全局限速（kB/s，0 表示不限）',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextFormField(
+          initialValue: settings.throttleKbps == 0
+              ? ''
+              : '${settings.throttleKbps}',
+          keyboardType: TextInputType.number,
+          style: const TextStyle(fontSize: 13),
+          decoration: const InputDecoration(
+            hintText: '0',
+            helperText: '传给 yt-dlp；对内置插件下载器暂不生效',
+          ),
+          onFieldSubmitted: (value) =>
+              notifier.setThrottleKbps(int.tryParse(value.trim()) ?? 0),
+          onChanged: (value) {
+            final text = value.trim();
+            if (text.isEmpty) {
+              notifier.setThrottleKbps(0);
+            } else {
+              final parsed = int.tryParse(text);
+              if (parsed != null) notifier.setThrottleKbps(parsed);
+            }
+          },
+        ),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('保存元数据 JSON'),
+          subtitle: const Text('yt-dlp 任务写入 info.json；内置插件任务写入基础字段'),
+          value: settings.saveMetadataJson,
+          onChanged: notifier.setSaveMetadataJson,
+        ),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('下载完成/失败播放提示音'),
+          value: settings.playSounds,
+          onChanged: notifier.setPlaySounds,
+        ),
+        const Divider(height: 24),
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.health_and_safety_outlined, size: 18),
+          title: const Text('运行环境自检'),
+          subtitle: const Text('检查 yt-dlp / ffmpeg / node / 数据目录 / 日志目录'),
+          trailing: _selfTesting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : TextButton(
+                  onPressed: _selfTest,
+                  child: const Text('开始'),
                 ),
         ),
         const SizedBox(height: AppSpacing.md),

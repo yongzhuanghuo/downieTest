@@ -310,9 +310,10 @@ class YtDlpRunner {
     debugPrint(
         '[YtDlp] 下载使用 cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}');
 
-    final proxy = SettingsStorage.instance.current.proxy;
-    final subtitleLangs = SettingsStorage.instance.current.subtitleLangs
-        .replaceAll(RegExp(r'\s+'), '');
+    final settings = SettingsStorage.instance.current;
+    final proxy = settings.proxy;
+    final subtitleLangs =
+        settings.subtitleLangs.replaceAll(RegExp(r'\s+'), '');
     final args = <String>[
       '--newline', // 每行一个进度，便于解析
       '--no-warnings',
@@ -321,6 +322,11 @@ class YtDlpRunner {
       '-f', formatId,
       '-o', outputPath,
       '--ffmpeg-location', actualFfmpegPath,
+      if (settings.connectionsPerDownload > 1)
+        ...['--concurrent-fragments', '${settings.connectionsPerDownload}'],
+      if (settings.throttleKbps > 0)
+        ...['--limit-rate', '${settings.throttleKbps}K'],
+      if (settings.saveMetadataJson) '--write-info-json',
       if (audioOnly) ...['-x', '--audio-format', 'mp3'],
       if (!audioOnly) ...['--merge-output-format', 'mp4'],
       if (downloadSubtitles) ...[

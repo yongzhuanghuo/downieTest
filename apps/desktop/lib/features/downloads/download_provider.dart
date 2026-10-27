@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:window_manager/window_manager.dart';
@@ -326,6 +328,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                 ),
               ));
           unawaited(SystemNotifications.downloadComplete(current.title));
+          if (settings.saveMetadataJson && plugin != null) {
+            unawaited(_writeMetadataSidecar(current, resultPath));
+          }
           // 下载完成自动打开文件夹（按设置）
           if (SettingsStorage.instance.current.autoOpenFolder) {
             unawaited(_revealFile(resultPath));
@@ -440,9 +445,48 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     } finally {
       _activeIds.remove(task.id);
       _cancelled.remove(task.id);
+      final finishedStatus = _find(task.id)?.status;
+      if (SettingsStorage.instance.current.playSounds &&
+          (finishedStatus == DownloadStatus.completed ||
+              finishedStatus == DownloadStatus.failed)) {
+        unawaited(SystemSound.play(SystemSoundType.alert));
+      }
       // 调度器继续填坑
       unawaited(_scheduler());
       _maybeQuitWhenDone();
+    }
+  }
+
+  Future<void> _writeMetadataSidecar(
+    DownloadTask task,
+    String outputPath,
+  ) async {
+    try {
+      final file = File('$outputPath.info.json');
+      if (await file.exists()) return;
+      var size = 0;
+      try {
+        size = await File(outputPath).length();
+      } catch (_) {}
+      await file.writeAsString(
+        JsonEncoder.withIndent('  ').convert({
+          'id': task.id,
+          'url': task.url,
+          'title': task.title,
+          'extractor': task.extractor,
+          'format_id': task.formatId,
+          'format_label': task.formatLabel,
+          'height': task.height,
+          'duration': task.duration,
+          'ext': task.ext,
+          'audio_only': task.audioOnly,
+          'file_size': size,
+          'created_at': task.createdAt.toIso8601String(),
+          'completed_at': DateTime.now().toIso8601String(),
+        }),
+      );
+    } catch (e) {
+      debugPrint('[DownloadList] 写入元数据 JSON 失败: $e');
     }
   }
 
