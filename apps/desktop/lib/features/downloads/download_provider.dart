@@ -320,7 +320,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             await _markStopped(task.id);
             return;
           }
-          // 需要登录：不重试，直接提示
+          // 需要登录：直接弹登录浏览器；登录成功后自动重试
           if (e.requiresLogin) {
             await _apply(task.id, (t) => t.copyWith(
                   status: DownloadStatus.failed,
@@ -328,7 +328,8 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   retryCount: attempt,
                   speed: 0,
                 ));
-            unawaited(promptSiteLogin(task.url));
+            final loggedIn = await promptSiteLogin(task.url);
+            if (loggedIn) await retry(task.id);
             return;
           }
           // 不可重试（如抖音直链签名失效）
@@ -378,7 +379,8 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   retryCount: attempt,
                   speed: 0,
                 ));
-            unawaited(promptSiteLogin(task.url));
+            final loggedIn = await promptSiteLogin(task.url);
+            if (loggedIn) await retry(task.id);
             return;
           }
           attempt++;

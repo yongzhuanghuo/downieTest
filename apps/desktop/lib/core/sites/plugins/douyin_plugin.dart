@@ -30,14 +30,12 @@ class DouyinPlugin extends SitePlugin {
     } on DouyinParseException catch (e) {
       // 抖音无数据/风控通常是因为没登录或需要过验证码；
       // 与 Downie 一样直接弹登录浏览器，登录后用 cookie 重试。
-      final needsLogin = RegExp(
-        r'无数据|验证|登录|status_code|captcha|forbidden|403|verify',
-        caseSensitive: false,
-      ).hasMatch(e.message);
+      // 即便错误不是典型的登录文案，也先让用户走一遍登录/验证，
+      // 这是抖音目前唯一稳定的用户可见恢复路径。
       throw SitePluginException(
         e.message,
-        retryable: !needsLogin,
-        requiresLogin: needsLogin,
+        retryable: false,
+        requiresLogin: true,
       );
     }
   }

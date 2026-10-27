@@ -18,6 +18,7 @@ Future<bool> promptSiteLogin(String url) async {
   final ctx = rootNavigatorKey.currentContext;
   if (ctx == null) return false;
   final site = resolveSite(url);
-  // Downie 是直接弹出登录浏览器窗口，不再多一层「去登录」确认
-  return SiteLoginDialog.show(ctx, site);
+  // Downie 是直接弹出登录浏览器窗口，不再多一层「去登录」确认。
+  // 优先打开真正需要登录的页面（如抖音视频页），而不是站点首页。
+  return SiteLoginDialog.show(ctx, site, initialUrl: url);
 }

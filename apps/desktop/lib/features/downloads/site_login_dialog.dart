@@ -19,10 +19,22 @@ class SiteLoginDialog extends StatefulWidget {
   final SiteConfig site;
   final WebViewEnvironment? environment;
 
-  const SiteLoginDialog({super.key, required this.site, this.environment});
+  /// 需要登录的原始页面；为空时打开站点首页。
+  final String? initialUrl;
+
+  const SiteLoginDialog({
+    super.key,
+    required this.site,
+    this.environment,
+    this.initialUrl,
+  });
 
   /// 弹出登录框；返回 true 表示登录成功并已保存 cookie
-  static Future<bool> show(BuildContext context, SiteConfig site) async {
+  static Future<bool> show(
+    BuildContext context,
+    SiteConfig site, {
+    String? initialUrl,
+  }) async {
     // 安装版装在 Program Files（只读），WebView2 默认在 exe 旁建用户数据目录会失败导致白屏。
     // 把用户数据目录指到可写的 AppData，修复安装版白屏。
     WebViewEnvironment? env;
@@ -42,7 +54,11 @@ class SiteLoginDialog extends StatefulWidget {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.transparent,
-      builder: (_) => SiteLoginDialog(site: site, environment: env),
+      builder: (_) => SiteLoginDialog(
+        site: site,
+        environment: env,
+        initialUrl: initialUrl,
+      ),
     );
     return ok ?? false;
   }
@@ -55,8 +71,11 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   bool _saving = false;
   bool _loginDetected = false;
   bool _webView2Missing = false;
+  bool _pageLoading = true;
   InAppWebViewController? _controller;
   Timer? _pollTimer;
+
+  String get _loginUrl => widget.initialUrl ?? widget.site.loginUrl;
 
   @override
   void initState() {
@@ -64,6 +83,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     // Windows 没装 WebView2 会空白，这里先检测，缺了就提示
     final available = isWebView2Available();
     _webView2Missing = !available;
+    if (_webView2Missing) _pageLoading = false;
     debugPrint('[登录] WebView2 可用: $available');
     if (!_webView2Missing) {
       _startLoginPolling();
@@ -82,7 +102,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       // Windows 上必须传 webViewEnvironment，否则 CookieManager 报 Cannot obtain the WebViewEnvironment
       final allCookies = await CookieManager.instance(
         webViewEnvironment: widget.environment,
-      ).getCookies(url: WebUri(widget.site.loginUrl));
+      ).getCookies(url: WebUri(_loginUrl));
       // 登录页里的第三方 iframe 会把别站（YouTube/Netflix 等）的 cookie 也带进来，
       // 按站点域名过滤掉，避免串台。
       final cookies = _filterSiteCookies(allCookies);
@@ -161,7 +181,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     try {
       final allCookies = await CookieManager.instance(
         webViewEnvironment: widget.environment,
-      ).getCookies(url: WebUri(widget.site.loginUrl));
+      ).getCookies(url: WebUri(_loginUrl));
       final cookies = _filterSiteCookies(allCookies);
       if (_hasLoginCookie(cookies) && mounted) {
         debugPrint('[登录] ✅ 检测到登录态，解锁「完成登录」');
@@ -295,6 +315,25 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     );
   }
 
+  Future<void> _showLoginInfo(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('登录浏览器'),
+        content: const Text(
+          '在打开的网页里完成登录或验证码。检测到登录状态后，'
+          '右上角的 ✓ 会变为可用；点击它会保存登录状态，并继续刚才的解析/下载。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -366,16 +405,28 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                         const SizedBox(width: AppSpacing.sm),
                         Tooltip(
                           message: '在页面里完成登录后，点右上角 ✓ 保存登录状态',
-                          child: Icon(
-                            Icons.info_outline,
-                            size: 14,
-                            color: secondary,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => _showLoginInfo(context),
+                            child: Icon(
+                              Icons.info_outline,
+                              size: 14,
+                              color: secondary,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                   const Spacer(),
+                  if (_pageLoading) ...[
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 1.6),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                  ],
                   _LoginCheckButton(
                     enabled: canFinish,
                     saving: _saving,
@@ -401,7 +452,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                     : InAppWebView(
                         webViewEnvironment: widget.environment,
                         initialUrlRequest:
-                            URLRequest(url: WebUri(widget.site.loginUrl)),
+                            URLRequest(url: WebUri(_loginUrl)),
                         initialSettings:
                             InAppWebViewSettings(javaScriptEnabled: true),
                         onWebViewCreated: (controller) {
@@ -410,13 +461,22 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                         },
                         onLoadStart: (controller, url) {
                           debugPrint('[登录] 开始加载: $url');
+                          if (mounted && !_pageLoading) {
+                            setState(() => _pageLoading = true);
+                          }
                         },
                         onLoadStop: (controller, url) {
                           debugPrint('[登录] 加载完成: $url');
+                          if (mounted && _pageLoading) {
+                            setState(() => _pageLoading = false);
+                          }
                           _detectLogin();
                         },
                         onReceivedError: (controller, request, error) {
                           debugPrint('[登录] 加载错误: ${error.description}');
+                          if (mounted && _pageLoading) {
+                            setState(() => _pageLoading = false);
+                          }
                         },
                       ),
               ),
