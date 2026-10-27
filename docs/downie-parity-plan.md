@@ -1,7 +1,7 @@
 # Downie 4 功能 1:1 复刻执行计划
 
 - **基线**：Downie 4 v4.13.3（`com.charliemonroe.Downie-4`，build 4000）
-- **当前产品**：Downie6 2.0.27+28（Flutter，macOS + Windows）
+- **当前产品**：Downie6 2.0.28+29（Flutter，macOS + Windows）
 - **分析方式**：REA + Mach-O 符号 / 字符串 / Swift 元数据 / 内置 Help Book / Localizable.strings；不做源码复制
 - **站点全量表**：[site-coverage.md](site-coverage.md)（786 行） / [site-coverage.csv](site-coverage.csv)
 - **更新日期**：2026-10-27
@@ -168,7 +168,7 @@ Downie 的关键长尾能力是 **Custom Integrations**（社区 JS 规则） + 
 | 14 | 字幕/音频 | 首选语言列表、单/多字幕、自动生成字幕、SRT 转换、音轨选择 | 2.0.19 单/多语言与自动生成字幕；2.0.20 SRT 转换；2.0.22 首选音轨匹配 | P1 | 已完成（按 yt-dlp 元数据匹配） |
 | 15 | 目的地 | 确认每次、JSON 元数据、缩略图 JPEG、原文件名、按站点/播放列表分文件夹 | 目录/模板/分站点/缩略图/元数据 JSON；2.0.20 询问保存位置与 `{original}`；2.0.21 按播放列表分文件夹（DB v8） | P1 | 已完成 |
 | 16 | 高级 | 连接数、分块、原生 HLS、强制重编码、保留失败文件、代理 WebView | 2.0.19 连接数/限速/原生 HLS/强制重编码/自检；2.0.21 分块；2.0.26 失败文件清理 | P1 | 已完成（WebView 代理与 Downie 一样不生效） |
-| 17 | 浏览器扩展 | 安装向导/多浏览器/关闭标签页 | 导出扩展/书签/token/cookie 导入；2.0.21 安装向导；2.0.27 Firefox 临时载入 | P2 | Safari/关闭标签页待做 |
+| 17 | 浏览器扩展 | 安装向导/多浏览器/关闭标签页 | 导出扩展/书签/token/cookie；2.0.21 向导；2.0.27 Firefox；2.0.28 关闭标签页 | P2 | Safari 原生扩展待做 |
 | 18 | 授权 | 14 天试用、邮箱、4 设备、签名令牌、心跳、Keychain | 14 天试用、设备/反激活；明文 Hive/HTTP | P1 | v2 见 rea 文档第 5 节 |
 | 19 | 自定义集成 | 注册表/提交/控制台/JS 执行 | 无 | P2 | S3 |
 | 20 | 多窗口 | 历史/调试/UGE/Quick Look 独立窗 | 单窗口浮层 | P2 | 用户已接受浮层，暂不做真多窗 |
