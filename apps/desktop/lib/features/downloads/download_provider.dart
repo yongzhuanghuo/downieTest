@@ -171,20 +171,25 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     bool downloadSubtitles = false,
     bool downloadCover = false,
     int throttleKbps = 0,
+    String? titleOverride,
+    String? destinationDir,
   }) async {
-    var destinationDir = '';
-    if (SettingsStorage.instance.current.askForDestination) {
+    var taskDestination = destinationDir ?? '';
+    // 显式传入目录（含空串）时跳过询问；普通添加才按偏好弹出目录选择器。
+    if (destinationDir == null &&
+        SettingsStorage.instance.current.askForDestination) {
       final picked = await FilePicker.platform.getDirectoryPath(
         dialogTitle: '选择保存位置',
       );
       if (picked == null) return false;
-      destinationDir = picked;
+      taskDestination = picked;
     }
 
+    final title = titleOverride?.trim() ?? '';
     final task = DownloadTask(
       id: const Uuid().v4(),
       url: videoInfo.url,
-      title: videoInfo.title,
+      title: title.isEmpty ? videoInfo.title : title,
       duration: videoInfo.duration,
       thumbnail: videoInfo.thumbnail,
       extractor: videoInfo.extractor,
@@ -198,7 +203,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       downloadSubtitles: downloadSubtitles,
       downloadCover: downloadCover,
       throttleKbps: throttleKbps,
-      destinationDir: destinationDir,
+      destinationDir: taskDestination,
       postprocessing: _defaultPostprocessing(),
       createdAt: DateTime.now(),
     );

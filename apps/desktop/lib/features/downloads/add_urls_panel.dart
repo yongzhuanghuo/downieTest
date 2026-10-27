@@ -8,6 +8,7 @@ import '../../core/engine/ytdlp_runner.dart';
 import '../../core/sites/format_selector.dart';
 import '../../core/sites/plugins/bilibili_plugin.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
+import '../../core/storage/import_links.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../../shared/theme/design_tokens.dart';
@@ -82,10 +83,13 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
       return;
     }
 
+    // Downie 兼容的 CSV/XML：每行可带标题和保存目录。
+    final imported = parseStructuredLinks(text);
     // 一次粘贴多条链接时逐条解析入队；没有 URL 的纯文本仍交给解析器判断。
     final whole = wholeHttpUrl(text);
     final urls = whole != null ? [whole] : extractUrls(text);
-    final targets = urls.isEmpty ? [text] : urls;
+    final targets = imported?.map((e) => e.url).toList() ??
+        (urls.isEmpty ? [text] : urls);
 
     setState(() {
       _busy = true;
@@ -123,9 +127,13 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
       }
 
       final target = targets[i];
+      final importedEntry =
+          imported != null && i < imported.length ? imported[i] : null;
       try {
         // B 站番剧：ss 链接整季展开，逐集解析入队。
-        if (_expandPlaylist && BilibiliPlugin.looksLikeSeason(target)) {
+        if (importedEntry == null &&
+            _expandPlaylist &&
+            BilibiliPlugin.looksLikeSeason(target)) {
           setState(() => _progress = '正在解析番剧选集…');
           var episodes = const <VideoInfo>[];
           try {
@@ -144,7 +152,9 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
           }
         }
 
-        if (_expandPlaylist && YtDlpRunner.looksLikePlaylist(target)) {
+        if (importedEntry == null &&
+            _expandPlaylist &&
+            YtDlpRunner.looksLikePlaylist(target)) {
           setState(() => _progress = '正在解析播放列表…');
           var entries = const <VideoInfo>[];
           try {
@@ -172,7 +182,11 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
           continue;
         }
 
-        final error = await _enqueueInfo(info);
+        final error = await _enqueueInfo(
+          info,
+          titleOverride: importedEntry?.title,
+          destinationDir: importedEntry?.path,
+        );
         if (error == _trialEnded) {
           trialBlocked = true;
           break;
@@ -216,7 +230,11 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
   static const _trialEnded = '__trial_ended__';
 
   /// 把解析结果加入下载队列；成功返回 null，失败返回错误文案。
-  Future<String?> _enqueueInfo(VideoInfo info) async {
+  Future<String?> _enqueueInfo(
+    VideoInfo info, {
+    String? titleOverride,
+    String? destinationDir,
+  }) async {
     if (!ref.read(canDownloadProvider)) return _trialEnded;
     final settings = ref.read(settingsProvider);
     final format = selectFormatForDownload(
@@ -231,6 +249,8 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
           format: format,
           downloadSubtitles: _downloadSubtitles,
           downloadCover: _downloadCover,
+          titleOverride: titleOverride,
+          destinationDir: destinationDir,
         );
     return added ? null : '已取消选择保存位置';
   }
