@@ -245,6 +245,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
+              title: const Text('添加后自动开始下载'),
+              subtitle: const Text('关闭后新任务停在等待中，可从菜单「队列 → 开始全部」启动'),
+              value: settings.autoStartDownloads,
+              onChanged: notifier.setAutoStartDownloads,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
               title: const Text('全部下载完成后退出应用'),
               value: settings.quitWhenDone,
               onChanged: notifier.setQuitWhenDone,

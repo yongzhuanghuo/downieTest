@@ -96,6 +96,9 @@ class AppSettings {
   /// 下载完成/失败播放系统提示音
   final bool playSounds;
 
+  /// 添加链接后自动开始下载（关闭后任务停在等待中）
+  final bool autoStartDownloads;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -126,6 +129,7 @@ class AppSettings {
     this.throttleKbps = 0,
     this.saveMetadataJson = false,
     this.playSounds = false,
+    this.autoStartDownloads = true,
   });
 
   static const defaults = AppSettings(
@@ -158,6 +162,7 @@ class AppSettings {
     throttleKbps: 0,
     saveMetadataJson: false,
     playSounds: false,
+    autoStartDownloads: true,
   );
 
   AppSettings copyWith({
@@ -190,6 +195,7 @@ class AppSettings {
     int? throttleKbps,
     bool? saveMetadataJson,
     bool? playSounds,
+    bool? autoStartDownloads,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -228,6 +234,8 @@ class AppSettings {
       throttleKbps: throttleKbps ?? this.throttleKbps,
       saveMetadataJson: saveMetadataJson ?? this.saveMetadataJson,
       playSounds: playSounds ?? this.playSounds,
+      autoStartDownloads:
+          autoStartDownloads ?? this.autoStartDownloads,
     );
   }
 
@@ -320,6 +328,8 @@ class SettingsStorage {
         throttleKbps: (raw['throttleKbps'] as num?)?.toInt() ?? 0,
         saveMetadataJson: (raw['saveMetadataJson'] as bool?) ?? false,
         playSounds: (raw['playSounds'] as bool?) ?? false,
+        autoStartDownloads:
+            (raw['autoStartDownloads'] as bool?) ?? true,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -383,6 +393,7 @@ class SettingsStorage {
       'throttleKbps': settings.throttleKbps,
       'saveMetadataJson': settings.saveMetadataJson,
       'playSounds': settings.playSounds,
+      'autoStartDownloads': settings.autoStartDownloads,
     });
     debugPrint('[Settings] saved: $settings');
   }

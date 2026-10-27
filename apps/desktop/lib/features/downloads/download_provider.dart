@@ -48,6 +48,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   final Set<String> _paused = {};
   final Set<String> _activeIds = {}; // 正在执行中的任务 ID（避免并发重复启动）
   bool _initialized = false;
+  bool _manualStartAll = false;
 
   /// 当前并发上限（实时从设置读取）
   int get _maxConcurrent =>
@@ -108,26 +109,40 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   /// 持续维持最多 _kMaxConcurrent 个下载
   ///
   /// 每次状态变更后触发，按 pending 先进先出启动。
-  Future<void> _scheduler() async {
-    if (mounted) {
-      final pending = state
-          .where((t) => t.isPending)
-          .toList()
-        ..sort((a, b) {
-          final byPriority = b.priority.index.compareTo(a.priority.index);
-          return byPriority != 0
-              ? byPriority
-              : a.createdAt.compareTo(b.createdAt);
-        });
+  Future<void> _scheduler({bool force = false}) async {
+    if (!mounted) return;
+    if (!force &&
+        !_manualStartAll &&
+        !SettingsStorage.instance.current.autoStartDownloads) {
+      return;
+    }
+    final pending = state
+        .where((t) => t.isPending)
+        .toList()
+      ..sort((a, b) {
+        final byPriority = b.priority.index.compareTo(a.priority.index);
+        return byPriority != 0
+            ? byPriority
+            : a.createdAt.compareTo(b.createdAt);
+      });
 
-      final available = _maxConcurrent - _activeIds.length;
-      if (available > 0 && pending.isNotEmpty) {
-        final toStart = pending.take(available);
-        for (final t in toStart) {
-          unawaited(_executeTask(t));
-        }
+    if (pending.isEmpty && _activeIds.isEmpty) {
+      _manualStartAll = false;
+      return;
+    }
+    final available = _maxConcurrent - _activeIds.length;
+    if (available > 0 && pending.isNotEmpty) {
+      final toStart = pending.take(available);
+      for (final t in toStart) {
+        unawaited(_executeTask(t));
       }
     }
+  }
+
+  /// 手动开始所有等待中的任务（关闭自动开始后使用）。
+  Future<void> startAll() async {
+    _manualStartAll = true;
+    await _scheduler(force: true);
   }
 
   // ==================== 添加任务 ====================
@@ -536,7 +551,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           error: null,
           completedAt: null,
         ));
-    unawaited(_scheduler());
+    unawaited(_scheduler(force: true));
   }
 
   /// 取消下载
@@ -569,7 +584,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           startedAt: null,
           completedAt: null,
         ));
-    unawaited(_scheduler());
+    unawaited(_scheduler(force: true));
   }
 
   /// 删除任务（内存 + DB）

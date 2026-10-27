@@ -74,6 +74,12 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
           leadingIcon: const Icon(Icons.list_alt, size: 14),
           menuChildren: [
             _item(
+              '开始全部',
+              icon: Icons.play_arrow,
+              onTap: () =>
+                  ref.read(downloadListProvider.notifier).startAll(),
+            ),
+            _item(
               '暂停全部',
               icon: Icons.pause_circle_outline,
               onTap: () =>
