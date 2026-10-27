@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -24,6 +25,29 @@ class TaskDebugDialog extends StatelessWidget {
     final map = task.toMap();
     map['format_id'] = task.formatId;
     return const JsonEncoder.withIndent('  ').convert(map);
+  }
+
+  Future<void> _openTaskLog(BuildContext context) async {
+    try {
+      final dir = await SettingsStorage.getStorageDir();
+      final path = '${dir.path}/logs/task_${task.id}.log';
+      final file = File(path);
+      if (!await file.exists()) {
+        if (context.mounted) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            const SnackBar(content: Text('这个任务还没有生成 yt-dlp 日志')),
+          );
+        }
+        return;
+      }
+      if (Platform.isMacOS) {
+        await Process.run('open', ['-t', path]);
+      } else if (Platform.isWindows) {
+        await Process.run('notepad', [path]);
+      }
+    } catch (e) {
+      debugPrint('[调试] 打开任务日志失败: $e');
+    }
   }
 
   Future<void> _openLogs() async {
@@ -53,6 +77,11 @@ class TaskDebugDialog extends StatelessWidget {
         ),
       ),
       actions: [
+        TextButton.icon(
+          onPressed: () => _openTaskLog(context),
+          icon: const Icon(Icons.description_outlined, size: 15),
+          label: const Text('任务日志'),
+        ),
         TextButton.icon(
           onPressed: _openLogs,
           icon: const Icon(Icons.folder_open, size: 15),

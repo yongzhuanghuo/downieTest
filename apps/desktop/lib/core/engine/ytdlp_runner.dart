@@ -263,6 +263,7 @@ class YtDlpRunner {
     bool downloadCover = false,
     int throttleKbps = 0,
     int connections = 0,
+    String? logPath,
   }) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
@@ -359,6 +360,19 @@ class YtDlpRunner {
       url,
     ];
 
+    File? logFile;
+    if (logPath != null && logPath.isNotEmpty) {
+      try {
+        logFile = File(logPath);
+        await logFile.parent.create(recursive: true);
+        await logFile.writeAsString(
+          '[cmd] $ytDlpPath ${args.join(' ')}\n',
+        );
+      } catch (_) {
+        logFile = null;
+      }
+    }
+
     final process =
         await Process.start(ytDlpPath, args, environment: _processEnv);
     final stdoutBuffer = StringBuffer();
@@ -403,6 +417,16 @@ class YtDlpRunner {
     // 诊断日志：打印 yt-dlp 完整输出
     final fullStdout = stdoutBuffer.toString();
     final fullStderr = stderrBuffer.toString();
+    if (logFile != null) {
+      try {
+        await logFile.writeAsString(
+          'exitCode=$exitCode\n'
+          '--- stdout ---\n$fullStdout\n'
+          '--- stderr ---\n$fullStderr\n',
+          mode: FileMode.append,
+        );
+      } catch (_) {}
+    }
     debugPrint('[YtDlp] exitCode=$exitCode');
     debugPrint('[YtDlp] stdout:\n$fullStdout');
     if (fullStderr.trim().isNotEmpty) {

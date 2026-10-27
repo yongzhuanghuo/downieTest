@@ -333,6 +333,11 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         url: task.url,
       );
       final outputTemplate = '$targetDir/$baseName.${task.ext}';
+      String? taskLogPath;
+      try {
+        final dataDir = await SettingsStorage.getStorageDir();
+        taskLogPath = '${dataDir.path}/logs/task_${task.id}.log';
+      } catch (_) {}
 
       // 重试循环（yt-dlp 已内置 --continue，.part 自动续传）
       int attempt = task.retryCount;
@@ -377,6 +382,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
               downloadCover: task.downloadCover,
               throttleKbps: task.throttleKbps,
               connections: task.connections,
+              logPath: taskLogPath,
             );
           }
           if (_cancelled.contains(task.id)) {
