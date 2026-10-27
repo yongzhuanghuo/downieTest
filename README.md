@@ -11,7 +11,7 @@
 
 | 目录 | 形态 | 技术栈 | 状态 |
 |------|------|--------|------|
-| [apps/desktop](apps/desktop/) | macOS / Windows 桌面应用 | Flutter + Dart | ✅ 已发布 v2.0.14 |
+| [apps/desktop](apps/desktop/) | macOS / Windows 桌面应用 | Flutter + Dart | ✅ 已发布 v2.0.18 |
 | [apps/mobile](apps/mobile/) | Android APK / 微信小程序 / H5 | uniapp（Vue3）+ uview-plus | 🔧 V1 功能已实现，未发布 |
 | [apps/harmony-pc](apps/harmony-pc/) | 鸿蒙 PC 应用 | 待定（三条候选路线） | ⏳ 占位，未开发 |
 | [services/api](services/api/) | 统一服务端（授权 + 视频处理 + 管理后台） | Python FastAPI + MySQL + Redis | 🔧 合并中 |
@@ -41,6 +41,8 @@
 │   ├── architecture.md         # 跨端架构总览 ← 先看这个
 │   ├── deploy.md               # 服务器部署
 │   ├── roadmap.md              # 桌面端开发进度（阶段 1-22）
+│   ├── downie-parity-plan.md   # Downie 4 1:1 复刻计划
+│   ├── site-coverage.md        # 786 个 Downie 站点覆盖表
 │   ├── mobile-app-design.md    # 移动端产品与技术设计稿
 │   └── 项目使用助手.md          # 怎么跑起来 / 怎么排查（操作手册）
 ├── CLAUDE.md                   # 给 Claude Code 的仓库级说明
