@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+import '../../core/engine/douyin_parser.dart';
 import '../../core/platform/webview2.dart';
 import '../../core/storage/settings_storage.dart';
 import '../../core/storage/site_cookies.dart';
@@ -50,15 +52,22 @@ class SiteLoginDialog extends StatefulWidget {
         debugPrint('[登录] WebView2 环境创建失败: $e');
       }
     }
-    final ok = await showDialog<bool>(
+    // 不用 showDialog：它的缩放转场会让 macOS 平台视图（WKWebView）
+    // 的点击坐标偏移，表现为页面能看但按钮点不动。这里只做淡入。
+    final ok = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: false,
+      barrierLabel: '登录',
       barrierColor: Colors.transparent,
-      builder: (_) => SiteLoginDialog(
-        site: site,
-        environment: env,
-        initialUrl: initialUrl,
+      transitionDuration: Duration.zero,
+      pageBuilder: (_, __, ___) => Center(
+        child: SiteLoginDialog(
+          site: site,
+          environment: env,
+          initialUrl: initialUrl,
+        ),
       ),
+      transitionBuilder: (_, __, ___, child) => child,
     );
     return ok ?? false;
   }
@@ -74,8 +83,60 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   bool _pageLoading = true;
   InAppWebViewController? _controller;
   Timer? _pollTimer;
+  Timer? _captureTimer;
+  int _captureTries = 0;
+  bool _reloadedAfterLogin = false;
 
   String get _loginUrl => widget.initialUrl ?? widget.site.loginUrl;
+
+  /// 抖音等站点会按 UA 返回不同的登录页；用桌面 Chrome UA 才能出现
+  /// 短信/扫码等完整控件。Downie 的 XULoginHelper 也配置了自定义 UA。
+  static const String _desktopUA =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+      'AppleWebKit/537.36 (KHTML, like Gecko) '
+      'Chrome/126.0.0.0 Safari/537.36';
+
+  /// 抖音登录页会自己请求 aweme/detail；截获后可直接拿到视频数据，
+  /// 不再依赖登录后的 HTTP 签名/风控。
+  static const String _douyinHook = r'''
+(function () {
+  if (window.__downie6AwemeHook) return;
+  window.__downie6AwemeHook = true;
+  function put(url, text) {
+    try {
+      if (url && String(url).indexOf('aweme/detail') >= 0 && text) {
+        window.__downie6_aweme = text;
+      }
+    } catch (e) {}
+  }
+  var of = window.fetch;
+  if (of) {
+    window.fetch = function () {
+      var args = arguments;
+      return of.apply(this, args).then(function (resp) {
+        try {
+          var u = (typeof args[0] === 'string') ? args[0] : (args[0] && args[0].url);
+          resp.clone().text().then(function (t) { put(u, t); });
+        } catch (e) {}
+        return resp;
+      });
+    };
+  }
+  var oo = XMLHttpRequest.prototype.open;
+  var os = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (m, u) {
+    this.__downie6Url = u;
+    return oo.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function () {
+    var self = this;
+    this.addEventListener('load', function () {
+      put(self.__downie6Url, self.responseText);
+    });
+    return os.apply(this, arguments);
+  };
+})();
+''';
 
   @override
   void initState() {
@@ -93,12 +154,14 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _captureTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _finish() async {
     setState(() => _saving = true);
     try {
+      await _captureDouyin();
       // Windows 上必须传 webViewEnvironment，否则 CookieManager 报 Cannot obtain the WebViewEnvironment
       final allCookies = await CookieManager.instance(
         webViewEnvironment: widget.environment,
@@ -150,6 +213,15 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         } else {
           debugPrint('[登录] ⚠️ 没抓到 msToken，抖音解析可能仍报 Fresh cookies');
         }
+        // Argus 风控会检查 UIFID；浏览器通常把它放在 localStorage，
+        // 而不是 cookie。登录完成后补进 cookie 文件，HTTP 解析时再带成 header。
+        await _appendStorageCookies(const [
+          'UIFID',
+          'uifid',
+          'UIFID_TEMP',
+          'webid',
+          's_v_web_id',
+        ]);
       } else {
         debugPrint('[登录] ${widget.site.name}（id=${widget.site.id}）非抖音，'
             '跳过 msToken 抓取，不影响其他站点');
@@ -187,6 +259,19 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         debugPrint('[登录] ✅ 检测到登录态，解锁「完成登录」');
         setState(() => _loginDetected = true);
         _pollTimer?.cancel();
+        _captureTries = 0;
+        unawaited(_captureDouyin());
+        // 登录后重新打开原始短链：此时带上登录态，短链才会跳到视频页，
+        // 页面自己的 aweme/detail 请求会被上面的 hook 截获。
+        if (widget.site.id == 'douyin' && !_reloadedAfterLogin) {
+          _reloadedAfterLogin = true;
+          final controller = _controller;
+          if (controller != null) {
+            unawaited(controller.loadUrl(
+              urlRequest: URLRequest(url: WebUri(_loginUrl)),
+            ));
+          }
+        }
       }
     } catch (e) {
       debugPrint('[登录] 检测登录态失败: $e');
@@ -282,6 +367,105 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     }
   }
 
+  /// 读取登录 WebView 截获的 aweme/detail，写入解析缓存。
+  Future<void> _captureDouyin() async {
+    if (widget.site.id != 'douyin') return;
+    final c = _controller;
+    if (c == null) return;
+    try {
+      final raw = (await c.evaluateJavascript(
+        source: 'JSON.stringify({href: location.href, '
+            'data: window.__downie6_aweme || ""})',
+      ))
+          ?.toString() ??
+          '';
+      final map = jsonDecode(_unwrap(raw)) as Map<String, dynamic>;
+      final data = (map['data'] as String?) ?? '';
+      final href = (map['href'] as String?) ?? '';
+      if (data.isNotEmpty) {
+        var cached = DouyinParser.cacheCaptured(_loginUrl, data);
+        if (widget.initialUrl != null) {
+          cached = DouyinParser.cacheCaptured(widget.initialUrl!, data) || cached;
+        }
+        if (href.isNotEmpty) {
+          cached = DouyinParser.cacheCaptured(href, data) || cached;
+        }
+        if (cached) {
+          _captureTimer?.cancel();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('[登录] 读取抖音数据失败: $e');
+    }
+
+    if (_captureTries < 8) {
+      _captureTries++;
+      _captureTimer?.cancel();
+      _captureTimer = Timer(const Duration(milliseconds: 1200), () {
+        if (mounted) _captureDouyin();
+      });
+    }
+  }
+
+  String _unwrap(String raw) {
+    if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+      return raw.substring(1, raw.length - 1);
+    }
+    return raw;
+  }
+
+  /// 从 localStorage 找安全 token 补进 cookie 文件（已有同名 cookie 则跳过）。
+  Future<void> _appendStorageCookies(List<String> keys) async {
+    final c = _controller;
+    if (c == null) return;
+    final existing = await SiteCookies.loadCookieHeader(widget.site.id);
+    final missing = keys.where((key) {
+      final pattern = RegExp(
+        '(?:^|;\\s*)${RegExp.escape(key)}=',
+        caseSensitive: false,
+      );
+      return !pattern.hasMatch(existing);
+    }).toList();
+    if (missing.isEmpty) return;
+
+    final keysJson = jsonEncode(missing);
+    final script = '''
+      JSON.stringify((() => {
+        try {
+          const out = {};
+          for (const k of $keysJson) {
+            const v = localStorage.getItem(k);
+            if (v && v.length > 3) out[k] = v;
+          }
+          return out;
+        } catch (e) { return {}; }
+      })())
+    ''';
+    try {
+      final raw = (await c.evaluateJavascript(source: script))?.toString() ?? '';
+      final jsonStr = raw.startsWith('"') && raw.endsWith('"')
+          ? raw.substring(1, raw.length - 1)
+          : raw;
+      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      if (map.isEmpty) return;
+      final f = await SiteCookies.cookieFile(widget.site.id);
+      final buf = StringBuffer();
+      map.forEach((key, value) {
+        final v = value.toString();
+        if (v.isEmpty) return;
+        buf.writeln(
+          '${widget.site.cookieDomain}\tTRUE\t/\tFALSE\t0\t$key\t$v',
+        );
+      });
+      if (buf.length == 0) return;
+      await File(f.path).writeAsString(buf.toString(), mode: FileMode.append);
+      debugPrint('[Cookie] 已追加 localStorage token: ${map.keys.join(', ')}');
+    } catch (e) {
+      debugPrint('[Cookie] 追加 localStorage token 失败: $e');
+    }
+  }
+
   /// Windows 缺 WebView2 时显示的提示（引导用户去安装）
   Widget _buildWebView2Missing(ThemeData theme) {
     return Center(
@@ -350,10 +534,10 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     final width = (screen.width - 24).clamp(560.0, 1120.0).toDouble();
     final height = (screen.height - 24).clamp(420.0, 700.0).toDouble();
 
-    return Dialog(
-      insetPadding: const EdgeInsets.all(AppSpacing.md),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
+    // 不用 Dialog：Dialog 的缩放/内边距动画和裁剪层会让 macOS 上的
+    // WKWebView 点击坐标错位（页面能看，按钮点不动）。这里直接用 Material。
+    return Material(
+      type: MaterialType.transparency,
       child: Container(
         width: width,
         height: height,
@@ -369,7 +553,6 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
             ),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             Container(
@@ -453,8 +636,21 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                         webViewEnvironment: widget.environment,
                         initialUrlRequest:
                             URLRequest(url: WebUri(_loginUrl)),
-                        initialSettings:
-                            InAppWebViewSettings(javaScriptEnabled: true),
+                        initialSettings: InAppWebViewSettings(
+                          javaScriptEnabled: true,
+                          userAgent: _desktopUA,
+                          javaScriptCanOpenWindowsAutomatically: true,
+                          mediaPlaybackRequiresUserGesture: false,
+                        ),
+                        initialUserScripts: widget.site.id == 'douyin'
+                            ? UnmodifiableListView<UserScript>([
+                                UserScript(
+                                  source: _douyinHook,
+                                  injectionTime:
+                                      UserScriptInjectionTime.AT_DOCUMENT_START,
+                                ),
+                              ])
+                            : null,
                         onWebViewCreated: (controller) {
                           _controller = controller;
                           debugPrint('[登录] webview 已创建');
@@ -471,6 +667,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                             setState(() => _pageLoading = false);
                           }
                           _detectLogin();
+                          _captureTries = 0;
+                          unawaited(_captureDouyin());
                         },
                         onReceivedError: (controller, request, error) {
                           debugPrint('[登录] 加载错误: ${error.description}');

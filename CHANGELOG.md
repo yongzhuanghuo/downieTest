@@ -1,5 +1,16 @@
 # 更新日志
 
+## 2.0.14（2026-10-27）
+
+### 登录窗口与抖音
+
+- macOS 登录浏览器改为无缩放转场/无 Dialog 裁剪，修复页面能看但按钮点不动
+- 登录 WebView 使用桌面 Chrome UA，恢复抖音短信/扫码等完整登录控件
+- 登录后重新打开原始短链，让抖音页面自己请求 aweme/detail
+- 登录 WebView 拦截 aweme/detail，直接缓存视频数据，绕开签名/风控失败
+- 补充 UIFID 等 localStorage token 到 cookie，并在解析请求中带 UIFID header
+- Windows 登录后无法解析的路径同样走上述兜底
+
 ## 2.0.13（2026-10-27）
 
 ### 抖音与 + 按钮

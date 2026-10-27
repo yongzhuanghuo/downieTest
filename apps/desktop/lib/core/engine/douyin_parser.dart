@@ -35,10 +35,42 @@ class DouyinParser {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
+  /// 登录浏览器拦截到的 aweme_detail 缓存。
+  /// key 可以是原始短链、视频页 URL 或 `id:awemeId`。
+  static final Map<String, VideoInfo> _captured = {};
+
+  /// 登录窗口的 WebView 拦截到 aweme/detail 后调用。
+  static bool cacheCaptured(String pageUrl, String responseText) {
+    try {
+      final json = jsonDecode(responseText);
+      if (json is! Map) return false;
+      final aweme = json['aweme_detail'];
+      if (aweme is! Map) return false;
+      final map = Map<String, dynamic>.from(aweme);
+      final id = map['aweme_id']?.toString() ?? _idFromUrl(pageUrl) ?? '';
+      if (id.isEmpty) return false;
+      final info = _parseAweme(id, map);
+      if (info.formats.isEmpty) return false;
+      _captured[pageUrl] = info;
+      _captured['id:$id'] = info;
+      _captured['https://www.douyin.com/video/$id'] = info;
+      debugPrint('[抖音] 缓存登录浏览器数据: $id');
+      return true;
+    } catch (e) {
+      debugPrint('[抖音] 解析登录浏览器数据失败: $e');
+      return false;
+    }
+  }
+
   /// 解析抖音链接，返回 VideoInfo（extractor='Douyin'，formats 的 formatId 为直链）
   static Future<VideoInfo> parse(String url) async {
+    final cached = _captured[url];
+    if (cached != null) return cached;
+
     final awemeId = await _expand(url);
     debugPrint('[抖音] aweme_id=$awemeId');
+    final cachedById = _captured['id:$awemeId'];
+    if (cachedById != null) return cachedById;
 
     final ttwid = await _getTtwid();
     // 登录浏览器保存下来的 cookie（可能包含 sessionid / msToken）
@@ -184,11 +216,19 @@ class DouyinParser {
         'msToken': msToken,
         'a_bogus': aBogus,
       });
+      final uifid = RegExp(r'(?:^|;\s*)(?:UIFID|uifid)=([^;]+)')
+          .firstMatch(savedCookie)
+          ?.group(1);
       final resp = await client.get(uri, headers: {
         'User-Agent': ua,
         'Referer': 'https://www.douyin.com/video/$awemeId',
+        'Origin': 'https://www.douyin.com',
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Dest': 'empty',
+        if (uifid != null && uifid.isNotEmpty) 'UIFID': uifid,
         'Cookie': cookie,
       });
       final body = jsonDecode(resp.body) as Map<String, dynamic>;
