@@ -381,8 +381,10 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   retryCount: attempt,
                   speed: 0,
                 ));
-            final loggedIn = await promptSiteLogin(task.url);
-            if (loggedIn) await retry(task.id);
+            if (!SettingsStorage.instance.current.disableLoginDialogs) {
+              final loggedIn = await promptSiteLogin(task.url);
+              if (loggedIn) await retry(task.id);
+            }
             return;
           }
           // 不可重试（如抖音直链签名失效）
@@ -432,8 +434,10 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   retryCount: attempt,
                   speed: 0,
                 ));
-            final loggedIn = await promptSiteLogin(task.url);
-            if (loggedIn) await retry(task.id);
+            if (!SettingsStorage.instance.current.disableLoginDialogs) {
+              final loggedIn = await promptSiteLogin(task.url);
+              if (loggedIn) await retry(task.id);
+            }
             return;
           }
           attempt++;

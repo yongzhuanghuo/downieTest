@@ -123,6 +123,15 @@ class AppSettings {
   /// 在菜单栏 / 系统托盘显示图标
   final bool showInMenuBar;
 
+  /// 启动时自动检查应用更新
+  final bool autoCheckUpdates;
+
+  /// 禁用站点登录对话框（解析失败时直接报错）
+  final bool disableLoginDialogs;
+
+  /// 纯音频下载格式（yt-dlp 任务）：mp3/m4a/opus
+  final String preferredAudioFormat;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -162,6 +171,9 @@ class AppSettings {
     this.forceReencode = false,
     this.nativeHlsEngine = false,
     this.showInMenuBar = true,
+    this.autoCheckUpdates = true,
+    this.disableLoginDialogs = false,
+    this.preferredAudioFormat = 'mp3',
   });
 
   static const defaults = AppSettings(
@@ -203,6 +215,9 @@ class AppSettings {
     forceReencode: false,
     nativeHlsEngine: false,
     showInMenuBar: true,
+    autoCheckUpdates: true,
+    disableLoginDialogs: false,
+    preferredAudioFormat: 'mp3',
   );
 
   AppSettings copyWith({
@@ -244,6 +259,9 @@ class AppSettings {
     bool? forceReencode,
     bool? nativeHlsEngine,
     bool? showInMenuBar,
+    bool? autoCheckUpdates,
+    bool? disableLoginDialogs,
+    String? preferredAudioFormat,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -295,6 +313,11 @@ class AppSettings {
       forceReencode: forceReencode ?? this.forceReencode,
       nativeHlsEngine: nativeHlsEngine ?? this.nativeHlsEngine,
       showInMenuBar: showInMenuBar ?? this.showInMenuBar,
+      autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
+      disableLoginDialogs:
+          disableLoginDialogs ?? this.disableLoginDialogs,
+      preferredAudioFormat:
+          preferredAudioFormat ?? this.preferredAudioFormat,
     );
   }
 
@@ -400,6 +423,11 @@ class SettingsStorage {
         forceReencode: (raw['forceReencode'] as bool?) ?? false,
         nativeHlsEngine: (raw['nativeHlsEngine'] as bool?) ?? false,
         showInMenuBar: (raw['showInMenuBar'] as bool?) ?? true,
+        autoCheckUpdates: (raw['autoCheckUpdates'] as bool?) ?? true,
+        disableLoginDialogs:
+            (raw['disableLoginDialogs'] as bool?) ?? false,
+        preferredAudioFormat:
+            (raw['preferredAudioFormat'] as String?) ?? 'mp3',
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -473,6 +501,9 @@ class SettingsStorage {
       'forceReencode': settings.forceReencode,
       'nativeHlsEngine': settings.nativeHlsEngine,
       'showInMenuBar': settings.showInMenuBar,
+      'autoCheckUpdates': settings.autoCheckUpdates,
+      'disableLoginDialogs': settings.disableLoginDialogs,
+      'preferredAudioFormat': settings.preferredAudioFormat,
     });
     debugPrint('[Settings] saved: $settings');
   }

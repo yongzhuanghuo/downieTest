@@ -329,7 +329,8 @@ class YtDlpRunner {
       if (settings.saveMetadataJson) '--write-info-json',
       if (settings.forceReencode) ...['--recode-video', 'mp4'],
       if (settings.nativeHlsEngine) '--hls-prefer-native',
-      if (audioOnly) ...['-x', '--audio-format', 'mp3'],
+      if (audioOnly)
+        ...['-x', '--audio-format', settings.preferredAudioFormat],
       if (!audioOnly) ...['--merge-output-format', 'mp4'],
       if (downloadSubtitles) ...[
         '--write-subs',

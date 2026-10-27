@@ -62,7 +62,7 @@
 |---|---|---|---|---|---|---|
 | Bilibili | BilibiliDownloader | https://bilibili.com, http://www.bilibili.tv, http://api.bilibili.com | 原生插件 | 是 | P0 |  |
 | Douyin | DouyinDownloader | https://www.douyin.com, https://live.douyin.com, https://music.douyin.com | 原生插件 | 是 | P0 |  |
-| BilibiliEmbed | BilibiliEmbedDownloader |  | 原生插件 | 是 | P1 |  |
+| BilibiliEmbed | BilibiliEmbedDownloader |  | 原生插件 | 否 | P1 |  |
 | Iesdouyin | IesdouyinDownloader | https://www.iesdouyin.com | 原生插件 | 是 | P1 |  |
 
 ## 原生部分支持

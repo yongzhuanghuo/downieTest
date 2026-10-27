@@ -71,6 +71,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     unawaited(() async {
       await Future<void>.delayed(const Duration(seconds: 3));
       if (!mounted) return;
+      if (!ref.read(settingsProvider).autoCheckUpdates) return;
       try {
         if (await refreshUpdateState(ref) && mounted) {
           await showUpdateDialog(ref.read(updateInfoProvider)!);

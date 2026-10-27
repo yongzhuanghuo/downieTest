@@ -142,6 +142,7 @@ def main() -> None:
                 "seconds",
                 "url",
             ],
+            lineterminator="\n",
         )
         writer.writeheader()
         writer.writerows(out_rows)

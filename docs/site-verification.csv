@@ -1,0 +1,23 @@
+site,coverage_status,ok,detail,error,seconds,url
+YouTube,ytdlp,no,,ERROR: [youtube] 3x5d12PP5Mo: Private video,28.6,https://www.youtube.com/watch?v=3x5d12PP5Mo
+X,,no,,ERROR: [twitter] 1673335410510946309: Suspended,29.1,https://x.com/bbs2269/status/1673335410510946309
+Facebook,ytdlp,no,,timeout 35s,35.0,https://www.facebook.com/boredpanda/videos/10156522412064252/
+Vimeo,ytdlp,no,,timeout 35s,35.0,http://vimeo.com/75906247
+Reddit,ytdlp,no,,ERROR: [Reddit] 20x091: Account authentication is required. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies,26.5,http://www.reddit.com/r/videos/comments/20x091/being_a_dickheads_cool/
+Soundcloud,ytdlp,yes,soundcloud	Lostin Powers - She so Heavy (SneakPreview) Adrian Ackers Blueprint 1	143.206,,30.1,https://soundcloud.com/ethmusic/lostin-powers-she-so-heavy
+TikTok,ytdlp,no,,"ERROR: [TikTok] 6756589355923410178: Unexpected response from webpage request; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U",24.3,https://www.tiktok.com/@proteinhewani/video/6756589355923410178
+Twitch,ytdlp,no,,ERROR: [twitch:vod] 124137118: Video 124137118 does not exist,24.9,https://www.twitch.tv/videos/124137118
+Weibo,ytdlp,no,,ERROR: Unsupported URL: https://h5.video.weibo.com/show/1034:4574447982805003,23.8,https://h5.video.weibo.com/show/1034:4574447982805003
+Youku,ytdlp,yes,"youku	地铁借肩膀乘客错过12站 睡神终寻""真爱""	236.67",,33.6,http://v.youku.com/v_show/id_XNjMwOTA1Njk2.html
+WeTV,ytdlp,no,,timeout 35s,35.0,https://wetv.vip/play/ib6bbeqctm2qkxp/t0039t0ea5n
+Pinterest,ytdlp,yes,Pinterest	Pinterest video #28147566414114925	7.3,,26.2,https://www.pinterest.at/pin/28147566414114925
+Rumble,ytdlp,no,,ERROR: [RumbleEmbed] vbq2h: Unable to download JSON metadata: HTTP Error 403: Forbidden (caused by <HTTPError 403: Forbidden>),28.1,https://rumble.com/embed/u790a.vbq2h/
+CCTV,ytdlp,yes,CCTV	《遇见大咖》 20160304	1610.0,,31.3,http://tv.cctv.cn/2016/03/04/VIDE6972jaTfawNMwRBtBwAQ160304.shtml
+CBS,ytdlp,no,,"ERROR: [CBS] GfttMtUBBfAeORI6kkvqq1RBwe1bmjQa: Failed to parse XML (caused by ParseError('no element found: line 1, column 0')); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U",24.7,https://www.cbs.com/shows/video/GfttMtUBBfAeORI6kkvqq1RBwe1bmjQa/
+NBC,ytdlp,no,,"ERROR: [NBC] 9000319183: Unable to download JSON metadata: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1082) (caused by SSLError('[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1082)')); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U",24.4,https://www.nbc.com/night-court/video/the-honorable-dan-fielding-part-2/9000319183
+PBS,ytdlp,no,,"ERROR: 3043497119: An extractor error has occurred. (caused by KeyError('title')); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U",30.9,https://player.pbs.org/viralplayer/3043497119/
+MLB,ytdlp,yes,MLBVideo	Condensed Game: 2023 All-Star Game	899,,27.5,https://www.mlb.com/video/condensed-game-2023-all-star-game
+MTV,ytdlp,no,,ERROR: [mtv] qxjq6t: Unable to download JSON metadata: HTTP Error 404: Not Found (caused by <HTTPError 404: Not Found>),30.3,http://www.mtv.com/episodes/qxjq6t/world-star-tv-lil-dicky-season-1-ep-106
+Naver,ytdlp,no,,"ERROR: 2084516: An extractor error has occurred. (caused by KeyError('result')); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U",27.9,http://tv.naver.com/v/2084516
+Bilibili,native,yes,BiliBili	字幕君交流场所	2055.637,,23.6,https://www.bilibili.com/video/BV1xx411c7mD
+Douyin,native,no,,ERROR: [Douyin] 7701030749851389219: Fresh cookies (not necessarily logged in) are needed,24.4,https://v.douyin.com/VbqfzLlhxHw/

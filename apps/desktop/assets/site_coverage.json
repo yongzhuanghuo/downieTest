@@ -49,7 +49,7 @@
    "domains": [],
    "status": "native",
    "statusLabel": "原生插件",
-   "verified": true,
+   "verified": false,
    "priority": "P1",
    "ytdlpExtractors": [
     "BiliBili"

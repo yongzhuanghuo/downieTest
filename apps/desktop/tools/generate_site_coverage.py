@@ -38,6 +38,11 @@ NATIVE = {
     "BilibiliEmbedDownloader",
 }
 NATIVE_PARTIAL = {"BilibiliBangumiDownloader"}
+VERIFIED_NATIVE = {
+    "DouyinDownloader",
+    "IesdouyinDownloader",
+    "BilibiliDownloader",
+}
 
 # CSV 里只标了 Disney/Apple；这些服务即使被 yt-dlp 识别，正片仍是 DRM。
 DRM_PREFIXES = (
@@ -185,7 +190,7 @@ def classify(row: dict[str, str], extractors: list[str]) -> dict[str, object]:
         ],
         "status": status,
         "statusLabel": STATUS_LABEL[status],
-        "verified": status == "native",
+        "verified": status == "native" and cls in VERIFIED_NATIVE,
         "priority": row.get("priority") or "P1",
         "ytdlpExtractors": matches,
         "notes": notes,
@@ -254,7 +259,7 @@ def main() -> None:
         "notes",
     ]
     with OUT_CSV.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
+        writer = csv.DictWriter(f, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         for r in coverage:
             writer.writerow(

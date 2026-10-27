@@ -715,6 +715,28 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
+              '纯音频下载格式（yt-dlp 任务）',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            DropdownButtonFormField<String>(
+              initialValue: settings.preferredAudioFormat,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'mp3', child: Text('MP3')),
+                DropdownMenuItem(value: 'm4a', child: Text('M4A')),
+                DropdownMenuItem(value: 'opus', child: Text('Opus')),
+              ],
+              onChanged: (value) =>
+                  notifier.setPreferredAudioFormat(value ?? 'mp3'),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
               '这些选项只是新任务的默认值，添加链接时仍可临时勾选/取消。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -789,6 +811,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: AppSpacing.lg),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('禁用登录对话框'),
+              subtitle: const Text('需要登录的链接直接失败，不弹内置浏览器；仍可从菜单手动登录'),
+              value: settings.disableLoginDialogs,
+              onChanged: notifier.setDisableLoginDialogs,
+            ),
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -1375,6 +1405,13 @@ class _AdvancedPaneState extends ConsumerState<_AdvancedPane> {
           subtitle: const Text('传递 --hls-prefer-native；部分站点更快，但兼容性可能不同'),
           value: settings.nativeHlsEngine,
           onChanged: notifier.setNativeHlsEngine,
+        ),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('启动时自动检查更新'),
+          value: settings.autoCheckUpdates,
+          onChanged: notifier.setAutoCheckUpdates,
         ),
         const Divider(height: 24),
         ListTile(

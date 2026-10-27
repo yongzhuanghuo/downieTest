@@ -209,6 +209,27 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setAutoCheckUpdates(bool value) async {
+    final next = state.copyWith(autoCheckUpdates: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setDisableLoginDialogs(bool value) async {
+    final next = state.copyWith(disableLoginDialogs: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setPreferredAudioFormat(String value) async {
+    const allowed = {'mp3', 'm4a', 'opus'};
+    final next = state.copyWith(
+      preferredAudioFormat: allowed.contains(value) ? value : 'mp3',
+    );
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setNotifyOnComplete(bool value) async {
     final next = state.copyWith(notifyOnComplete: value);
     await SettingsStorage.instance.save(next);

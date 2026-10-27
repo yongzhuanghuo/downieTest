@@ -9,6 +9,7 @@ import '../../core/sites/generic_html_extractor.dart';
 import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../core/sites/site_plugin.dart';
+import '../../core/storage/settings_storage.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../downloads/site_login_prompt.dart';
@@ -111,7 +112,9 @@ class ParseNotifier extends StateNotifier<ParseState> {
                 ? '该网站需要登录后才能解析'
                 : '${plugin.displayName}解析失败，请重试',
           );
-          if (e.requiresLogin && autoLogin) {
+          if (e.requiresLogin &&
+              autoLogin &&
+              !SettingsStorage.instance.current.disableLoginDialogs) {
             final loggedIn = await promptSiteLogin(target);
             if (loggedIn) {
               await _doParse(url, autoLogin: false);
@@ -148,7 +151,9 @@ class ParseNotifier extends StateNotifier<ParseState> {
         status: ParseStatus.error,
         error: needLogin ? '该网站需要登录后才能解析' : _friendlyError(e.message),
       );
-      if (needLogin && autoLogin) {
+      if (needLogin &&
+          autoLogin &&
+          !SettingsStorage.instance.current.disableLoginDialogs) {
         final loggedIn = await promptSiteLogin(target);
         if (loggedIn) {
           // 登录成功，自动重新解析一次（不再自动弹登录，避免死循环）
