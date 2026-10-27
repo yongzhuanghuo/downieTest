@@ -54,10 +54,17 @@ class WebCaptureDialog extends StatefulWidget {
         debugPrint('[嗅探] WebView2 环境创建失败: $e');
       }
     }
-    return showDialog<CapturedMedia>(
+    // 同样避免 Dialog 的缩放/裁剪层：否则 macOS 上 WKWebView 点击会错位
+    return showGeneralDialog<CapturedMedia>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => WebCaptureDialog(url: url, environment: env),
+      barrierLabel: '用户自定义视频提取',
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      transitionDuration: Duration.zero,
+      pageBuilder: (_, __, ___) => Center(
+        child: WebCaptureDialog(url: url, environment: env),
+      ),
+      transitionBuilder: (_, __, ___, child) => child,
     );
   }
 
@@ -75,6 +82,11 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
   InAppWebViewController? _webController;
   late final TextEditingController _addressController;
   final FocusNode _addressFocus = FocusNode();
+
+  static const String _ua =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+      'AppleWebKit/537.36 (KHTML, like Gecko) '
+      'Chrome/126.0.0.0 Safari/537.36';
 
   static const String _captureJs = r'''
 (function() {
@@ -203,10 +215,26 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Dialog(
-      child: SizedBox(
-        width: 1000,
-        height: 720,
+    final screen = MediaQuery.sizeOf(context);
+    final width = (screen.width - 24).clamp(560.0, 1000.0).toDouble();
+    final height = (screen.height - 24).clamp(420.0, 720.0).toDouble();
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: theme.dividerColor),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 30,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
         child: Column(
           children: [
             Container(
@@ -287,6 +315,8 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
                           URLRequest(url: WebUri(widget.url)),
                       initialSettings: InAppWebViewSettings(
                         javaScriptEnabled: true,
+                        userAgent: _ua,
+                        javaScriptCanOpenWindowsAutomatically: true,
                         mediaPlaybackRequiresUserGesture: false,
                       ),
                       initialUserScripts: UnmodifiableListView<UserScript>([

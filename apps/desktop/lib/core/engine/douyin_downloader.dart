@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../data/models/download_progress.dart';
+import '../storage/site_cookies.dart';
 
 /// 抖音直链下载异常
 class DouyinDownloadException implements Exception {
@@ -35,11 +36,13 @@ class DouyinDownloader {
     bool Function()? shouldCancel,
   }) async {
     debugPrint('[抖音下载] 开始: $url');
+    final cookie = await SiteCookies.loadCookieHeader('douyin');
     final client = http.Client();
     try {
       final req = http.Request('GET', Uri.parse(url));
       req.headers['User-Agent'] = ua;
       req.headers['Referer'] = 'https://www.douyin.com/';
+      if (cookie.isNotEmpty) req.headers['Cookie'] = cookie;
       final resp = await client.send(req);
       if (resp.statusCode != 200) {
         throw DouyinDownloadException('下载失败 HTTP ${resp.statusCode}');

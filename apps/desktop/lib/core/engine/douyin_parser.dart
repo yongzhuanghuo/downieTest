@@ -40,6 +40,14 @@ class DouyinParser {
   static final Map<String, VideoInfo> _captured = {};
 
   /// 登录窗口的 WebView 拦截到 aweme/detail 后调用。
+  /// 查询登录浏览器已经缓存的视频数据。
+  static VideoInfo? cachedVideo(String url) {
+    final direct = _captured[url];
+    if (direct != null) return direct;
+    final id = _idFromUrl(url);
+    return id == null ? null : _captured['id:$id'];
+  }
+
   static bool cacheCaptured(String pageUrl, String responseText) {
     try {
       final json = jsonDecode(responseText);
@@ -64,7 +72,7 @@ class DouyinParser {
 
   /// 解析抖音链接，返回 VideoInfo（extractor='Douyin'，formats 的 formatId 为直链）
   static Future<VideoInfo> parse(String url) async {
-    final cached = _captured[url];
+    final cached = cachedVideo(url);
     if (cached != null) return cached;
 
     final awemeId = await _expand(url);

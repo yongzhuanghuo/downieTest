@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dart:convert';
 
+import '../../core/engine/douyin_parser.dart';
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/sites/generic_html_extractor.dart';
 import '../../core/sites/plugin_registry.dart';
@@ -83,8 +84,20 @@ class ParseNotifier extends StateNotifier<ParseState> {
       return;
     }
 
+    // 登录浏览器已经拦截到 aweme/detail 时，直接用缓存，避免再次走签名/风控
+    final cachedDouyin = DouyinParser.cachedVideo(target);
+    if (cachedDouyin != null) {
+      debugPrint('[解析] 使用登录浏览器缓存的抖音数据: ${cachedDouyin.videoId}');
+      state = ParseState(
+        status: ParseStatus.success,
+        videoInfo: cachedDouyin,
+      );
+      return;
+    }
+
     // 站点插件优先（抖音等自研解析）；没有命中再走 yt-dlp 兜底
     final plugin = PluginRegistry.instance.find(target);
+    debugPrint('[解析] plugin=${plugin?.id ?? 'none'} target=$target');
     if (plugin != null) {
       try {
         final info = await plugin.parse(target);
