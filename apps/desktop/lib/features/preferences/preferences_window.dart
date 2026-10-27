@@ -307,6 +307,57 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
           padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
             Text(
+              '浏览器扩展',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Downie6 为常用浏览器提供扩展：在视频页点击工具栏按钮，'
+              '把当前链接发送到本机下载队列。点击浏览器图标导出/安装扩展：',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                _BrowserBadge(
+                  label: 'Chrome',
+                  color: const Color(0xFF4285F4),
+                  icon: Icons.public,
+                  onTap: () => _exportExtension(context),
+                ),
+                const SizedBox(width: AppSpacing.xl),
+                _BrowserBadge(
+                  label: 'Edge',
+                  color: const Color(0xFF0AA1DD),
+                  icon: Icons.waves,
+                  onTap: () => _exportExtension(context),
+                ),
+                const SizedBox(width: AppSpacing.xl),
+                _BrowserBadge(
+                  label: 'Safari',
+                  color: const Color(0xFF2F7CF6),
+                  icon: Icons.explore_outlined,
+                  onTap: () => _unsupportedBrowser(context, 'Safari'),
+                ),
+                const SizedBox(width: AppSpacing.xl),
+                _BrowserBadge(
+                  label: 'Firefox',
+                  color: const Color(0xFFFF7139),
+                  icon: Icons.local_fire_department_outlined,
+                  onTap: () => _unsupportedBrowser(context, 'Firefox'),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Chrome/Edge 会导出扩展文件夹，在浏览器扩展页选择「加载已解压的扩展程序」；'
+              '安装后在扩展弹窗填入下方 token。Safari/Firefox 暂未提供，可先用书签脚本。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            const Divider(height: 1),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
               '读取浏览器登录状态',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -672,6 +723,12 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
     }
   }
 
+  void _unsupportedBrowser(BuildContext context, String name) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(content: Text('$name 扩展暂未提供，可以先用下方书签脚本')),
+    );
+  }
+
   Future<void> _exportExtension(BuildContext context) async {
     try {
       final path = await BrowserBridge.exportExtension();
@@ -828,6 +885,52 @@ class _AdvancedPaneState extends State<_AdvancedPane> {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _BrowserBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _BrowserBadge({
+    required this.label,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final text = dark ? AppTokens.textPrimary : AppTokens.textPrimaryLight;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.panel),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(AppRadius.panel),
+              ),
+              child: Icon(icon, size: 20, color: Colors.white),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(label, style: TextStyle(fontSize: 11, color: text)),
+          ],
+        ),
+      ),
     );
   }
 }
