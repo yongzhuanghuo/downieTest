@@ -817,6 +817,20 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
+              '首选音轨（语言/名称，逗号分隔，留空自动）',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              initialValue: settings.preferredAudioTrack,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                hintText: 'zh,en 或 English',
+              ),
+              onChanged: notifier.setPreferredAudioTrack,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
               '这些选项只是新任务的默认值，添加链接时仍可临时勾选/取消。',
               style: Theme.of(context).textTheme.bodySmall,
             ),

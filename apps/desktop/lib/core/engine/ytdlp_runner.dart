@@ -599,11 +599,26 @@ class YtDlpRunner {
       return abrB.compareTo(abrA);
     });
 
-    // 提取最佳 m4a 和 webm 音频流（用于配对）
+    final preferredTracks = SettingsStorage.instance.current.preferredAudioTrack
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .where((value) => value.isNotEmpty)
+        .toList();
+
+    // 提取最佳 m4a 和 webm 音频流（用于配对）；优先匹配用户指定音轨。
     String? bestM4aAudioId;
     String? bestWebmAudioId;
+    String? preferredM4aAudioId;
+    String? preferredWebmAudioId;
     for (final a in audioStreams) {
       final ext = a['ext']?.toString() ?? '';
+      final matched = _audioMatches(a, preferredTracks);
+      if (matched && ext == 'm4a' && preferredM4aAudioId == null) {
+        preferredM4aAudioId = a['format_id']?.toString();
+      }
+      if (matched && ext == 'webm' && preferredWebmAudioId == null) {
+        preferredWebmAudioId = a['format_id']?.toString();
+      }
       if (ext == 'm4a' && bestM4aAudioId == null) {
         bestM4aAudioId = a['format_id']?.toString();
       }
@@ -611,6 +626,8 @@ class YtDlpRunner {
         bestWebmAudioId = a['format_id']?.toString();
       }
     }
+    bestM4aAudioId = preferredM4aAudioId ?? bestM4aAudioId;
+    bestWebmAudioId = preferredWebmAudioId ?? bestWebmAudioId;
     // 兜底：取第一个音频流
     if (bestM4aAudioId == null && audioStreams.isNotEmpty) {
       bestM4aAudioId = audioStreams.first['format_id']?.toString();
@@ -692,8 +709,11 @@ class YtDlpRunner {
 
     // 第四轮：纯音频选项
     if (audioStreams.isNotEmpty) {
-      // 取最佳 m4a 音频作为 MP3 选项
-      final bestAudio = audioStreams.first;
+      // 优先使用指定音轨，否则取最佳 m4a 音频作为 MP3 选项
+      final bestAudio = audioStreams.firstWhere(
+        (a) => _audioMatches(a, preferredTracks),
+        orElse: () => audioStreams.first,
+      );
       final audioId = bestAudio['format_id']?.toString() ?? '';
       final fileSize = (bestAudio['filesize'] as num?)?.toInt() ??
           (bestAudio['filesize_approx'] as num?)?.toInt();
@@ -720,6 +740,20 @@ class YtDlpRunner {
     });
 
     return options;
+  }
+
+  static bool _audioMatches(
+    Map<String, dynamic> audio,
+    List<String> preferredTracks,
+  ) {
+    if (preferredTracks.isEmpty) return false;
+    final haystack = [
+      audio['language'],
+      audio['format_note'],
+      audio['format_id'],
+      audio['format'],
+    ].whereType<Object>().join(' ').toLowerCase();
+    return preferredTracks.any(haystack.contains);
   }
 
   /// 解析可用字幕语言

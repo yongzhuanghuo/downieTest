@@ -64,7 +64,7 @@ Future<QuickAddResult> quickAddAutomation(
     title: request.title.isEmpty ? null : request.title,
     // 空串表示「显式不询问保存位置」，用全局下载目录。
     destinationDir: request.destination,
-    postprocessing: request.postprocessing,
+    postprocessing: request.openInUge ? null : request.postprocessing,
   );
   if (request.openInUge) {
     final media = await WebCaptureDialog.show(context, request.url);

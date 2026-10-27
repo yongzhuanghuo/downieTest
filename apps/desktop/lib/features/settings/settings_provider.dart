@@ -227,6 +227,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setPreferredAudioTrack(String value) async {
+    final next = state.copyWith(preferredAudioTrack: value.trim());
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setForceReencode(bool value) async {
     final next = state.copyWith(forceReencode: value);
     await SettingsStorage.instance.save(next);

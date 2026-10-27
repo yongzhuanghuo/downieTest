@@ -10,6 +10,7 @@
   - macOS 支持 `open -a Downie6 <链接>` 与 URL scheme（Info.plist 已注册）
   - Windows 安装包注册协议，命令行参数进入 Dart main
 - 自动化请求跳过保存位置询问；postprocessing 支持 mp4/audio
+- 字幕与音频新增首选音轨（按 language/format_note/format_id 匹配；留空自动）
 
 ## 2.0.21（2026-10-27）
 

@@ -67,7 +67,7 @@ DownieCore 里有 786 个 `*Downloader` 类/变体，包含：
 | 站点 | 覆盖链接 | 实现 | 状态 |
 |---|---|---|---|
 | 抖音 | `douyin.com/video`、`iesdouyin.com/share/video`、短链 | WebView 持续捕获 `aweme/detail` + media 分轨兜底 | 2.0.17 已验证可下载 |
-| B 站普通视频 | `bilibili.com/video/BV/av`、`b23.tv` | WBI 签名 + DASH + ffmpeg 合并 | 已实现 |
+| B 站普通视频 | `bilibili.com/video/BV/av`、`b23.tv` | WBI 签名 + DASH + ffmpeg 合并；2.0.22 支持多 P 展开 | 已实现，待样本回归 |
 | B 站嵌入播放器 | `player.bilibili.com?bvid=/aid=` | 归一化为普通视频链接 | 2.0.19 已实现，待样本回归 |
 | B 站番剧 | `/bangumi/play/ep`、`/bangumi/play/ss` | PGC 接口；ss 默认第一集，展开播放列表时整季逐集入队 | 2.0.20 已实现整季展开，待真实下载回归 |
 | TikTok | `tiktok.com/@user/video`、`vm/vt.tiktok.com` 短链 | 页面 hydration + 无水印 bitrateInfo + 桌面 UA/Referer | 2.0.19 原生实现，单测通过，待真实下载回归 |
@@ -165,7 +165,7 @@ Downie 的关键长尾能力是 **Custom Integrations**（社区 JS 规则） + 
 | 11 | 导入 | CSV/XML、阅读列表、文件导入 | 2.0.19 文本导入；2.0.21 CSV/XML 结构化导入（url/title/path） | P1 | 阅读列表待做 |
 | 12 | 任务菜单 | 复制下载链接/浏览器打开/报告链接 | 2.0.19 已实现 | P1 | 已完成 |
 | 13 | 后处理 | 无/MP4/仅音频/仅字幕/自定义脚本；保留原文件 | 无/MP4/MP3/自定义脚本（2.0.20）+ 转换后删原文件 | P1 | 仅字幕、Permute 集成待做 |
-| 14 | 字幕/音频 | 首选语言列表、单/多字幕、自动生成字幕、SRT 转换、音轨选择 | 2.0.19 单/多语言与自动生成字幕；2.0.20 字幕 SRT 转换/保留原格式 | P1 | 音轨选择待做 |
+| 14 | 字幕/音频 | 首选语言列表、单/多字幕、自动生成字幕、SRT 转换、音轨选择 | 2.0.19 单/多语言与自动生成字幕；2.0.20 SRT 转换；2.0.22 首选音轨匹配 | P1 | 已完成（按 yt-dlp 元数据匹配） |
 | 15 | 目的地 | 确认每次、JSON 元数据、缩略图 JPEG、原文件名、按站点/播放列表分文件夹 | 目录/模板/分站点/缩略图/元数据 JSON；2.0.20 询问保存位置与 `{original}`；2.0.21 按播放列表分文件夹（DB v8） | P1 | 已完成 |
 | 16 | 高级 | 连接数、分块、原生 HLS、强制重编码、保留失败文件、代理 WebView | 2.0.19 连接数/限速/原生 HLS/强制重编码/自检；2.0.21 HTTP 分块 | P1 | 保留失败文件/WebView 代理待做 |
 | 17 | 浏览器扩展 | 安装向导/多浏览器/关闭标签页 | 导出扩展/书签/token/cookie 导入；2.0.21 安装向导 | P2 | 多浏览器/关闭标签页待做 |

@@ -132,6 +132,9 @@ class AppSettings {
   /// 保留字幕原始格式（关闭时统一转成 SRT，与 Downie 默认一致）
   final bool keepSubtitleFormat;
 
+  /// 首选音轨（语言/名称，逗号分隔；空=自动选最佳）
+  final String preferredAudioTrack;
+
   /// HLS/DASH 强制重新编码
   final bool forceReencode;
 
@@ -195,6 +198,7 @@ class AppSettings {
     this.includeAutoSubtitles = true,
     this.subtitleMode = 0,
     this.keepSubtitleFormat = false,
+    this.preferredAudioTrack = '',
     this.forceReencode = false,
     this.nativeHlsEngine = false,
     this.showInMenuBar = true,
@@ -246,6 +250,7 @@ class AppSettings {
     includeAutoSubtitles: true,
     subtitleMode: 0,
     keepSubtitleFormat: false,
+    preferredAudioTrack: '',
     forceReencode: false,
     nativeHlsEngine: false,
     showInMenuBar: true,
@@ -297,6 +302,7 @@ class AppSettings {
     bool? includeAutoSubtitles,
     int? subtitleMode,
     bool? keepSubtitleFormat,
+    String? preferredAudioTrack,
     bool? forceReencode,
     bool? nativeHlsEngine,
     bool? showInMenuBar,
@@ -362,6 +368,8 @@ class AppSettings {
       subtitleMode: subtitleMode ?? this.subtitleMode,
       keepSubtitleFormat:
           keepSubtitleFormat ?? this.keepSubtitleFormat,
+      preferredAudioTrack:
+          preferredAudioTrack ?? this.preferredAudioTrack,
       forceReencode: forceReencode ?? this.forceReencode,
       nativeHlsEngine: nativeHlsEngine ?? this.nativeHlsEngine,
       showInMenuBar: showInMenuBar ?? this.showInMenuBar,
@@ -483,6 +491,8 @@ class SettingsStorage {
         subtitleMode: (raw['subtitleMode'] as num?)?.toInt() ?? 0,
         keepSubtitleFormat:
             (raw['keepSubtitleFormat'] as bool?) ?? false,
+        preferredAudioTrack:
+            (raw['preferredAudioTrack'] as String?) ?? '',
         forceReencode: (raw['forceReencode'] as bool?) ?? false,
         nativeHlsEngine: (raw['nativeHlsEngine'] as bool?) ?? false,
         showInMenuBar: (raw['showInMenuBar'] as bool?) ?? true,
@@ -568,6 +578,7 @@ class SettingsStorage {
       'includeAutoSubtitles': settings.includeAutoSubtitles,
       'subtitleMode': settings.subtitleMode,
       'keepSubtitleFormat': settings.keepSubtitleFormat,
+      'preferredAudioTrack': settings.preferredAudioTrack,
       'forceReencode': settings.forceReencode,
       'nativeHlsEngine': settings.nativeHlsEngine,
       'showInMenuBar': settings.showInMenuBar,
