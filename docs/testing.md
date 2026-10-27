@@ -88,7 +88,11 @@ Bilibili,https://www.bilibili.com/video/BV...,普通视频
 
 Windows：`%APPDATA%\com.example.downieTest\logs\`（实际路径以应用数据目录为准）。
 
+yt-dlp 任务另有 `logs/task_<任务ID>.log`（命令行、退出码、stdout/stderr），
+可从下载行右键「调试信息 → 任务日志」直接打开。
+
 4. 至少覆盖一条：直链 MP4、HLS/DASH（B 站）、需要登录的站点（抖音/B 站）、一个不支持的链接走自动资源检测。
+5. 自动化：`downie6://XUOpenURL?url=...` 与 `open -a Downie6 <链接>` 各验证一次；Windows 安装版验证协议注册与单实例转发。
 
 ## 发布判定
 
