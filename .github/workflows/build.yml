@@ -84,17 +84,37 @@ jobs:
 
       - name: 组装 DMG（.app + 安装说明）
         run: |
-          APP_DIR="dist/Downie6-macos"
-          rm -rf "$APP_DIR" && mkdir -p "$APP_DIR/.background"
-          APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -1)
-          cp -R "$APP_PATH" "$APP_DIR/Downie6.app"
-          cp macos/installer/install-guide.png "$APP_DIR/安装说明.png"
-          cp macos/installer/dmg-layout/.DS_Store "$APP_DIR/.DS_Store"
-          cp macos/installer/dmg-layout/.background/background.png "$APP_DIR/.background/background.png"
-          ln -s /Applications "$APP_DIR/Applications"
-          rm -f Downie6.dmg
-          hdiutil create -volname "Downie6" -srcfolder "$APP_DIR" -ov -format UDZO -fs HFS+ "Downie6.dmg"
-          hdiutil verify Downie6.dmg
+          set -o pipefail
+          {
+            set -x
+            df -h
+            APP_DIR="dist/Downie6-macos"
+            rm -rf "$APP_DIR" && mkdir -p "$APP_DIR/.background"
+            echo "=== Release contents ==="
+            ls -ld build/macos/Build/Products/Release/*.app || true
+            APP_PATH=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print | head -1)
+            echo "APP_PATH=$APP_PATH"
+            test -n "$APP_PATH"
+            test -d "$APP_PATH"
+            cp -R "$APP_PATH" "$APP_DIR/Downie6.app"
+            cp macos/installer/install-guide.png "$APP_DIR/安装说明.png"
+            cp macos/installer/dmg-layout/.DS_Store "$APP_DIR/.DS_Store"
+            cp macos/installer/dmg-layout/.background/background.png "$APP_DIR/.background/background.png"
+            ln -s /Applications "$APP_DIR/Applications"
+            rm -f Downie6.dmg
+            du -sh "$APP_DIR"
+            hdiutil create -volname "Downie6" -srcfolder "$APP_DIR" -ov -format UDZO -fs HFS+ "Downie6.dmg"
+            hdiutil verify Downie6.dmg
+          } 2>&1 | tee dmg.log
+
+      - name: DMG 失败注解
+        if: failure()
+        run: |
+          if [ -f dmg.log ]; then
+            tail -100 dmg.log | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          fi || true
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
