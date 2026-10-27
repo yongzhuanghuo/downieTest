@@ -5,6 +5,12 @@
   "description": "把当前标签页发送到本机 Downie6 下载队列",
   "permissions": ["activeTab", "storage"],
   "host_permissions": ["http://127.0.0.1:8765/*"],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "downie6@local",
+      "strict_min_version": "109.0"
+    }
+  },
   "action": {
     "default_title": "发送到 Downie6",
     "default_popup": "popup.html"

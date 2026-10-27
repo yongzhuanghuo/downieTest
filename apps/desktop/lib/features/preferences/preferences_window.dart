@@ -482,14 +482,15 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
                   label: 'Firefox',
                   color: const Color(0xFFFF7139),
                   icon: Icons.local_fire_department_outlined,
-                  onTap: () => _unsupportedBrowser(context, 'Firefox'),
+                  onTap: () => _showExtensionGuide(context),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
               'Chrome/Edge 会导出扩展文件夹，在浏览器扩展页选择「加载已解压的扩展程序」；'
-              '安装后在扩展弹窗填入下方 token。Safari/Firefox 暂未提供，可先用书签脚本。',
+              'Firefox 可在 about:debugging 临时载入同一目录的 manifest.json（未签名）。'
+              'Safari 暂未提供，可先用书签脚本。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -1036,7 +1037,8 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             '2. Chrome / Edge 打开扩展管理页，开启右上角「开发者模式」。\n'
             '3. 点击「加载已解压的扩展程序」，选择刚导出的目录。\n'
             '4. 按提示填写本页的浏览器桥接 token；工具会自动填写。\n'
-            '5. Firefox 暂不支持扩展，可先使用「复制书签脚本」作为书签。\n\n'
+            '5. Firefox 打开 about:debugging#/runtime/this-firefox，'
+            '点「临时载入附加组件」选择 manifest.json（未签名，重启后会失效）。\n\n'
             '安装后，在视频页面点击扩展图标或书签即可把链接发送到 '
             'Downie6；扩展不会读取页面内容，只发送当前页面地址。',
             style: TextStyle(fontSize: 12, height: 1.6),

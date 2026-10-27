@@ -1,4 +1,4 @@
-# Downie6 浏览器扩展（Chrome / Edge）
+# Downie6 浏览器扩展（Chrome / Edge / Firefox）
 
 把当前标签页一键发送到本机 Downie6 的下载队列。
 
@@ -10,6 +10,10 @@
 4. 在 Downie6 的「偏好设置 → 浏览器扩展」里打开「接收本机浏览器发来的页面」。
 5. 复制同一面板里的 token，填到扩展弹窗的输入框（只需填一次）。
 6. 在视频页面点扩展图标 →「加入下载队列」。
+
+Firefox：打开 `about:debugging#/runtime/this-firefox` →「临时载入附加组件」，
+选择本目录的 `manifest.json`。Firefox 正式安装需要签名，本项目未做签名；
+长期使用可以继续用书签脚本。
 
 ## 说明
 
