@@ -2,7 +2,7 @@
 
 - **文档状态**：可执行规划 v1
 - **对标基线**：Downie 4 v4.13.3（`CFBundleVersion` 4000，`com.charliemonroe.Downie-4`）
-- **当前产品**：Downie6 v2.0.13+14（Flutter，macOS + Windows）
+- **当前产品**：Downie6 v2.0.14+15（Flutter，macOS + Windows）
 - **更新日期**：2026-10-27
 - **详细分析底稿**：`~/re/downie4/reports/`（本文是汇总版，底稿不在仓库）
 
