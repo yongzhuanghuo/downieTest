@@ -11,7 +11,7 @@
 
 | 目录 | 形态 | 技术栈 | 状态 |
 |------|------|--------|------|
-| [apps/desktop](apps/desktop/) | macOS / Windows 桌面应用 | Flutter + Dart | ✅ 已发布 v2.0.11 |
+| [apps/desktop](apps/desktop/) | macOS / Windows 桌面应用 | Flutter + Dart | ✅ 已发布 v2.0.12 |
 | [apps/mobile](apps/mobile/) | Android APK / 微信小程序 / H5 | uniapp（Vue3）+ uview-plus | 🔧 V1 功能已实现，未发布 |
 | [apps/harmony-pc](apps/harmony-pc/) | 鸿蒙 PC 应用 | 待定（三条候选路线） | ⏳ 占位，未开发 |
 | [services/api](services/api/) | 统一服务端（授权 + 视频处理 + 管理后台） | Python FastAPI + MySQL + Redis | 🔧 合并中 |
