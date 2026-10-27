@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -118,6 +119,15 @@ class AppMenuBar extends ConsumerWidget {
         ],
       ),
       PlatformMenu(
+        label: '编辑',
+        menus: [
+          PlatformMenuItem(label: '剪切', onSelected: _cutSelection),
+          PlatformMenuItem(label: '复制', onSelected: _copySelection),
+          PlatformMenuItem(label: '粘贴', onSelected: _pasteSelection),
+          PlatformMenuItem(label: '全选', onSelected: _selectAllText),
+        ],
+      ),
+      PlatformMenu(
         label: '浏览器',
         menus: [
           PlatformMenuItem(
@@ -183,6 +193,30 @@ class AppMenuBar extends ConsumerWidget {
         ],
       ),
     ];
+  }
+
+  EditableTextState? get _editor {
+    final focusContext = FocusManager.instance.primaryFocus?.context;
+    return focusContext?.findAncestorStateOfType<EditableTextState>();
+  }
+
+  void _cutSelection() {
+    _editor?.cutSelection(SelectionChangedCause.keyboard);
+  }
+
+  void _copySelection() {
+    _editor?.copySelection(SelectionChangedCause.keyboard);
+  }
+
+  void _pasteSelection() {
+    final editor = _editor;
+    if (editor != null) {
+      unawaited(editor.pasteText(SelectionChangedCause.keyboard));
+    }
+  }
+
+  void _selectAllText() {
+    _editor?.selectAll(SelectionChangedCause.keyboard);
   }
 
   void _openPreferences() {
