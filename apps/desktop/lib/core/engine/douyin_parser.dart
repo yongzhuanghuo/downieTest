@@ -48,7 +48,11 @@ class DouyinParser {
     return id == null ? null : _captured['id:$id'];
   }
 
-  static bool cacheCaptured(String pageUrl, String responseText) {
+  static bool cacheCaptured(
+    String pageUrl,
+    String responseText, {
+    String? expectedId,
+  }) {
     try {
       final json = jsonDecode(responseText);
       if (json is! Map) return false;
@@ -63,6 +67,12 @@ class DouyinParser {
       final map = Map<String, dynamic>.from(aweme);
       final id = map['aweme_id']?.toString() ?? _idFromUrl(pageUrl) ?? '';
       if (id.isEmpty) return false;
+      if (expectedId != null &&
+          expectedId.isNotEmpty &&
+          id != expectedId) {
+        debugPrint('[抖音] 忽略非目标视频: $id != $expectedId');
+        return false;
+      }
       final info = _parseAweme(id, map);
       if (info.formats.isEmpty) return false;
       cacheInfo(pageUrl, info);
@@ -197,6 +207,23 @@ class DouyinParser {
     return fallback?.group(1);
   }
 
+  /// 从链接提取 aweme_id（供登录窗口做目标校验）。
+  static String? videoIdFromUrl(String url) => _idFromUrl(url);
+
+  /// 只匹配明确的视频页参数，不做「任意 15 位数字」兜底。
+  /// 用于校验登录浏览器抓到的是不是当前视频，避免短链里的数字误判。
+  static String? pageVideoId(String url) {
+    final patterns = [
+      RegExp(r'/(?:video|note|vsdetail)/(\d+)'),
+      RegExp(r'[?&](?:modal_id|vid|aweme_id)=(\d+)'),
+    ];
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(url);
+      if (match != null) return match.group(1);
+    }
+    return null;
+  }
+
   /// 从 ttwid.bytedance.com 拿 ttwid（设备追踪 cookie）
   static Future<String> _getTtwid() async {
     final client = http.Client();
@@ -307,9 +334,8 @@ class DouyinParser {
   static VideoInfo _parseAweme(String awemeId, Map<String, dynamic> aweme) {
     final desc = (aweme['desc'] as String?) ?? '';
     final authorInfo = aweme['author'] ?? aweme['authorInfo'];
-    final author = (authorInfo is Map ? authorInfo['nickname'] : null)
-            as String? ??
-        '';
+    final authorRaw = authorInfo is Map ? authorInfo['nickname'] : null;
+    final author = authorRaw is String ? authorRaw : '';
     final durationMs = (aweme['duration'] as num?)?.toInt() ?? 0;
     final video = (aweme['video'] as Map<String, dynamic>?) ?? const {};
 

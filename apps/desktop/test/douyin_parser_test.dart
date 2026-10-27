@@ -49,6 +49,26 @@ void main() {
     expect(DouyinParser.cachedVideo('https://v.douyin.com/abc/'), isNull);
   });
 
+  test('pageVideoId only matches explicit video params', () {
+    expect(
+      DouyinParser.pageVideoId(
+        'https://www.douyin.com/video/7701030749851389219?previous_page=web',
+      ),
+      '7701030749851389219',
+    );
+    expect(
+      DouyinParser.pageVideoId(
+        'https://www.douyin.com/user/x?modal_id=7701030749851389219',
+      ),
+      '7701030749851389219',
+    );
+    // 短链里的数字不能被误当成 aweme_id
+    expect(
+      DouyinParser.pageVideoId('https://v.douyin.com/abc123456789012345/'),
+      isNull,
+    );
+  });
+
   test('cacheMedia creates a merge format and caches under short link', () {
     const short = 'https://v.douyin.com/media-fallback-test/';
     expect(

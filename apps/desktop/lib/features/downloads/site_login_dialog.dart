@@ -114,16 +114,35 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   function isAweme(url) {
     var u = String(url || '');
     return u.indexOf('aweme/detail') >= 0 ||
-           u.indexOf('aweme/post') >= 0 ||
-           u.indexOf('replay_list') >= 0;
+           u.indexOf('aweme/post') >= 0;
+  }
+  function pageAwemeId() {
+    var m = String(location.pathname || '').match(/\/(?:video|note|vsdetail)\/(\d+)/);
+    return m ? m[1] : '';
+  }
+  function urlAwemeId(url) {
+    var m = String(url || '').match(/[?&]aweme_id=(\d+)/);
+    return m ? m[1] : '';
   }
   function put(url, text) {
     try {
-      if (isAweme(url) && text) {
-        window.__downie6_aweme = text;
-        window.__downie6_awemeUrl = String(url);
-        window.__downie6_awemeAt = Date.now();
+      var u = String(url || '');
+      if (!text || !isAweme(u)) return;
+      var pageId = pageAwemeId();
+      var urlId = urlAwemeId(u);
+      // 详情页会预取相关视频；只认当前视频的 aweme_id，避免缓存串片。
+      if (u.indexOf('aweme/detail') >= 0) {
+        if (pageId && urlId && pageId !== urlId) return;
+      } else if (u.indexOf('aweme/post') >= 0) {
+        // aweme/post 只是兜底，不能覆盖已经抓到的 detail
+        if (window.__downie6_aweme) return;
+        if (pageId && urlId && pageId !== urlId) return;
+      } else {
+        return;
       }
+      window.__downie6_aweme = text;
+      window.__downie6_awemeUrl = u;
+      window.__downie6_awemeAt = Date.now();
     } catch (e) {}
   }
   function xhrBody(xhr) {
@@ -508,6 +527,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
             href: location.href,
             data: window.__downie6_aweme || '',
             hook: !!window.__downie6AwemeHook,
+            uifid: (window.__downie6_uifid || '').length,
             title: document.title || '',
             height: 0,
             detail: '',
@@ -519,11 +539,14 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
             const details = entries.filter(
               u => /aweme\/(detail|post)|replay_list/.test(u));
             if (details.length) out.detail = details[details.length - 1];
-            out.media = entries.filter(
-              u => /\/media-(video|audio)-/.test(u)).slice(-8);
+            out.media = Array.from(new Set(entries.filter(
+              u => /\/media-(video|audio)-/.test(u)))).slice(0, 16);
           } catch (e) {}
           try {
-            const v = document.querySelector('video');
+            const videos = Array.from(document.querySelectorAll('video'));
+            videos.sort((a, b) =>
+              (b.videoWidth * b.videoHeight) - (a.videoWidth * a.videoHeight));
+            const v = videos[0];
             if (v) {
               out.height = v.videoHeight || 0;
               if (v.paused) v.play().catch(function(){});
@@ -543,17 +566,42 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       final media = (map['media'] as List?)?.cast<String>() ?? const <String>[];
       if (title.isNotEmpty) _currentPageTitle = title;
       if (height > 0) _douyinVideoHeight = height;
-      for (final u in media) {
-        if (u.contains('/media-video-')) _douyinVideoUrl = u;
-        if (u.contains('/media-audio-')) _douyinAudioUrl = u;
+      if (height > 0) {
+        for (final u in media) {
+          // 锁定第一对分轨：相关视频预览会晚于主视频发请求，取最后一个
+          // 可能拿到别的视频。主视频的请求总是最先出现。
+          if (u.contains('/media-video-') && _douyinVideoUrl.isEmpty) {
+            _douyinVideoUrl = u;
+          }
+          if (u.contains('/media-audio-') && _douyinAudioUrl.isEmpty) {
+            _douyinAudioUrl = u;
+          }
+        }
       }
       if (data.isNotEmpty) {
-        var cached = DouyinParser.cacheCaptured(_loginUrl, data);
+        final expectedId = DouyinParser.pageVideoId(href) ??
+            DouyinParser.pageVideoId(_currentPageUrl) ??
+            DouyinParser.pageVideoId(_loginUrl);
+        var cached = DouyinParser.cacheCaptured(
+          _loginUrl,
+          data,
+          expectedId: expectedId,
+        );
         if (widget.initialUrl != null) {
-          cached = DouyinParser.cacheCaptured(widget.initialUrl!, data) || cached;
+          cached = DouyinParser.cacheCaptured(
+                widget.initialUrl!,
+                data,
+                expectedId: expectedId,
+              ) ||
+              cached;
         }
         if (href.isNotEmpty) {
-          cached = DouyinParser.cacheCaptured(href, data) || cached;
+          cached = DouyinParser.cacheCaptured(
+                href,
+                data,
+                expectedId: expectedId,
+              ) ||
+              cached;
         }
         if (cached) {
           _douyinReady = true;
@@ -580,6 +628,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       if (verbose || _douyinProbes % 5 == 0) {
         debugPrint('[登录] 抖音等待 #$_douyinProbes: href=$href '
             'data=${data.length} hook=${map['hook']} '
+            'uifid=${map['uifid']} '
             '${detail.isNotEmpty ? 'detail=✓' : 'detail=×'} '
             'media=${media.length} title=$title');
       }

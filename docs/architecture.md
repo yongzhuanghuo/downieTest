@@ -101,12 +101,14 @@
 | | apps/desktop | services/api（media 模块） |
 |---|---|---|
 | 方案 | WebView 拦截 `aweme/detail` 响应 | 纯 HTTP + a_bogus 签名 |
-| 实现 | `douyin_web_dialog.dart` + `douyin_downloader.dart` | `douyin.py` + `douyin_sign/`（约 3200 行 JS） |
+| 实现 | `site_login_dialog.dart` + `douyin_downloader.dart` | `douyin.py` + `douyin_sign/`（约 3200 行 JS） |
 | 依赖 | flutter_inappwebview，需弹窗、需桌面 UA | node 子进程跑签名 |
 | 能否无头/批量 | 否，必须弹出可见 WebView | 是 |
 | 用户体验 | 每次解析弹一次浏览器窗口 | 无感 |
 
 **共同背景**：yt-dlp 的抖音提取器没实现 `a_bogus` 签名（`tiktok.py` 里只有 TODO），且抖音分享页 SSR 不再内嵌播放地址，所以两边都得自己想办法。
+
+**桌面端实测（2026-10）**：WKWebView 首次打开视频页，`aweme/detail` 可能在 `onLoadStop` 后约 30 秒才发出；登录窗口因此改为持续监听（点 ✓ 后最多等 75 秒，超时继续监听）。如果响应始终没截到，再用播放器的 `media-video-*` / `media-audio-*` 分轨下载后 ffmpeg 合并。重放已签名的 detail URL 不可行：页面有 Service Worker，会返回 HTML；纯 HTTP 重签又会被 Argus 的 `x-secsdk-web-signature` 拦住。
 
 **判断**：`services/api` 那套方案更优 —— 不需要浏览器、可服务端批量跑、用户无感。桌面端的 WebView 方案是当时没有服务端才做的权宜之计。
 

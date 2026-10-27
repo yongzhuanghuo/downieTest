@@ -69,6 +69,9 @@ yt-dlp / ffmpeg 放在 `assets/bin/{macos,windows}/`（被 .gitignore 忽略，�
 - **API_BASE**：客户端用 `String.fromEnvironment('API_BASE')` 覆盖后端地址，默认 `http://127.0.0.1:3000`（见 `lib/core/license/license_client.dart` 顶部）。
 - **cookie 文件格式坑**：Netscape 第二列 `includeSubdomains` 必须与域名是否以 `.` 开头一致（`.douyin.com`→`TRUE`，`www.douyin.com`→`FALSE`）。写死 `TRUE` 会触发 Python `http.cookiejar` 的 `assert domain_specified == initial_dot`，yt-dlp 报 `invalid Netscape format`。
 - **抖音解析原理**：yt-dlp 抖音提取器没实现 `a_bogus` 签名（tiktok.py 只有 TODO），且抖音 2026 年分享页 SSR 不再内嵌播放地址（播放地址由前端 JS 异步调 `aweme/detail` 拉取）。所以抖音改走 WebView：用**桌面 UA** 打开视频页，注入 JS hook（`AT_DOCUMENT_START`）拦截 `aweme/detail` 的 fetch/XHR 响应（浏览器环境自动带 a_bogus 签名 + cookie），从响应 `aweme_detail.video.play_addr` 拿播放地址，再 HTTP 直链下载。移动 UA 会停在「打开 App」引导页、不触发 API，必须用桌面 UA。
+  - **WKWebView 首次加载很慢**：实测 `aweme/detail` 可能在 `onLoadStop` 后约 30 秒才发出（要先过 JS challenge、安全 SDK、播放器 bundle）。登录窗口必须持续轮询，点 ✓ 后最多等 75 秒；超时不要关窗，继续监听，数据到达后自动完成。不要只探测几秒就判定失败。
+  - **兜底**：如果 detail 响应始终没截到，但播放器已发出 `media-video-*` / `media-audio-*` 分轨，缓存成 `videoUrl\naudioUrl` 格式，由 `DouyinDownloader.downloadMultipart` 下载两轨后 ffmpeg 合并。已实测分轨 URL 是完整 fMP4，可直接下载。
+  - **不要重放 aweme/detail URL**：页面有 Service Worker，重放带签名的 URL 会返回 HTML 外壳；直接 HTTP 重签也会被 Argus 的 `x-secsdk-web-signature` 拦住（只补 UIFID 只把错误从 Uifid Not Found 变成 Signature Not Found）。必须用浏览器自己发出的那次响应。
   > 注意 `services/media-api` 里有另一套抖音解析（纯 HTTP + a_bogus 签名，不需要浏览器），两套互相独立。见 [docs/architecture.md](../../docs/architecture.md)。
 - **macOS 无沙箱**：entitlements 里没有 `app-sandbox`，子进程可读浏览器 cookie / 写任意目录。
 - **包体积**：内嵌 ffmpeg(~130MB) + yt-dlp(~38MB)，安装包超 100MB，Gitee Releases 放不下（更新包建议阿里云 OSS，见 [docs/roadmap.md](../../docs/roadmap.md) 阶段 16）。
