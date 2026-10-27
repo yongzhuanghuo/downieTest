@@ -31,7 +31,8 @@ AutomationRequest? parseAutomationRequest(String raw) {
   if (scheme == 'http' || scheme == 'https') {
     return AutomationRequest(url: trimmed);
   }
-  if (scheme != 'downie6') return null;
+  // 兼容 Downie 原生协议写法；系统级注册仍用 downie6，避免抢占 Downie 4。
+  if (scheme != 'downie6' && scheme != 'downie') return null;
 
   final host = uri.host.toLowerCase();
   if (host != 'xuopenurl' && host != 'open') return null;

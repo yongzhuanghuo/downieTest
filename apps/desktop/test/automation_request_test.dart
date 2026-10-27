@@ -26,6 +26,14 @@ void main() {
     expect(req.title, 'Demo');
   });
 
+  test('accepts Downie-style downie:// scheme when explicitly delivered', () {
+    final req = parseAutomationRequest(
+      'downie://XUOpenURL?url=https%3A%2F%2Fexample.com%2Fv',
+    );
+    expect(req, isNotNull);
+    expect(req!.url, 'https://example.com/v');
+  });
+
   test('parses open_in_uge and mp4', () {
     final req = parseAutomationRequest(
       'downie6://XUOpenURL?url=https://example.com/v&postprocessing=mp4&action=open_in_uge',
