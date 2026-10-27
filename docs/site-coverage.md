@@ -68,7 +68,7 @@
 
 | 站点 | Downie 类 | 域名 | 状态 | 已验证 | 优先级 | 备注 |
 |---|---|---|---|---|---|---|
-| BilibiliBangumi | BilibiliBangumiDownloader |  | 原生插件（部分） | 是 | P1 |  |
+| BilibiliBangumi | BilibiliBangumiDownloader |  | 原生插件（部分） | 否 | P1 |  |
 
 ## yt-dlp 功能覆盖（代码未复刻，待逐站验证）
 

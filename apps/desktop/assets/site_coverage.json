@@ -62,7 +62,7 @@
    "domains": [],
    "status": "native_partial",
    "statusLabel": "原生插件（部分）",
-   "verified": true,
+   "verified": false,
    "priority": "P1",
    "ytdlpExtractors": [
     "BiliBili",

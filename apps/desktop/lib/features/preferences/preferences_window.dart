@@ -818,7 +818,8 @@ class _SupportedSitesPaneState extends ConsumerState<_SupportedSitesPane> {
                   Expanded(
                     child: Text(
                       '共 ${data.total} 个 Downie 下载器 · '
-                      '原生 ${data.counts[SiteCoverageStatus.native] ?? 0} · '
+                      '原生 ${data.counts[SiteCoverageStatus.native] ?? 0}'
+                      '（部分 ${data.counts[SiteCoverageStatus.nativePartial] ?? 0}）· '
                       'yt-dlp ${data.counts[SiteCoverageStatus.ytdlp] ?? 0} · '
                       '未复刻 ${data.counts[SiteCoverageStatus.generic] ?? 0}',
                       style: theme.textTheme.bodySmall,

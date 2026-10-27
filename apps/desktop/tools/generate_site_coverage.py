@@ -184,7 +184,7 @@ def classify(row: dict[str, str], extractors: list[str]) -> dict[str, object]:
         ],
         "status": status,
         "statusLabel": STATUS_LABEL[status],
-        "verified": status in {"native", "native_partial"},
+        "verified": status == "native",
         "priority": row.get("priority") or "P1",
         "ytdlpExtractors": matches,
         "notes": notes,
