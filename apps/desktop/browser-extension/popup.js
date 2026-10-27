@@ -1,9 +1,11 @@
 const tokenInput = document.getElementById('token');
+const closeTabInput = document.getElementById('close-tab');
 const sendButton = document.getElementById('send');
 const status = document.getElementById('status');
 const pageUrl = document.getElementById('page-url');
 
 let currentUrl = '';
+let currentTabId = null;
 
 function setStatus(text, kind) {
   status.textContent = text;
@@ -12,6 +14,7 @@ function setStatus(text, kind) {
 
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
   const tab = tabs && tabs[0];
+  currentTabId = tab && typeof tab.id === 'number' ? tab.id : null;
   currentUrl = tab && tab.url ? tab.url : '';
   pageUrl.textContent = currentUrl || '无法读取当前页面地址';
   if (!currentUrl || !/^https?:\/\//.test(currentUrl)) {
@@ -20,12 +23,17 @@ chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
   }
 });
 
-chrome.storage.local.get({ token: '' }, (values) => {
+chrome.storage.local.get({ token: '', closeTab: false }, (values) => {
   tokenInput.value = values.token || '';
+  closeTabInput.checked = !!values.closeTab;
 });
 
 tokenInput.addEventListener('input', () => {
   chrome.storage.local.set({ token: tokenInput.value.trim() });
+});
+
+closeTabInput.addEventListener('change', () => {
+  chrome.storage.local.set({ closeTab: closeTabInput.checked });
 });
 
 sendButton.addEventListener('click', async () => {
@@ -53,6 +61,13 @@ sendButton.addEventListener('click', async () => {
       setStatus(text || `发送失败（${response.status}）`, 'error');
     } else {
       setStatus(text || '已加入下载队列', 'ok');
+      if (closeTabInput.checked && currentTabId !== null) {
+        try {
+          chrome.tabs.remove(currentTabId);
+        } catch (closeError) {
+          // 某些浏览器不允许关闭活动标签页，忽略即可。
+        }
+      }
     }
   } catch (error) {
     setStatus('无法连接 Downie6，请确认应用已启动并开启端口', 'error');

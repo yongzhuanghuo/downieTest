@@ -36,6 +36,14 @@
         font-weight: 600;
         cursor: pointer;
       }
+      label.check {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        opacity: 0.82;
+      }
+      label.check input { width: auto; margin: 0; }
       button:disabled { opacity: 0.55; cursor: default; }
       #status { min-height: 18px; margin-top: 8px; font-size: 11px; }
       #status.error { color: #d33; }
@@ -47,6 +55,9 @@
     <p id="page-url">读取当前页面…</p>
     <label for="token">本机 token（偏好设置 → 浏览器扩展）</label>
     <input id="token" type="text" autocomplete="off" spellcheck="false" />
+    <label class="check" for="close-tab">
+      <input id="close-tab" type="checkbox" /> 发送后关闭当前标签页
+    </label>
     <button id="send" type="button">加入下载队列</button>
     <div id="status"></div>
     <script src="popup.js"></script>
