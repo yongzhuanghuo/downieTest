@@ -95,6 +95,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setAskForDestination(bool value) async {
+    final next = state.copyWith(askForDestination: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setSubtitleLangs(String value) async {
     final next = state.copyWith(subtitleLangs: value.trim());
     await SettingsStorage.instance.save(next);

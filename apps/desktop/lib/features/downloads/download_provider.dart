@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -164,13 +165,22 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   // ==================== 添加任务 ====================
 
   /// 添加并（有坑位时立刻/否则等待）下载
-  Future<void> startDownload({
+  Future<bool> startDownload({
     required VideoInfo videoInfo,
     required FormatOption format,
     bool downloadSubtitles = false,
     bool downloadCover = false,
     int throttleKbps = 0,
   }) async {
+    var destinationDir = '';
+    if (SettingsStorage.instance.current.askForDestination) {
+      final picked = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: '选择保存位置',
+      );
+      if (picked == null) return false;
+      destinationDir = picked;
+    }
+
     final task = DownloadTask(
       id: const Uuid().v4(),
       url: videoInfo.url,
@@ -188,6 +198,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       downloadSubtitles: downloadSubtitles,
       downloadCover: downloadCover,
       throttleKbps: throttleKbps,
+      destinationDir: destinationDir,
       postprocessing: _defaultPostprocessing(),
       createdAt: DateTime.now(),
     );
@@ -198,6 +209,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
 
     // 触发调度器
     unawaited(_scheduler());
+    return true;
   }
 
   PostprocessingMode _defaultPostprocessing() {
@@ -289,7 +301,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     try {
       // 确定输出目录（从设置读取，空则用系统默认 Downloads）
       final settings = SettingsStorage.instance.current;
-      final outputDir = await settings.resolveDownloadDir();
+      final outputDir = task.destinationDir.isNotEmpty
+          ? task.destinationDir
+          : await settings.resolveDownloadDir();
       await Directory(outputDir).create(recursive: true);
       var targetDir = outputDir;
       if (settings.subfolderBySite) {

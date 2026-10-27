@@ -354,6 +354,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               value: settings.subfolderBySite,
               onChanged: notifier.setSubfolderBySite,
             ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('每次询问保存位置'),
+              subtitle: const Text('添加下载时先选择目录；取消则不加入队列'),
+              value: settings.askForDestination,
+              onChanged: notifier.setAskForDestination,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(
               '文件名模板',
@@ -365,7 +373,8 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               style: const TextStyle(fontSize: 13),
               decoration: const InputDecoration(
                 hintText: '{title}',
-                helperText: '可用占位符：{title} {extractor} {id} {date}',
+                helperText:
+                    '可用占位符：{title} {extractor} {id} {date} {original}',
               ),
               onChanged: notifier.setFilenameTemplate,
             ),

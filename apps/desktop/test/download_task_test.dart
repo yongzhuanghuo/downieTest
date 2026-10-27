@@ -72,6 +72,14 @@ void main() {
     expect(DownloadTask.fromMap(task.toMap()).toMap()['connections'], 8);
   });
 
+  test('per-task destination survives map round-trip', () {
+    final task = _task().copyWith(destinationDir: '/tmp/videos');
+    expect(
+      DownloadTask.fromMap(task.toMap()).destinationDir,
+      '/tmp/videos',
+    );
+  });
+
   test('copyWith can clear nullable fields', () {
     final task = _task().copyWith(
       error: 'boom',

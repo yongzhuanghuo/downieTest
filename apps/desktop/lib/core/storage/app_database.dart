@@ -11,7 +11,7 @@ class AppDatabase {
   AppDatabase._();
 
   static const _dbName = 'downlo_pro.db';
-  static const _dbVersion = 6;
+  static const _dbVersion = 7;
 
   static Database? _instance;
 
@@ -62,6 +62,7 @@ class AppDatabase {
         download_cover INTEGER DEFAULT 0,
         throttle_kbps INTEGER DEFAULT 0,
         connections INTEGER DEFAULT 0,
+        destination_dir TEXT,
         file_size INTEGER DEFAULT 0,
         downloaded_bytes INTEGER DEFAULT 0,
         speed INTEGER DEFAULT 0,
@@ -115,6 +116,11 @@ class AppDatabase {
     if (oldVersion < 6) {
       await db.execute(
         'ALTER TABLE downloads ADD COLUMN connections INTEGER DEFAULT 0',
+      );
+    }
+    if (oldVersion < 7) {
+      await db.execute(
+        'ALTER TABLE downloads ADD COLUMN destination_dir TEXT',
       );
     }
   }

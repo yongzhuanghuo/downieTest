@@ -115,13 +115,12 @@ class _WindowShellState extends ConsumerState<WindowShell> {
         forceMp4: settings.forceMp4,
       );
       if (format == null) return false;
-      await ref.read(downloadListProvider.notifier).startDownload(
+      return await ref.read(downloadListProvider.notifier).startDownload(
             videoInfo: info,
             format: format,
             downloadSubtitles: settings.defaultDownloadSubtitles,
             downloadCover: settings.defaultDownloadCover,
           );
-      return true;
     } catch (e) {
       debugPrint('[浏览器接收] 解析失败: $e');
       return false;

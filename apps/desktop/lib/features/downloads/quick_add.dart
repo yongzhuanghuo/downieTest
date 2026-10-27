@@ -201,11 +201,17 @@ Future<QuickAddResult> _enqueueInfo(
     );
     return QuickAddResult.failed;
   }
-  await ref.read(downloadListProvider.notifier).startDownload(
+  final added = await ref.read(downloadListProvider.notifier).startDownload(
         videoInfo: info,
         format: format,
         downloadSubtitles: settings.defaultDownloadSubtitles,
         downloadCover: settings.defaultDownloadCover,
       );
+  if (!added) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(content: Text('已取消选择保存位置')),
+    );
+    return QuickAddResult.failed;
+  }
   return QuickAddResult.added;
 }

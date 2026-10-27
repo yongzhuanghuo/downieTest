@@ -63,6 +63,9 @@ class AppSettings {
   /// 是否按来源站点建子文件夹
   final bool subfolderBySite;
 
+  /// 每次添加下载时询问保存目录
+  final bool askForDestination;
+
   /// 不支持的链接始终用「用户自定义视频提取」打开
   final bool autoUgeUnsupported;
 
@@ -160,6 +163,7 @@ class AppSettings {
     this.subtitleLangs = '',
     this.filenameTemplate = '{title}',
     this.subfolderBySite = false,
+    this.askForDestination = false,
     this.autoUgeUnsupported = false,
     this.qualityPreference = 0,
     this.preferMp4 = true,
@@ -207,6 +211,7 @@ class AppSettings {
     subtitleLangs: '',
     filenameTemplate: '{title}',
     subfolderBySite: false,
+    askForDestination: false,
     autoUgeUnsupported: false,
     qualityPreference: 0,
     preferMp4: true,
@@ -254,6 +259,7 @@ class AppSettings {
     String? subtitleLangs,
     String? filenameTemplate,
     bool? subfolderBySite,
+    bool? askForDestination,
     bool? autoUgeUnsupported,
     int? qualityPreference,
     bool? preferMp4,
@@ -304,6 +310,8 @@ class AppSettings {
       subtitleLangs: subtitleLangs ?? this.subtitleLangs,
       filenameTemplate: filenameTemplate ?? this.filenameTemplate,
       subfolderBySite: subfolderBySite ?? this.subfolderBySite,
+      askForDestination:
+          askForDestination ?? this.askForDestination,
       autoUgeUnsupported:
           autoUgeUnsupported ?? this.autoUgeUnsupported,
       qualityPreference:
@@ -419,6 +427,8 @@ class SettingsStorage {
         filenameTemplate:
             (raw['filenameTemplate'] as String?) ?? '{title}',
         subfolderBySite: (raw['subfolderBySite'] as bool?) ?? false,
+        askForDestination:
+            (raw['askForDestination'] as bool?) ?? false,
         autoUgeUnsupported:
             (raw['autoUgeUnsupported'] as bool?) ?? false,
         qualityPreference:
@@ -508,6 +518,7 @@ class SettingsStorage {
       'subtitleLangs': settings.subtitleLangs,
       'filenameTemplate': settings.filenameTemplate,
       'subfolderBySite': settings.subfolderBySite,
+      'askForDestination': settings.askForDestination,
       'autoUgeUnsupported': settings.autoUgeUnsupported,
       'qualityPreference': settings.qualityPreference,
       'preferMp4': settings.preferMp4,

@@ -226,13 +226,13 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
       forceMp4: settings.forceMp4,
     );
     if (format == null) return '没有可用格式';
-    await ref.read(downloadListProvider.notifier).startDownload(
+    final added = await ref.read(downloadListProvider.notifier).startDownload(
           videoInfo: info,
           format: format,
           downloadSubtitles: _downloadSubtitles,
           downloadCover: _downloadCover,
         );
-    return null;
+    return added ? null : '已取消选择保存位置';
   }
 
   String _shortUrl(String url) {

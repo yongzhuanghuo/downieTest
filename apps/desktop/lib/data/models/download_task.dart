@@ -105,6 +105,9 @@ class DownloadTask {
   /// 本任务连接数（0=使用全局设置）
   final int connections;
 
+  /// 本任务单独指定的保存目录（空=使用全局下载目录）
+  final String destinationDir;
+
   /// 当前状态
   final DownloadStatus status;
 
@@ -157,6 +160,7 @@ class DownloadTask {
     this.downloadCover = false,
     this.throttleKbps = 0,
     this.connections = 0,
+    this.destinationDir = '',
     this.status = DownloadStatus.pending,
     this.progress,
     this.fileSize = 0,
@@ -190,6 +194,7 @@ class DownloadTask {
     bool? downloadCover,
     int? throttleKbps,
     int? connections,
+    String? destinationDir,
     int? fileSize,
     int? downloadedBytes,
     int? speed,
@@ -218,6 +223,7 @@ class DownloadTask {
       downloadCover: downloadCover ?? this.downloadCover,
       throttleKbps: throttleKbps ?? this.throttleKbps,
       connections: connections ?? this.connections,
+      destinationDir: destinationDir ?? this.destinationDir,
       status: status ?? this.status,
       progress: identical(progress, _unset)
           ? this.progress
@@ -315,6 +321,7 @@ class DownloadTask {
       downloadCover: ((map['download_cover'] as num?)?.toInt() ?? 0) == 1,
       throttleKbps: (map['throttle_kbps'] as num?)?.toInt() ?? 0,
       connections: (map['connections'] as num?)?.toInt() ?? 0,
+      destinationDir: (map['destination_dir'] as String?) ?? '',
       audioOnly: (map['height'] as num?)?.toInt() == 0 &&
           (map['format_label'] as String?)?.toLowerCase().contains('音频') == true,
       status: DownloadStatus.values[(map['status'] as int?) ?? 0],
@@ -351,6 +358,7 @@ class DownloadTask {
       'download_cover': downloadCover ? 1 : 0,
       'throttle_kbps': throttleKbps,
       'connections': connections,
+      'destination_dir': destinationDir,
       'file_size': fileSize,
       'downloaded_bytes': downloadedBytes,
       'speed': speed,
