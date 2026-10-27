@@ -81,6 +81,9 @@ class AppSettings {
   /// 队列排序降序
   final bool queueSortDesc;
 
+  /// 全部下载结束后退出应用
+  final bool quitWhenDone;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -106,6 +109,7 @@ class AppSettings {
     this.duplicatePrompt = true,
     this.queueSort = 0,
     this.queueSortDesc = false,
+    this.quitWhenDone = false,
   });
 
   static const defaults = AppSettings(
@@ -133,6 +137,7 @@ class AppSettings {
     duplicatePrompt: true,
     queueSort: 0,
     queueSortDesc: false,
+    quitWhenDone: false,
   );
 
   AppSettings copyWith({
@@ -160,6 +165,7 @@ class AppSettings {
     bool? duplicatePrompt,
     int? queueSort,
     bool? queueSortDesc,
+    bool? quitWhenDone,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -192,6 +198,7 @@ class AppSettings {
       duplicatePrompt: duplicatePrompt ?? this.duplicatePrompt,
       queueSort: queueSort ?? this.queueSort,
       queueSortDesc: queueSortDesc ?? this.queueSortDesc,
+      quitWhenDone: quitWhenDone ?? this.quitWhenDone,
     );
   }
 
@@ -278,6 +285,7 @@ class SettingsStorage {
         duplicatePrompt: (raw['duplicatePrompt'] as bool?) ?? true,
         queueSort: (raw['queueSort'] as num?)?.toInt() ?? 0,
         queueSortDesc: (raw['queueSortDesc'] as bool?) ?? false,
+        quitWhenDone: (raw['quitWhenDone'] as bool?) ?? false,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -336,6 +344,7 @@ class SettingsStorage {
       'duplicatePrompt': settings.duplicatePrompt,
       'queueSort': settings.queueSort,
       'queueSortDesc': settings.queueSortDesc,
+      'quitWhenDone': settings.quitWhenDone,
     });
     debugPrint('[Settings] saved: $settings');
   }

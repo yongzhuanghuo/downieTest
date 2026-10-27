@@ -239,6 +239,13 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               value: settings.duplicatePrompt,
               onChanged: notifier.setDuplicatePrompt,
             ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('全部下载完成后退出应用'),
+              value: settings.quitWhenDone,
+              onChanged: notifier.setQuitWhenDone,
+            ),
           ],
         );
       case 1:

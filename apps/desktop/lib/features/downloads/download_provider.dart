@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/ffmpeg/ffmpeg_runner.dart';
@@ -441,7 +442,18 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       _cancelled.remove(task.id);
       // 调度器继续填坑
       unawaited(_scheduler());
+      _maybeQuitWhenDone();
     }
+  }
+
+  void _maybeQuitWhenDone() {
+    if (!SettingsStorage.instance.current.quitWhenDone) return;
+    if (state.any((t) => t.isPending || t.isRunning || t.isPaused)) return;
+    Future<void>.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      if (state.any((t) => t.isPending || t.isRunning || t.isPaused)) return;
+      unawaited(windowManager.close());
+    });
   }
 
   // ==================== 取消 / 重试 / 删除 ====================

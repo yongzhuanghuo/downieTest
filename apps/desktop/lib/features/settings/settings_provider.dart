@@ -125,6 +125,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setQuitWhenDone(bool value) async {
+    final next = state.copyWith(quitWhenDone: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setNotifyOnComplete(bool value) async {
     final next = state.copyWith(notifyOnComplete: value);
     await SettingsStorage.instance.save(next);
