@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform/automation_queue.dart';
 import '../../core/platform/automation_request.dart';
+import '../../core/platform/single_instance.dart';
 import '../../core/platform/tray_service.dart';
 import '../../core/server/browser_bridge.dart';
 import '../../core/sites/format_selector.dart';
@@ -48,6 +49,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
   static const _linkChannel = MethodChannel('downie6/links');
 
   bool _dropHover = false;
+  StreamSubscription<List<String>>? _instanceSub;
 
   @override
   void initState() {
@@ -57,6 +59,14 @@ class _WindowShellState extends ConsumerState<WindowShell> {
       unawaited(
         _linkChannel.invokeMethod<void>('ready').catchError((_) {}),
       );
+    }
+    if (Platform.isWindows) {
+      _instanceSub = SingleInstance.incoming.listen((args) {
+        AutomationQueue.seed(args);
+        for (final request in AutomationQueue.drain()) {
+          unawaited(_handleAutomation(request));
+        }
+      });
     }
     unawaited(ref.read(trialProvider.notifier).ensureStarted());
     unawaited(_syncBrowserBridge());
@@ -98,6 +108,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
   @override
   void dispose() {
     _linkChannel.setMethodCallHandler(null);
+    _instanceSub?.cancel();
     super.dispose();
   }
 

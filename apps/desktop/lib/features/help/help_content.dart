@@ -65,6 +65,33 @@ final List<HelpTopic> kHelpTopics = [
     ],
   ),
   const HelpTopic(
+    title: '自动化添加',
+    summary: '从脚本、快捷指令或命令行把链接交给应用。',
+    paragraphs: [
+      'macOS 可以用 open -a Downie6 <链接>，也可以使用自定义协议：\n'
+          'downie6://XUOpenURL?url=<编码后的链接>&postprocessing=mp4\n'
+          '可选参数：title、destination（保存目录）、'
+          'postprocessing=mp4/audio、action=open_in_uge。',
+      'Windows 安装版会注册 downie6:// 协议；也可以直接运行 '
+          'Downie6.exe "downie6://..."。自动化请求不会弹出保存位置询问，'
+          '未指定 destination 时使用全局下载目录。',
+      '出于安全考虑，只接受 http/https 链接；file:// 等本地路径会被忽略。',
+    ],
+  ),
+  const HelpTopic(
+    title: 'CSV / XML 导入',
+    summary: '批量导入链接、标题和保存目录。',
+    paragraphs: [
+      'CSV 表头需要包含 url 和 title，可选 path：\n'
+          'url,title,path\n'
+          'https://example.com/a,示例标题,/Users/me/Videos\n\n'
+          'XML 使用 <downloads> 根元素，每个 <download> 包含 '
+          '<url>、<title>，可选 <path>。',
+      '通过「文件 → 从文件导入…」选择 .csv/.xml，或直接把内容粘贴到添加链接面板。'
+          '导入时会跳过播放列表展开，path 作为该任务的独立保存目录。',
+    ],
+  ),
+  const HelpTopic(
     title: '浏览器扩展',
     summary: '浏览器里看到视频，怎么交给应用。',
     paragraphs: [

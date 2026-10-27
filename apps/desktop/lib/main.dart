@@ -11,6 +11,7 @@ import 'core/ffmpeg/ffmpeg_runner.dart';
 import 'core/platform/automation_queue.dart';
 import 'core/platform/binary_initializer.dart';
 import 'core/platform/binary_locator.dart';
+import 'core/platform/single_instance.dart';
 import 'core/storage/settings_storage.dart';
 import 'features/license/license_provider.dart';
 import 'shared/branding/app_brand.dart';
@@ -20,6 +21,9 @@ const Size _defaultWindowSize = Size(1200, 750);
 const Size _minWindowSize = Size(800, 600);
 
 void main(List<String> args) async {
+  if (await SingleInstance.claim(args)) {
+    exit(0);
+  }
   AutomationQueue.seed(args);
   WidgetsFlutterBinding.ensureInitialized();
 
