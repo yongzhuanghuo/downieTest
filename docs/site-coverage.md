@@ -8,8 +8,8 @@
 
 | 状态 | 数量 | 含义 |
 |---|---:|---|
-| 原生插件 | 8 | 我们自己的解析/下载实现 |
-| 原生插件（部分） | 1 | 原生实现只覆盖部分链接形态 |
+| 原生插件 | 9 | 我们自己的解析/下载实现 |
+| 原生插件（部分） | 0 | 原生实现只覆盖部分链接形态 |
 | yt-dlp | 298 | 功能可用（由 yt-dlp 负责），但不是 Downie 代码复刻；仍需逐站验证 |
 | 通用资源检测（未复刻） | 473 | 没有原生/已知提取器，只能靠通用 HTML/WebView 嗅探；未逐站验证 |
 | DRM（不支持） | 6 | Downie 自身也拒绝的 DRM 正片 |
@@ -95,6 +95,7 @@
 | Douyin | DouyinDownloader | https://www.douyin.com, https://live.douyin.com, https://music.douyin.com | 原生插件 | 是 | P0 |  |
 | TikTok | TikTokDownloader | https://www.tiktok.com | 原生插件 | 否 | P0 |  |
 | Weibo | WeiboDownloader | https://weibo.com, https://www.weibo.com, http://video.weibo.com | 原生插件 | 否 | P0 |  |
+| BilibiliBangumi | BilibiliBangumiDownloader |  | 原生插件 | 否 | P1 |  |
 | BilibiliEmbed | BilibiliEmbedDownloader |  | 原生插件 | 否 | P1 |  |
 | Iesdouyin | IesdouyinDownloader | https://www.iesdouyin.com | 原生插件 | 是 | P1 |  |
 | Kuaishou | KuaishouDownloader | https://www.kuaishou.com, https://live.kuaishou.com | 原生插件 | 否 | P1 |  |
@@ -104,7 +105,6 @@
 
 | 站点 | Downie 类 | 域名 | 状态 | 已验证 | 优先级 | 备注 |
 |---|---|---|---|---|---|---|
-| BilibiliBangumi | BilibiliBangumiDownloader |  | 原生插件（部分） | 否 | P1 |  |
 
 ## yt-dlp 功能覆盖（代码未复刻，待逐站验证）
 

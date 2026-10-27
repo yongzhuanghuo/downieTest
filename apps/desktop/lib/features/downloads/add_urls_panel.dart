@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/sites/format_selector.dart';
+import '../../core/sites/plugins/bilibili_plugin.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
@@ -96,6 +97,25 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
     var trialBlocked = false;
     final failures = <String>[];
 
+    // 整季/播放列表条目逐个入队；返回本次成功条数。
+    Future<int> enqueueEntries(List<VideoInfo> entries) async {
+      var count = 0;
+      for (final entry in entries) {
+        final error = await _enqueueInfo(entry);
+        if (error == _trialEnded) {
+          trialBlocked = true;
+          break;
+        }
+        if (error != null) {
+          failures.add('${_shortUrl(entry.url)}：$error');
+          continue;
+        }
+        added++;
+        count++;
+      }
+      return count;
+    }
+
     for (var i = 0; i < targets.length; i++) {
       if (!mounted) return;
       if (targets.length > 1) {
@@ -104,6 +124,26 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
 
       final target = targets[i];
       try {
+        // B 站番剧：ss 链接整季展开，逐集解析入队。
+        if (_expandPlaylist && BilibiliPlugin.looksLikeSeason(target)) {
+          setState(() => _progress = '正在解析番剧选集…');
+          var episodes = const <VideoInfo>[];
+          try {
+            episodes = await BilibiliPlugin().parseSeason(target);
+          } catch (e) {
+            debugPrint('[添加链接] 番剧选集解析失败，按单视频处理: $e');
+          }
+          if (episodes.length > 1) {
+            setState(() => _progress = '番剧 ${episodes.length} 集，正在入队…');
+            final count = await enqueueEntries(episodes);
+            if (trialBlocked) break;
+            if (count == 0) {
+              failures.add('${_shortUrl(target)}：番剧剧集都未能加入队列');
+            }
+            continue;
+          }
+        }
+
         if (_expandPlaylist && YtDlpRunner.looksLikePlaylist(target)) {
           setState(() => _progress = '正在解析播放列表…');
           var entries = const <VideoInfo>[];
@@ -115,22 +155,9 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
           // 只有一条时按普通视频解析，保留画质选择
           if (entries.length > 1) {
             setState(() => _progress = '播放列表 ${entries.length} 条，正在入队…');
-            var playlistAdded = 0;
-            for (final entry in entries) {
-              final error = await _enqueueInfo(entry);
-              if (error == _trialEnded) {
-                trialBlocked = true;
-                break;
-              }
-              if (error != null) {
-                failures.add('${_shortUrl(entry.url)}：$error');
-                continue;
-              }
-              added++;
-              playlistAdded++;
-            }
+            final count = await enqueueEntries(entries);
             if (trialBlocked) break;
-            if (playlistAdded == 0) {
+            if (count == 0) {
               failures.add('${_shortUrl(target)}：播放列表条目都未能加入队列');
             }
             continue;

@@ -41,8 +41,9 @@ NATIVE = {
     "KuaishouDownloader",
     "WeiboDownloader",
     "WeiboHTML5Downloader",
+    "BilibiliBangumiDownloader",
 }
-NATIVE_PARTIAL = {"BilibiliBangumiDownloader"}
+NATIVE_PARTIAL: set[str] = set()
 VERIFIED_NATIVE = {
     "DouyinDownloader",
     "IesdouyinDownloader",

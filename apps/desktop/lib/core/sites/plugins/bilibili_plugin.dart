@@ -18,8 +18,9 @@ import '../site_plugin.dart';
 /// 签名调 wbi/view 拿 cid → 签名调 wbi/playurl 拿 DASH 流 →
 /// 下载视频/音频后用 ffmpeg 合并。
 ///
-/// 番剧（/bangumi/play/）暂时交给 yt-dlp；短链展开后如果是番剧，
-/// 抛 [SitePluginException.fallbackToYtDlp] 回退。
+/// 番剧（/bangumi/play/）走 pgc 接口；勾选「展开播放列表」时 ss 链接
+/// 会解析整季并逐集入队。番剧由 [BilibiliBangumiPlugin] 单独注册，
+/// 保证下载阶段能按 extractor 找回插件。
 class BilibiliPlugin extends SitePlugin {
   @override
   String get id => 'Bilibili';
@@ -259,8 +260,86 @@ class BilibiliPlugin extends SitePlugin {
     }
   }
 
+  /// 是否是整季番剧链接（/bangumi/play/ss<id>）。
+  static bool looksLikeSeason(String url) =>
+      RegExp(r'/bangumi/play/ss\d+').hasMatch(url);
+
+  /// 整季解析：ss 链接逐集取播放信息，返回可直接入队的条目。
+  /// 单集 ep 链接返回一条，调用方按普通视频处理。
+  Future<List<VideoInfo>> parseSeason(String url) async {
+    final resolved = await _expandShortLink(url);
+    final uri = Uri.parse(resolved);
+    final match = RegExp(r'/bangumi/play/(ep|ss)(\d+)').firstMatch(uri.path);
+    if (match == null) return const [];
+
+    final kind = match.group(1)!;
+    final id = match.group(2)!;
+    if (kind == 'ep') return [await _parseBangumi(uri, await _cookieHeader())];
+
+    final cookie = await _cookieHeader();
+    final seasonJson =
+        await _getJson('/pgc/view/web/season?season_id=$id', cookie);
+    _throwIfError(seasonJson);
+    final result = seasonJson['result'] as Map<String, dynamic>?;
+    if (result == null) {
+      throw const SitePluginException('B 站番剧信息为空', retryable: false);
+    }
+    final episodes = _episodeMaps(result);
+    if (episodes.isEmpty) {
+      throw const SitePluginException('B 站番剧没有可下载的剧集', retryable: false);
+    }
+
+    final infos = <VideoInfo>[];
+    for (final ep in episodes) {
+      try {
+        infos.add(await _buildBangumiEpisode(result, ep, cookie));
+      } catch (e) {
+        // 锁定/地区限制/需要大会员的单集跳过，不影响整季其他集。
+        debugPrint('[B站番剧] 跳过一集: $e');
+      }
+    }
+    if (infos.isEmpty) {
+      throw const SitePluginException(
+        '该番剧没有可下载的剧集（可能需要大会员或登录）',
+        requiresLogin: true,
+        retryable: false,
+      );
+    }
+    return infos;
+  }
+
+  /// 纯函数：从 season 接口结果提取剧集页地址（按接口顺序、去重）。
+  static List<String> episodeUrlsFromSeason(Map<String, dynamic> json) {
+    final result = json['result'] is Map
+        ? Map<String, dynamic>.from(json['result'] as Map)
+        : json;
+    final urls = <String>[];
+    final seen = <String>{};
+    for (final ep in _episodeMaps(result)) {
+      final id = (ep['id'] ?? ep['ep_id'])?.toString() ?? '';
+      if (id.isEmpty || id == '0' || !seen.add(id)) continue;
+      urls.add('https://www.bilibili.com/bangumi/play/ep$id');
+    }
+    return urls;
+  }
+
+  static List<Map<String, dynamic>> _episodeMaps(Map<String, dynamic> result) {
+    final top = (result['episodes'] as List?) ?? const <dynamic>[];
+    final raw = top.isNotEmpty
+        ? top
+        : ((result['sections'] as List?) ?? const <dynamic>[])
+            .whereType<Map>()
+            .expand((section) =>
+                (section['episodes'] as List?) ?? const <dynamic>)
+            .toList();
+    return raw
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
   /// 番剧解析：支持 /bangumi/play/ep<id> 和 /bangumi/play/ss<id>。
-  /// ss 链接默认取第一集；后续可在 UI 里加选集。
+  /// ss 链接默认取第一集；勾选「展开播放列表」时走 [parseSeason] 整季入队。
   Future<VideoInfo> _parseBangumi(Uri uri, String cookie) async {
     final match = RegExp(r'/bangumi/play/(ep|ss)(\d+)').firstMatch(uri.path);
     if (match == null) {
@@ -279,9 +358,7 @@ class BilibiliPlugin extends SitePlugin {
     if (result == null) {
       throw const SitePluginException('B 站番剧信息为空', retryable: false);
     }
-    final episodes = ((result['episodes'] as List?) ?? const [])
-        .whereType<Map<String, dynamic>>()
-        .toList();
+    final episodes = _episodeMaps(result);
     if (episodes.isEmpty) {
       throw const SitePluginException('B 站番剧没有可下载的剧集', retryable: false);
     }
@@ -296,8 +373,15 @@ class BilibiliPlugin extends SitePlugin {
       }
     }
     ep ??= episodes.first;
+    return _buildBangumiEpisode(result, ep, cookie);
+  }
 
-    final epId = (ep['id'] ?? ep['ep_id'])?.toString() ?? id;
+  Future<VideoInfo> _buildBangumiEpisode(
+    Map<String, dynamic> result,
+    Map<String, dynamic> ep,
+    String cookie,
+  ) async {
+    final epId = (ep['id'] ?? ep['ep_id'])?.toString() ?? '';
     final cid = _int(ep['cid']);
     if (cid <= 0) {
       throw const SitePluginException('无法获取番剧 cid', retryable: false);
@@ -335,7 +419,7 @@ class BilibiliPlugin extends SitePlugin {
       duration: _int(ep['duration']),
       uploader: upName,
       thumbnail: cover,
-      extractor: id,
+      extractor: 'BilibiliBangumi',
       videoId: 'ep$epId',
       formats: formats,
       subtitleLangs: _subtitleLangs(playResult),
@@ -738,5 +822,25 @@ class BilibiliPlugin extends SitePlugin {
       default:
         return codecId > 0 ? 'codec$codecId' : '';
     }
+  }
+}
+
+/// 番剧单独注册：只匹配 /bangumi/play/(ep|ss)，解析和下载复用 [BilibiliPlugin]。
+/// 独立 id 让站点覆盖表、分站子目录和下载分发与 Downie 的
+/// BilibiliBangumiDownloader 对应。
+class BilibiliBangumiPlugin extends BilibiliPlugin {
+  @override
+  String get id => 'BilibiliBangumi';
+
+  @override
+  int get priority => 91;
+
+  @override
+  bool matches(Uri uri, String rawInput) {
+    final host = uri.host.toLowerCase();
+    if (host != 'bilibili.com' && !host.endsWith('.bilibili.com')) {
+      return false;
+    }
+    return RegExp(r'/bangumi/play/(ep|ss)\d+').hasMatch(uri.path);
   }
 }

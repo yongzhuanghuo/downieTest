@@ -2,8 +2,8 @@
  "generatedFrom": "Downie 4 v4.13.3 + yt-dlp 2026.07.04",
  "total": 786,
  "counts": {
-  "native": 8,
-  "native_partial": 1,
+  "native": 9,
+  "native_partial": 0,
   "ytdlp": 298,
   "generic": 473,
   "drm": 6
@@ -82,6 +82,20 @@
    "notes": ""
   },
   {
+   "site": "BilibiliBangumi",
+   "className": "BilibiliBangumiDownloader",
+   "domains": [],
+   "status": "native",
+   "statusLabel": "原生插件",
+   "verified": false,
+   "priority": "P1",
+   "ytdlpExtractors": [
+    "BiliBili",
+    "BiliBiliBangumi"
+   ],
+   "notes": ""
+  },
+  {
    "site": "BilibiliEmbed",
    "className": "BilibiliEmbedDownloader",
    "domains": [],
@@ -131,20 +145,6 @@
    "priority": "P1",
    "ytdlpExtractors": [
     "Weibo"
-   ],
-   "notes": ""
-  },
-  {
-   "site": "BilibiliBangumi",
-   "className": "BilibiliBangumiDownloader",
-   "domains": [],
-   "status": "native_partial",
-   "statusLabel": "原生插件（部分）",
-   "verified": false,
-   "priority": "P1",
-   "ytdlpExtractors": [
-    "BiliBili",
-    "BiliBiliBangumi"
    ],
    "notes": ""
   },

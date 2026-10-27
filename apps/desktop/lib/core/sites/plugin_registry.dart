@@ -17,6 +17,7 @@ class PluginRegistry {
   static final PluginRegistry instance = PluginRegistry._(<SitePlugin>[
     DouyinPlugin(),
     BilibiliPlugin(),
+    BilibiliBangumiPlugin(),
     TikTokPlugin(),
     KuaishouPlugin(),
     WeiboPlugin(),

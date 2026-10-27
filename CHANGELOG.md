@@ -32,9 +32,10 @@
 
 - 新增快手原生插件：__APOLLO_STATE__ / VisionVideoDetailPhoto；失败回退 yt-dlp/UGE
 - 新增微博原生插件：ajax/statuses/show、media_info/stream_url、登录 cookie；无登录时提示登录
+- 新增 B 站番剧整季展开：勾选「展开播放列表」后 ss 链接逐集解析入队，锁定/地区限制的单集自动跳过
 - 下载行支持单任务限速（不限/500KB/1MB/2MB/5MB），优先级高于全局限速
 - macOS 原生菜单栏：文件/窗口/帮助、打开链接、粘贴板添加、设置、历史、更新、退出
-- 站点覆盖：8 个原生（抖音/B站/B站嵌入/iesdouyin/TikTok/快手/微博/H5）+ 298 yt-dlp + 473 通用 + 6 DRM
+- 站点覆盖：9 个原生（抖音/B站/B站嵌入/B站番剧/iesdouyin/TikTok/快手/微博/H5）+ 298 yt-dlp + 473 通用 + 6 DRM
 - 记录 22 条真实样本验证结果；通过样本的站点标记为已验证
 
 ## 2.0.18（2026-10-27）
