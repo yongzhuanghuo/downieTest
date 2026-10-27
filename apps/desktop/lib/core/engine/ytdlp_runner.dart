@@ -260,6 +260,7 @@ class YtDlpRunner {
     bool audioOnly = false,
     bool downloadSubtitles = false,
     bool downloadCover = false,
+    int throttleKbps = 0,
   }) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
@@ -324,8 +325,11 @@ class YtDlpRunner {
       '--ffmpeg-location', actualFfmpegPath,
       if (settings.connectionsPerDownload > 1)
         ...['--concurrent-fragments', '${settings.connectionsPerDownload}'],
-      if (settings.throttleKbps > 0)
-        ...['--limit-rate', '${settings.throttleKbps}K'],
+      if ((throttleKbps > 0 ? throttleKbps : settings.throttleKbps) > 0)
+        ...[
+          '--limit-rate',
+          '${throttleKbps > 0 ? throttleKbps : settings.throttleKbps}K',
+        ],
       if (settings.saveMetadataJson) '--write-info-json',
       if (settings.forceReencode) ...['--recode-video', 'mp4'],
       if (settings.nativeHlsEngine) '--hls-prefer-native',

@@ -52,6 +52,7 @@ class DownloadsDao {
         'priority': task.priority.index,
         'download_subtitles': task.downloadSubtitles ? 1 : 0,
         'download_cover': task.downloadCover ? 1 : 0,
+        'throttle_kbps': task.throttleKbps,
         'format_id': task.formatId,
         'format_label': task.formatLabel,
         'height': task.height,

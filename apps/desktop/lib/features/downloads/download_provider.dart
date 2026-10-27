@@ -169,6 +169,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     required FormatOption format,
     bool downloadSubtitles = false,
     bool downloadCover = false,
+    int throttleKbps = 0,
   }) async {
     final task = DownloadTask(
       id: const Uuid().v4(),
@@ -186,6 +187,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       audioOnly: format.audioOnly,
       downloadSubtitles: downloadSubtitles,
       downloadCover: downloadCover,
+      throttleKbps: throttleKbps,
       postprocessing: _defaultPostprocessing(),
       createdAt: DateTime.now(),
     );
@@ -228,6 +230,13 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     final task = _find(id);
     if (task == null || task.status == DownloadStatus.completed) return;
     await _apply(id, (t) => t.copyWith(postprocessing: mode));
+  }
+
+  /// 设置等待中任务的限速（kB/s，0=使用全局）
+  Future<void> setThrottle(String id, int kbps) async {
+    final task = _find(id);
+    if (task == null || task.status != DownloadStatus.pending) return;
+    await _apply(id, (t) => t.copyWith(throttleKbps: kbps.clamp(0, 1000000)));
   }
 
   /// 调整等待中任务的队列优先级
@@ -328,6 +337,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
               audioOnly: task.audioOnly,
               downloadSubtitles: task.downloadSubtitles,
               downloadCover: task.downloadCover,
+              throttleKbps: task.throttleKbps,
             );
           }
           if (_cancelled.contains(task.id)) {

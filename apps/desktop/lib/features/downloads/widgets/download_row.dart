@@ -360,6 +360,9 @@ class DownloadRow extends ConsumerWidget {
             case 'priority:high':
               await notifier.setPriority(task.id, DownloadPriority.high);
               break;
+            case 'throttle':
+              await _pickThrottle(context, notifier, task);
+              break;
             case 'subtitles':
               await notifier.setDownloadSubtitles(
                 task.id,
@@ -416,6 +419,7 @@ class DownloadRow extends ConsumerWidget {
               checked: task.downloadCover,
               child: const Text('保存缩略图'),
             ),
+            const PopupMenuItem(value: 'throttle', child: Text('限速…')),
           ],
           if (task.isPaused)
             const PopupMenuItem(value: 'resume', child: Text('继续下载'))
@@ -443,6 +447,47 @@ class DownloadRow extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _pickThrottle(
+    BuildContext context,
+    DownloadListNotifier notifier,
+    DownloadTask task,
+  ) async {
+    const options = <int, String>{
+      0: '不限速（使用全局设置）',
+      500: '500 KB/s',
+      1000: '1 MB/s',
+      2000: '2 MB/s',
+      5000: '5 MB/s',
+    };
+    final value = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('本任务限速'),
+        children: [
+          for (final entry in options.entries)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(entry.key),
+              child: Row(
+                children: [
+                  Icon(
+                    task.throttleKbps == entry.key
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(entry.value),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (value != null) {
+      await notifier.setThrottle(task.id, value);
+    }
   }
 
   String _downloadUrl(DownloadTask task) {
@@ -531,6 +576,8 @@ class DownloadRow extends ConsumerWidget {
     final site = host.isNotEmpty ? host : task.extractor;
     final parts = <String>[
       if (task.priority != DownloadPriority.normal) task.priority.label,
+      if (task.throttleKbps > 0)
+        '限速 ${task.throttleKbps >= 1000 ? '${(task.throttleKbps / 1000).toStringAsFixed(1)} MB/s' : '${task.throttleKbps} KB/s'}',
       if (site.isNotEmpty) site,
       if (task.formatLabel.isNotEmpty) task.formatLabel,
       if (task.duration > 0) _formatDuration(task.duration),

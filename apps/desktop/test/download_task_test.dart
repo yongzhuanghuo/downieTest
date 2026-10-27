@@ -53,6 +53,11 @@ void main() {
     expect(restored.downloadCover, isTrue);
   });
 
+  test('throttle survives map round-trip', () {
+    final task = _task().copyWith(throttleKbps: 1000);
+    expect(DownloadTask.fromMap(task.toMap()).throttleKbps, 1000);
+  });
+
   test('copyWith can clear nullable fields', () {
     final task = _task().copyWith(
       error: 'boom',
