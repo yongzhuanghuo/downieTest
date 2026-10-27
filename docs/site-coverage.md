@@ -8,10 +8,10 @@
 
 | 状态 | 数量 | 含义 |
 |---|---:|---|
-| 原生插件 | 5 | 我们自己的解析/下载实现 |
+| 原生插件 | 6 | 我们自己的解析/下载实现 |
 | 原生插件（部分） | 1 | 原生实现只覆盖部分链接形态 |
 | yt-dlp | 299 | 功能可用（由 yt-dlp 负责），但不是 Downie 代码复刻；仍需逐站验证 |
-| 通用资源检测（未复刻） | 475 | 没有原生/已知提取器，只能靠通用 HTML/WebView 嗅探；未逐站验证 |
+| 通用资源检测（未复刻） | 474 | 没有原生/已知提取器，只能靠通用 HTML/WebView 嗅探；未逐站验证 |
 | DRM（不支持） | 6 | Downie 自身也拒绝的 DRM 正片 |
 
 > 重要：`yt-dlp` 不等于“原生复刻”。本表把“能下载”和“代码复刻”分开标注，避免把 yt-dlp 覆盖误报成已完成站点。
@@ -96,6 +96,7 @@
 | TikTok | TikTokDownloader | https://www.tiktok.com | 原生插件 | 否 | P0 |  |
 | BilibiliEmbed | BilibiliEmbedDownloader |  | 原生插件 | 否 | P1 |  |
 | Iesdouyin | IesdouyinDownloader | https://www.iesdouyin.com | 原生插件 | 是 | P1 |  |
+| Kuaishou | KuaishouDownloader | https://www.kuaishou.com, https://live.kuaishou.com | 原生插件 | 否 | P1 |  |
 
 ## 原生部分支持
 
@@ -612,7 +613,6 @@
 | KijkShortLink | KijkShortLinkDownloader |  | 通用资源检测（未复刻） | 否 | P1 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | KissAnime | KissAnimeDownloader | http://kissanime.com | 通用资源检测（未复刻） | 否 | P1 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | Knowledge | KnowledgeDownloader | https://api.knowledge.ca, https://www.knowledge.ca | 通用资源检测（未复刻） | 否 | P1 | 未原生复刻，需通用资源检测/自定义集成验证 |
-| Kuaishou | KuaishouDownloader | https://www.kuaishou.com, https://live.kuaishou.com | 通用资源检测（未复刻） | 否 | P1 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | KuaishouLive | KuaishouLiveDownloader |  | 通用资源检测（未复刻） | 否 | P1 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | KwikMotion | KwikMotionDownloader | https://embed.kwikmotion.com | 通用资源检测（未复刻） | 否 | P1 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | LaFabriqueCulturelle | LaFabriqueCulturelleDownloader | http://www.lafabriqueculturelle.tv | 通用资源检测（未复刻） | 否 | P1 | 未原生复刻，需通用资源检测/自定义集成验证 |

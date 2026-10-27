@@ -38,6 +38,7 @@ NATIVE = {
     "BilibiliDownloader",
     "BilibiliEmbedDownloader",
     "TikTokDownloader",
+    "KuaishouDownloader",
 }
 NATIVE_PARTIAL = {"BilibiliBangumiDownloader"}
 VERIFIED_NATIVE = {

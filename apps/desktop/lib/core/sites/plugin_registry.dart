@@ -1,6 +1,7 @@
 import 'plugins/bilibili_plugin.dart';
 import 'plugins/douyin_plugin.dart';
 import 'plugins/generic_web_plugin.dart';
+import 'plugins/kuaishou_plugin.dart';
 import 'plugins/tiktok_plugin.dart';
 import 'site_plugin.dart';
 
@@ -16,6 +17,7 @@ class PluginRegistry {
     DouyinPlugin(),
     BilibiliPlugin(),
     TikTokPlugin(),
+    KuaishouPlugin(),
     GenericWebPlugin(),
     // 后续：YouTubePlugin / InstagramPlugin / XPlugin
   ]);

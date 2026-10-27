@@ -105,20 +105,14 @@ class AppMenuBar extends ConsumerWidget {
                 .read(downloadListProvider.notifier)
                 .clearFinished(),
           ),
-          const PlatformProvidedMenuItem(
-            type: PlatformProvidedMenuItemType.closeWindow,
+          PlatformMenuItem(
+            label: '关闭窗口',
+            shortcut: const SingleActivator(
+              LogicalKeyboardKey.keyW,
+              meta: true,
+            ),
+            onSelected: () => windowManager.close(),
           ),
-        ],
-      ),
-      PlatformMenu(
-        label: '编辑',
-        menus: const [
-          PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.undo),
-          PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.redo),
-          PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.cut),
-          PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.copy),
-          PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.paste),
-          PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.selectAll),
         ],
       ),
       PlatformMenu(
@@ -150,7 +144,7 @@ class AppMenuBar extends ConsumerWidget {
             type: PlatformProvidedMenuItemType.zoomWindow,
           ),
           const PlatformProvidedMenuItem(
-            type: PlatformProvidedMenuItemType.bringAllToFront,
+            type: PlatformProvidedMenuItemType.arrangeWindowsInFront,
           ),
         ],
       ),

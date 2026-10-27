@@ -2,10 +2,10 @@
  "generatedFrom": "Downie 4 v4.13.3 + yt-dlp 2026.07.04",
  "total": 786,
  "counts": {
-  "native": 5,
+  "native": 6,
   "native_partial": 1,
   "ytdlp": 299,
-  "generic": 475,
+  "generic": 474,
   "drm": 6
  },
  "sites": [
@@ -86,6 +86,20 @@
    "status": "native",
    "statusLabel": "原生插件",
    "verified": true,
+   "priority": "P1",
+   "ytdlpExtractors": [],
+   "notes": ""
+  },
+  {
+   "site": "Kuaishou",
+   "className": "KuaishouDownloader",
+   "domains": [
+    "https://www.kuaishou.com",
+    "https://live.kuaishou.com"
+   ],
+   "status": "native",
+   "statusLabel": "原生插件",
+   "verified": false,
    "priority": "P1",
    "ytdlpExtractors": [],
    "notes": ""
@@ -7293,20 +7307,6 @@
    "domains": [
     "https://api.knowledge.ca",
     "https://www.knowledge.ca"
-   ],
-   "status": "generic",
-   "statusLabel": "通用资源检测（未复刻）",
-   "verified": false,
-   "priority": "P1",
-   "ytdlpExtractors": [],
-   "notes": "未原生复刻，需通用资源检测/自定义集成验证"
-  },
-  {
-   "site": "Kuaishou",
-   "className": "KuaishouDownloader",
-   "domains": [
-    "https://www.kuaishou.com",
-    "https://live.kuaishou.com"
    ],
    "status": "generic",
    "statusLabel": "通用资源检测（未复刻）",
