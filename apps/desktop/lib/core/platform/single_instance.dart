@@ -28,34 +28,8 @@ class SingleInstance {
   static Future<bool> claim(List<String> args) async {
     if (!Platform.isWindows) return false;
 
-    // 给正在启动的主实例一点时间绑定端口。
-    for (var attempt = 0; attempt < 8; attempt++) {
-      try {
-        final socket = await Socket.connect(
-          InternetAddress.loopbackIPv4,
-          port,
-          timeout: const Duration(milliseconds: 250),
-        );
-        socket.write('${jsonEncode({'app': _appTag, 'args': args})}\n');
-        await socket.flush();
-
-        final reply = await socket
-            .cast<List<int>>()
-            .transform(utf8.decoder)
-            .first
-            .timeout(const Duration(milliseconds: 800));
-        socket.destroy();
-        if (reply.contains('OK')) return true;
-      } on SocketException {
-        // 还没有实例监听，继续重试/绑定。
-      } on TimeoutException {
-        // 端口被其他程序占用或对端无响应，按非本应用处理。
-        break;
-      } catch (_) {
-        break;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    }
+    // 正常启动时端口未监听，connect 会立刻失败，不会拖慢启动。
+    if (await _tryForward(args)) return true;
 
     try {
       _server = await ServerSocket.bind(
@@ -64,11 +38,39 @@ class SingleInstance {
         shared: false,
       );
       _server!.listen(_handleSocket, onError: (_) {});
+      return false;
     } on SocketException {
-      // 端口被占用但不是我们的实例：放弃 IPC，继续启动。
-      debugPrint('[单实例] 端口 $port 不可用，跳过单实例检测');
+      // 端口被占用：可能是另一实例刚绑定，稍等后重试转发。
     }
+
+    for (var attempt = 0; attempt < 8; attempt++) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      if (await _tryForward(args)) return true;
+    }
+    debugPrint('[单实例] 端口 $port 被占用但无法转发，继续启动');
     return false;
+  }
+
+  static Future<bool> _tryForward(List<String> args) async {
+    try {
+      final socket = await Socket.connect(
+        InternetAddress.loopbackIPv4,
+        port,
+        timeout: const Duration(milliseconds: 300),
+      );
+      socket.write('${jsonEncode({'app': _appTag, 'args': args})}\n');
+      await socket.flush();
+
+      final reply = await socket
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .first
+          .timeout(const Duration(milliseconds: 800));
+      socket.destroy();
+      return reply.contains('OK');
+    } catch (_) {
+      return false;
+    }
   }
 
   static void _handleSocket(Socket socket) {
