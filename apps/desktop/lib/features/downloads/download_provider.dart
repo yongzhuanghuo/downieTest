@@ -73,6 +73,22 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
 
     // 2. 从 DB 读取所有任务（先恢复 UI）
     final all = await _dao.findAll();
+    if (SettingsStorage.instance.current.clearMissingHistory) {
+      final missing = all
+          .where((t) =>
+              t.status == DownloadStatus.completed &&
+              t.outputPath != null &&
+              !File(t.outputPath!).existsSync())
+          .toList();
+      if (missing.isNotEmpty) {
+        for (final t in missing) {
+          await _dao.deleteById(t.id);
+        }
+        all.removeWhere((t) => missing.any((m) => m.id == t.id));
+        _ref.invalidate(historyProvider);
+        debugPrint('[DownloadList] 清理文件已删除的历史 ${missing.length} 条');
+      }
+    }
     if (all.isNotEmpty) {
       state = List<DownloadTask>.unmodifiable(all);
       debugPrint('[DownloadList] 从DB恢复 ${all.length} 条任务');
@@ -747,6 +763,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         inputPath: inputPath,
         outputPath: output,
       );
+      if (SettingsStorage.instance.current.deleteOriginalAfterConversion) {
+        await _deleteQuietly(inputPath);
+      }
       await _apply(id, (t) => t.copyWith(
             ext: 'mp3',
             formatLabel: 'MP3',
@@ -770,12 +789,22 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       inputPath: inputPath,
       outputPath: output,
     );
+    if (SettingsStorage.instance.current.deleteOriginalAfterConversion) {
+      await _deleteQuietly(inputPath);
+    }
     await _apply(id, (t) => t.copyWith(
           ext: 'mp4',
           formatLabel: 'MP4',
           audioOnly: false,
         ));
     return converted;
+  }
+
+  Future<void> _deleteQuietly(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
   }
 
   String _extensionOf(String path) {

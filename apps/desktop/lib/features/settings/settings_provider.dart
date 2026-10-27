@@ -161,6 +161,48 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setShowThumbnails(bool value) async {
+    final next = state.copyWith(showThumbnails: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setClearMissingHistory(bool value) async {
+    final next = state.copyWith(clearMissingHistory: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setDeleteOriginalAfterConversion(bool value) async {
+    final next = state.copyWith(deleteOriginalAfterConversion: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setIncludeAutoSubtitles(bool value) async {
+    final next = state.copyWith(includeAutoSubtitles: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setSubtitleMode(int value) async {
+    final next = state.copyWith(subtitleMode: value.clamp(0, 1));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setForceReencode(bool value) async {
+    final next = state.copyWith(forceReencode: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setNativeHlsEngine(bool value) async {
+    final next = state.copyWith(nativeHlsEngine: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setNotifyOnComplete(bool value) async {
     final next = state.copyWith(notifyOnComplete: value);
     await SettingsStorage.instance.save(next);

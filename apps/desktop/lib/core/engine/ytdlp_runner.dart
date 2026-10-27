@@ -327,12 +327,19 @@ class YtDlpRunner {
       if (settings.throttleKbps > 0)
         ...['--limit-rate', '${settings.throttleKbps}K'],
       if (settings.saveMetadataJson) '--write-info-json',
+      if (settings.forceReencode) ...['--recode-video', 'mp4'],
+      if (settings.nativeHlsEngine) '--hls-prefer-native',
       if (audioOnly) ...['-x', '--audio-format', 'mp3'],
       if (!audioOnly) ...['--merge-output-format', 'mp4'],
       if (downloadSubtitles) ...[
         '--write-subs',
-        '--write-auto-subs',
-        if (subtitleLangs.isNotEmpty) ...['--sub-langs', subtitleLangs],
+        if (settings.includeAutoSubtitles) '--write-auto-subs',
+        if (subtitleLangs.isNotEmpty) ...[
+          '--sub-langs',
+          settings.subtitleMode == 1
+              ? subtitleLangs.split(',').first
+              : subtitleLangs,
+        ],
       ],
       // --write-thumbnail 只写一张默认封面（即最高清那张），--write-all-thumbnails 才会写多张
       if (downloadCover) ...['--write-thumbnail', '--convert-thumbnails', 'jpg'],

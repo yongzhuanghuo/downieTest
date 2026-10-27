@@ -99,6 +99,27 @@ class AppSettings {
   /// 添加链接后自动开始下载（关闭后任务停在等待中）
   final bool autoStartDownloads;
 
+  /// 下载行显示缩略图
+  final bool showThumbnails;
+
+  /// 启动时清理文件已不存在的历史记录
+  final bool clearMissingHistory;
+
+  /// 转换完成后删除原始下载文件
+  final bool deleteOriginalAfterConversion;
+
+  /// 下载自动生成的字幕
+  final bool includeAutoSubtitles;
+
+  /// 字幕模式：0=全部匹配，1=只取第一个匹配
+  final int subtitleMode;
+
+  /// HLS/DASH 强制重新编码
+  final bool forceReencode;
+
+  /// 使用 yt-dlp 原生 HLS 下载器
+  final bool nativeHlsEngine;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -130,6 +151,13 @@ class AppSettings {
     this.saveMetadataJson = false,
     this.playSounds = false,
     this.autoStartDownloads = true,
+    this.showThumbnails = true,
+    this.clearMissingHistory = false,
+    this.deleteOriginalAfterConversion = false,
+    this.includeAutoSubtitles = true,
+    this.subtitleMode = 0,
+    this.forceReencode = false,
+    this.nativeHlsEngine = false,
   });
 
   static const defaults = AppSettings(
@@ -163,6 +191,13 @@ class AppSettings {
     saveMetadataJson: false,
     playSounds: false,
     autoStartDownloads: true,
+    showThumbnails: true,
+    clearMissingHistory: false,
+    deleteOriginalAfterConversion: false,
+    includeAutoSubtitles: true,
+    subtitleMode: 0,
+    forceReencode: false,
+    nativeHlsEngine: false,
   );
 
   AppSettings copyWith({
@@ -196,6 +231,13 @@ class AppSettings {
     bool? saveMetadataJson,
     bool? playSounds,
     bool? autoStartDownloads,
+    bool? showThumbnails,
+    bool? clearMissingHistory,
+    bool? deleteOriginalAfterConversion,
+    bool? includeAutoSubtitles,
+    int? subtitleMode,
+    bool? forceReencode,
+    bool? nativeHlsEngine,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -236,6 +278,16 @@ class AppSettings {
       playSounds: playSounds ?? this.playSounds,
       autoStartDownloads:
           autoStartDownloads ?? this.autoStartDownloads,
+      showThumbnails: showThumbnails ?? this.showThumbnails,
+      clearMissingHistory:
+          clearMissingHistory ?? this.clearMissingHistory,
+      deleteOriginalAfterConversion:
+          deleteOriginalAfterConversion ?? this.deleteOriginalAfterConversion,
+      includeAutoSubtitles:
+          includeAutoSubtitles ?? this.includeAutoSubtitles,
+      subtitleMode: subtitleMode ?? this.subtitleMode,
+      forceReencode: forceReencode ?? this.forceReencode,
+      nativeHlsEngine: nativeHlsEngine ?? this.nativeHlsEngine,
     );
   }
 
@@ -330,6 +382,16 @@ class SettingsStorage {
         playSounds: (raw['playSounds'] as bool?) ?? false,
         autoStartDownloads:
             (raw['autoStartDownloads'] as bool?) ?? true,
+        showThumbnails: (raw['showThumbnails'] as bool?) ?? true,
+        clearMissingHistory:
+            (raw['clearMissingHistory'] as bool?) ?? false,
+        deleteOriginalAfterConversion:
+            (raw['deleteOriginalAfterConversion'] as bool?) ?? false,
+        includeAutoSubtitles:
+            (raw['includeAutoSubtitles'] as bool?) ?? true,
+        subtitleMode: (raw['subtitleMode'] as num?)?.toInt() ?? 0,
+        forceReencode: (raw['forceReencode'] as bool?) ?? false,
+        nativeHlsEngine: (raw['nativeHlsEngine'] as bool?) ?? false,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -394,6 +456,14 @@ class SettingsStorage {
       'saveMetadataJson': settings.saveMetadataJson,
       'playSounds': settings.playSounds,
       'autoStartDownloads': settings.autoStartDownloads,
+      'showThumbnails': settings.showThumbnails,
+      'clearMissingHistory': settings.clearMissingHistory,
+      'deleteOriginalAfterConversion':
+          settings.deleteOriginalAfterConversion,
+      'includeAutoSubtitles': settings.includeAutoSubtitles,
+      'subtitleMode': settings.subtitleMode,
+      'forceReencode': settings.forceReencode,
+      'nativeHlsEngine': settings.nativeHlsEngine,
     });
     debugPrint('[Settings] saved: $settings');
   }

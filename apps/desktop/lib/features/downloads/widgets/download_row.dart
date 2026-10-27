@@ -10,6 +10,7 @@ import '../../../data/models/download_task.dart';
 import '../../../data/models/format_option.dart';
 import '../../../shared/branding/app_brand.dart';
 import '../../../shared/theme/design_tokens.dart';
+import '../../settings/settings_provider.dart';
 import '../download_provider.dart';
 
 /// 全宽下载行：缩略图 banner + 标题/状态/操作覆盖层。
@@ -23,6 +24,8 @@ class DownloadRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(downloadListProvider.notifier);
+    final showThumbnails =
+        ref.watch(settingsProvider.select((s) => s.showThumbnails));
     final running = task.status == DownloadStatus.downloading ||
         task.status == DownloadStatus.merging;
 
@@ -31,7 +34,7 @@ class DownloadRow extends ConsumerWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _background(context),
+          _background(context, showThumbnails),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -189,8 +192,8 @@ class DownloadRow extends ConsumerWidget {
     );
   }
 
-  Widget _background(BuildContext context) {
-    if (task.thumbnail.isNotEmpty) {
+  Widget _background(BuildContext context, bool showThumbnails) {
+    if (showThumbnails && task.thumbnail.isNotEmpty) {
       return Image.network(
         task.thumbnail,
         fit: BoxFit.cover,

@@ -307,6 +307,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               value: settings.queueSortDesc,
               onChanged: notifier.setQueueSortDesc,
             ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('显示下载缩略图'),
+              subtitle: const Text('关闭后用深色渐变代替封面'),
+              value: settings.showThumbnails,
+              onChanged: notifier.setShowThumbnails,
+            ),
           ],
         );
       case 2:
@@ -377,6 +385,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             Text(
               '过期记录会在下次启动时自动清理，已下载的文件不会被删除。',
               style: Theme.of(context).textTheme.bodySmall,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('自动清理已删除的文件'),
+              subtitle: const Text('启动时移除文件已不存在的完成记录'),
+              value: settings.clearMissingHistory,
+              onChanged: notifier.setClearMissingHistory,
             ),
             const SizedBox(height: AppSpacing.xxl),
             ListTile(
@@ -617,6 +633,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               '已经是目标格式时不会重复转换。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('转换后删除原始文件'),
+              subtitle: const Text('默认保留原始下载文件，便于手动重转'),
+              value: settings.deleteOriginalAfterConversion,
+              onChanged: notifier.setDeleteOriginalAfterConversion,
+            ),
           ],
         );
       case 6:
@@ -630,6 +654,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               subtitle: const Text('新任务默认下载站点提供的字幕文件'),
               value: settings.defaultDownloadSubtitles,
               onChanged: notifier.setDefaultDownloadSubtitles,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('包含自动生成的字幕'),
+              subtitle: const Text('站点用语音识别生成的字幕（yt-dlp 任务）'),
+              value: settings.includeAutoSubtitles,
+              onChanged: notifier.setIncludeAutoSubtitles,
             ),
             SwitchListTile(
               dense: true,
@@ -652,6 +684,26 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
                 hintText: 'zh,en',
               ),
               onChanged: notifier.setSubtitleLangs,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              '字幕下载模式',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            DropdownButtonFormField<int>(
+              initialValue: settings.subtitleMode,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('全部匹配的语言')),
+                DropdownMenuItem(value: 1, child: Text('只取第一个匹配的语言')),
+              ],
+              onChanged: (value) => notifier.setSubtitleMode(value ?? 0),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
@@ -1299,6 +1351,22 @@ class _AdvancedPaneState extends ConsumerState<_AdvancedPane> {
           title: const Text('下载完成/失败播放提示音'),
           value: settings.playSounds,
           onChanged: notifier.setPlaySounds,
+        ),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('强制重新编码 HLS/DASH'),
+          subtitle: const Text('传递 --recode-video mp4；会增加处理时间'),
+          value: settings.forceReencode,
+          onChanged: notifier.setForceReencode,
+        ),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('使用原生 HLS 下载器'),
+          subtitle: const Text('传递 --hls-prefer-native；部分站点更快，但兼容性可能不同'),
+          value: settings.nativeHlsEngine,
+          onChanged: notifier.setNativeHlsEngine,
         ),
         const Divider(height: 24),
         ListTile(
