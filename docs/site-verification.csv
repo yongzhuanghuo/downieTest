@@ -1,6 +1,6 @@
 site,coverage_status,ok,detail,error,seconds,url
 YouTube,ytdlp,no,,ERROR: [youtube] 3x5d12PP5Mo: Private video,28.6,https://www.youtube.com/watch?v=3x5d12PP5Mo
-X,,no,,ERROR: [twitter] 1673335410510946309: Suspended,29.1,https://x.com/bbs2269/status/1673335410510946309
+Twitter,,no,,ERROR: [twitter] 1673335410510946309: Suspended,29.1,https://x.com/bbs2269/status/1673335410510946309
 Facebook,ytdlp,no,,timeout 35s,35.0,https://www.facebook.com/boredpanda/videos/10156522412064252/
 Vimeo,ytdlp,no,,timeout 35s,35.0,http://vimeo.com/75906247
 Reddit,ytdlp,no,,ERROR: [Reddit] 20x091: Account authentication is required. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies,26.5,http://www.reddit.com/r/videos/comments/20x091/being_a_dickheads_cool/

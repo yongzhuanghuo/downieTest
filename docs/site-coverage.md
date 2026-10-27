@@ -16,40 +16,71 @@
 
 > 重要：`yt-dlp` 不等于“原生复刻”。本表把“能下载”和“代码复刻”分开标注，避免把 yt-dlp 覆盖误报成已完成站点。
 
+## 最近样本验证
+
+来源：`docs/site-verification.csv`（`tools/verify_site_samples.py` 生成）。失败不等于站点不支持，需区分样本失效、地区限制、登录/风控和引擎缺陷。
+
+| 站点 | 覆盖状态 | 结果 | 详情/错误 | 耗时 |
+|---|---|---|---|---:|
+| YouTube | ytdlp | 失败 | ERROR: [youtube] 3x5d12PP5Mo: Private video | 28.6s |
+| Twitter | yt-dlp（待验证） | 失败 | ERROR: [twitter] 1673335410510946309: Suspended | 29.1s |
+| Facebook | ytdlp | 失败 | timeout 35s | 35.0s |
+| Vimeo | ytdlp | 失败 | timeout 35s | 35.0s |
+| Reddit | ytdlp | 失败 | ERROR: [Reddit] 20x091: Account authentication is required. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i- | 26.5s |
+| Soundcloud | ytdlp | 通过 | soundcloud	Lostin Powers - She so Heavy (SneakPreview) Adrian Ackers Blueprint 1	143.206 | 30.1s |
+| TikTok | ytdlp | 失败 | ERROR: [TikTok] 6756589355923410178: Unexpected response from webpage request; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate | 24.3s |
+| Twitch | ytdlp | 失败 | ERROR: [twitch:vod] 124137118: Video 124137118 does not exist | 24.9s |
+| Weibo | ytdlp | 失败 | ERROR: Unsupported URL: https://h5.video.weibo.com/show/1034:4574447982805003 | 23.8s |
+| Youku | ytdlp | 通过 | youku	地铁借肩膀乘客错过12站 睡神终寻"真爱"	236.67 | 33.6s |
+| WeTV | ytdlp | 失败 | timeout 35s | 35.0s |
+| Pinterest | ytdlp | 通过 | Pinterest	Pinterest video #28147566414114925	7.3 | 26.2s |
+| Rumble | ytdlp | 失败 | ERROR: [RumbleEmbed] vbq2h: Unable to download JSON metadata: HTTP Error 403: Forbidden (caused by <HTTPError 403: Forbidden>) | 28.1s |
+| CCTV | ytdlp | 通过 | CCTV	《遇见大咖》 20160304	1610.0 | 31.3s |
+| CBS | ytdlp | 失败 | ERROR: [CBS] GfttMtUBBfAeORI6kkvqq1RBwe1bmjQa: Failed to parse XML (caused by ParseError('no element found: line 1, column 0')); please report this issue on  https://github.com/yt- | 24.7s |
+| NBC | ytdlp | 失败 | ERROR: [NBC] 9000319183: Unable to download JSON metadata: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1082) (caused by SSLError('[SSL: UNEXPE | 24.4s |
+| PBS | ytdlp | 失败 | ERROR: 3043497119: An extractor error has occurred. (caused by KeyError('title')); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropr | 30.9s |
+| MLB | ytdlp | 通过 | MLBVideo	Condensed Game: 2023 All-Star Game	899 | 27.5s |
+| MTV | ytdlp | 失败 | ERROR: [mtv] qxjq6t: Unable to download JSON metadata: HTTP Error 404: Not Found (caused by <HTTPError 404: Not Found>) | 30.3s |
+| Naver | ytdlp | 失败 | ERROR: 2084516: An extractor error has occurred. (caused by KeyError('result')); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropria | 27.9s |
+| Bilibili | native | 通过 | BiliBili	字幕君交流场所	2055.637 | 23.6s |
+| Douyin | native | 失败 | ERROR: [Douyin] 7701030749851389219: Fresh cookies (not necessarily logged in) are needed | 24.4s |
+> 说明：Douyin 行的失败是 **yt-dlp 直跑**需要 cookie，不代表原生插件；TikTok 2.0.19 已改为原生插件，下一次样本验证会更新。X 的样本被冻结、YouTube 样本私有、Twitch VOD 已删除，属于样本失效。
+
+
 ## P0 站点（35 个）
 
 | 站点 | Downie 类 | 域名 | 状态 | 已验证 | 优先级 | 备注 |
 |---|---|---|---|---|---|---|
-| Bilibili | BilibiliDownloader | https://bilibili.com, http://www.bilibili.tv, http://api.bilibili.com | 原生插件 | 是 | P0 |  |
+| Bilibili | BilibiliDownloader | https://bilibili.com, http://www.bilibili.tv, http://api.bilibili.com | 原生插件 | 是 | P0 | 2026-10-27 样本解析通过 |
 | Douyin | DouyinDownloader | https://www.douyin.com, https://live.douyin.com, https://music.douyin.com | 原生插件 | 是 | P0 |  |
 | TikTok | TikTokDownloader | https://www.tiktok.com | 原生插件 | 否 | P0 |  |
 | AbemaTV | AbemaTVDownloader |  | yt-dlp（待验证） | 否 | P0 |  |
 | BBC | BBCDownloader | http://www.bbc.com, https://www.bbc.com, http://www.bbc.co.uk | yt-dlp（待验证） | 否 | P0 |  |
 | CBS | CBSDownloader | http://www.cbs.com, https://can.cbs.com, https://www.cbs.com | yt-dlp（待验证） | 否 | P0 |  |
-| CCTV | CCTVDownloader | http://tv.cctv.cn, http://app.cctv.com, http://news.cctv.com | yt-dlp（待验证） | 否 | P0 |  |
+| CCTV | CCTVDownloader | http://tv.cctv.cn, http://app.cctv.com, http://news.cctv.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | ESPN | ESPNDownloader | http://espn.go.com, http://www.espn.com, https://www.espn.com | yt-dlp（待验证） | 否 | P0 |  |
 | Facebook | FacebookDownloader | https://www.facebook.com | yt-dlp（待验证） | 否 | P0 |  |
 | Fox | FoxDownloader | http://www.fox.com, https://www.fox.com, https://api3.fox.com | yt-dlp（待验证） | 否 | P0 |  |
 | Instagram | InstagramDownloader | http://instagram.com, https://i.instagram.com, https://www.instagram.com | yt-dlp（待验证） | 否 | P0 |  |
 | Kakao | KakaoDownloader | https://kakaotv.daum.net, https://play-tv.kakao.com | yt-dlp（待验证） | 否 | P0 |  |
 | Kaltura | KalturaDownloader | http://www.kaltura.com, http://cdnapi.kaltura.com, https://cdnapisec.kaltura.com | yt-dlp（待验证） | 否 | P0 | generic/base |
-| MLB | MLBDownloader | https://www.mlb.com, https://dapi.cms.mlbinfra.com, https://media-gateway.mlb.com | yt-dlp（待验证） | 否 | P0 |  |
+| MLB | MLBDownloader | https://www.mlb.com, https://dapi.cms.mlbinfra.com, https://media-gateway.mlb.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | MTV | MTVDownloader | http://www.mtv.com, http://media.mtvnservices.com, https://media-utils.mtvnservices.com | yt-dlp（待验证） | 否 | P0 |  |
 | Naver | NaverDownloader | http://tv.naver.com, https://m.naver.com, http://m.tv.naver.com | yt-dlp（待验证） | 否 | P0 |  |
 | NBC | NBCDownloader | https://api.nbc.com, https://www.nbc.com, http://www.msnbc.com | yt-dlp（待验证） | 否 | P0 |  |
 | PBS | PBSDownloader | https://pbskids.org, https://player.pbs.org, https://www.pbslearningmedia.org | yt-dlp（待验证） | 否 | P0 |  |
-| Pinterest | PinterestDownloader | https://www.pinterest.at, https://www.pinterest.com | yt-dlp（待验证） | 否 | P0 |  |
+| Pinterest | PinterestDownloader | https://www.pinterest.at, https://www.pinterest.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | Radiko | RadikoDownloader | https://radiko.jp, https://api.radiko.jp | yt-dlp（待验证） | 否 | P0 |  |
 | Reddit | RedditDownloader | http://reddit.tv, http://www.reddit.com, https://www.reddit.com | yt-dlp（待验证） | 否 | P0 |  |
 | Rumble | RumbleDownloader | https://rumble.com | yt-dlp（待验证） | 否 | P0 |  |
-| Soundcloud | SoundcloudDownloader | https://soundcloud.com, https://api.soundcloud.com, http://api-v2.soundcloud.com | yt-dlp（待验证） | 否 | P0 |  |
+| Soundcloud | SoundcloudDownloader | https://soundcloud.com, https://api.soundcloud.com, http://api-v2.soundcloud.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | Twitch | TwitchDownloader | https://twitch.tv, https://api.twitch.tv, https://gql.twitch.tv | yt-dlp（待验证） | 否 | P0 |  |
 | Twitter | TwitterDownloader |  | yt-dlp（待验证） | 否 | P0 |  |
 | Udemy | UdemyDownloader | https://www.udemy.com | yt-dlp（待验证） | 否 | P0 |  |
 | Vimeo | VimeoDownloader | http://vimeo.com, https://vimeo.com, https://vimeopro.com | yt-dlp（待验证） | 否 | P0 |  |
 | Weibo | WeiboDownloader | https://weibo.com, https://www.weibo.com, http://video.weibo.com | yt-dlp（待验证） | 否 | P0 |  |
 | WeTV | WeTVDownloader | https://wetv.vip, https://play.wetv.vip | yt-dlp（待验证） | 否 | P0 |  |
-| Youku | YoukuDownloader | http://youku.com, http://m.youku.com, http://v.youku.com | yt-dlp（待验证） | 否 | P0 |  |
+| Youku | YoukuDownloader | http://youku.com, http://m.youku.com, http://v.youku.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | YouTube | YouTubeDownloader | https://youtube.com, https://m.youtube.com, http://www.youtube.com | yt-dlp（待验证） | 否 | P0 |  |
 | JWPlayer | JWPlayerDownloader | https://cdn.jwplayer.com | 通用资源检测（未复刻） | 否 | P0 | generic/base；未原生复刻，需通用资源检测/自定义集成验证 |
 | Odysee | OdyseeDownloader | https://odysee.com, https://api.na-backend.odysee.com | 通用资源检测（未复刻） | 否 | P0 | 未原生复刻，需通用资源检测/自定义集成验证 |
@@ -60,7 +91,7 @@
 
 | 站点 | Downie 类 | 域名 | 状态 | 已验证 | 优先级 | 备注 |
 |---|---|---|---|---|---|---|
-| Bilibili | BilibiliDownloader | https://bilibili.com, http://www.bilibili.tv, http://api.bilibili.com | 原生插件 | 是 | P0 |  |
+| Bilibili | BilibiliDownloader | https://bilibili.com, http://www.bilibili.tv, http://api.bilibili.com | 原生插件 | 是 | P0 | 2026-10-27 样本解析通过 |
 | Douyin | DouyinDownloader | https://www.douyin.com, https://live.douyin.com, https://music.douyin.com | 原生插件 | 是 | P0 |  |
 | TikTok | TikTokDownloader | https://www.tiktok.com | 原生插件 | 否 | P0 |  |
 | BilibiliEmbed | BilibiliEmbedDownloader |  | 原生插件 | 否 | P1 |  |
@@ -79,30 +110,30 @@
 | AbemaTV | AbemaTVDownloader |  | yt-dlp（待验证） | 否 | P0 |  |
 | BBC | BBCDownloader | http://www.bbc.com, https://www.bbc.com, http://www.bbc.co.uk | yt-dlp（待验证） | 否 | P0 |  |
 | CBS | CBSDownloader | http://www.cbs.com, https://can.cbs.com, https://www.cbs.com | yt-dlp（待验证） | 否 | P0 |  |
-| CCTV | CCTVDownloader | http://tv.cctv.cn, http://app.cctv.com, http://news.cctv.com | yt-dlp（待验证） | 否 | P0 |  |
+| CCTV | CCTVDownloader | http://tv.cctv.cn, http://app.cctv.com, http://news.cctv.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | ESPN | ESPNDownloader | http://espn.go.com, http://www.espn.com, https://www.espn.com | yt-dlp（待验证） | 否 | P0 |  |
 | Facebook | FacebookDownloader | https://www.facebook.com | yt-dlp（待验证） | 否 | P0 |  |
 | Fox | FoxDownloader | http://www.fox.com, https://www.fox.com, https://api3.fox.com | yt-dlp（待验证） | 否 | P0 |  |
 | Instagram | InstagramDownloader | http://instagram.com, https://i.instagram.com, https://www.instagram.com | yt-dlp（待验证） | 否 | P0 |  |
 | Kakao | KakaoDownloader | https://kakaotv.daum.net, https://play-tv.kakao.com | yt-dlp（待验证） | 否 | P0 |  |
 | Kaltura | KalturaDownloader | http://www.kaltura.com, http://cdnapi.kaltura.com, https://cdnapisec.kaltura.com | yt-dlp（待验证） | 否 | P0 | generic/base |
-| MLB | MLBDownloader | https://www.mlb.com, https://dapi.cms.mlbinfra.com, https://media-gateway.mlb.com | yt-dlp（待验证） | 否 | P0 |  |
+| MLB | MLBDownloader | https://www.mlb.com, https://dapi.cms.mlbinfra.com, https://media-gateway.mlb.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | MTV | MTVDownloader | http://www.mtv.com, http://media.mtvnservices.com, https://media-utils.mtvnservices.com | yt-dlp（待验证） | 否 | P0 |  |
 | Naver | NaverDownloader | http://tv.naver.com, https://m.naver.com, http://m.tv.naver.com | yt-dlp（待验证） | 否 | P0 |  |
 | NBC | NBCDownloader | https://api.nbc.com, https://www.nbc.com, http://www.msnbc.com | yt-dlp（待验证） | 否 | P0 |  |
 | PBS | PBSDownloader | https://pbskids.org, https://player.pbs.org, https://www.pbslearningmedia.org | yt-dlp（待验证） | 否 | P0 |  |
-| Pinterest | PinterestDownloader | https://www.pinterest.at, https://www.pinterest.com | yt-dlp（待验证） | 否 | P0 |  |
+| Pinterest | PinterestDownloader | https://www.pinterest.at, https://www.pinterest.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | Radiko | RadikoDownloader | https://radiko.jp, https://api.radiko.jp | yt-dlp（待验证） | 否 | P0 |  |
 | Reddit | RedditDownloader | http://reddit.tv, http://www.reddit.com, https://www.reddit.com | yt-dlp（待验证） | 否 | P0 |  |
 | Rumble | RumbleDownloader | https://rumble.com | yt-dlp（待验证） | 否 | P0 |  |
-| Soundcloud | SoundcloudDownloader | https://soundcloud.com, https://api.soundcloud.com, http://api-v2.soundcloud.com | yt-dlp（待验证） | 否 | P0 |  |
+| Soundcloud | SoundcloudDownloader | https://soundcloud.com, https://api.soundcloud.com, http://api-v2.soundcloud.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | Twitch | TwitchDownloader | https://twitch.tv, https://api.twitch.tv, https://gql.twitch.tv | yt-dlp（待验证） | 否 | P0 |  |
 | Twitter | TwitterDownloader |  | yt-dlp（待验证） | 否 | P0 |  |
 | Udemy | UdemyDownloader | https://www.udemy.com | yt-dlp（待验证） | 否 | P0 |  |
 | Vimeo | VimeoDownloader | http://vimeo.com, https://vimeo.com, https://vimeopro.com | yt-dlp（待验证） | 否 | P0 |  |
 | Weibo | WeiboDownloader | https://weibo.com, https://www.weibo.com, http://video.weibo.com | yt-dlp（待验证） | 否 | P0 |  |
 | WeTV | WeTVDownloader | https://wetv.vip, https://play.wetv.vip | yt-dlp（待验证） | 否 | P0 |  |
-| Youku | YoukuDownloader | http://youku.com, http://m.youku.com, http://v.youku.com | yt-dlp（待验证） | 否 | P0 |  |
+| Youku | YoukuDownloader | http://youku.com, http://m.youku.com, http://v.youku.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | YouTube | YouTubeDownloader | https://youtube.com, https://m.youtube.com, http://www.youtube.com | yt-dlp（待验证） | 否 | P0 |  |
 | ABCNews | ABCNewsDownloader | http://abcnews.go.com, https://abcnews.go.com | yt-dlp（待验证） | 否 | P1 |  |
 | Acast | AcastDownloader | https://play.acast.com, https://embed.acast.com, https://feeder.acast.com | yt-dlp（待验证） | 否 | P1 |  |

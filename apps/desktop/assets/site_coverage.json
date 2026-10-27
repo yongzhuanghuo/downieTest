@@ -24,7 +24,7 @@
    "ytdlpExtractors": [
     "BiliBili"
    ],
-   "notes": ""
+   "notes": "2026-10-27 样本解析通过"
   },
   {
    "site": "Douyin",
@@ -159,12 +159,12 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "CCTV"
    ],
-   "notes": ""
+   "notes": "2026-10-27 样本解析通过"
   },
   {
    "site": "ESPN",
@@ -280,12 +280,12 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "MLB"
    ],
-   "notes": ""
+   "notes": "2026-10-27 样本解析通过"
   },
   {
    "site": "MTV",
@@ -365,12 +365,12 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "Pinterest"
    ],
-   "notes": ""
+   "notes": "2026-10-27 样本解析通过"
   },
   {
    "site": "Radiko",
@@ -430,7 +430,7 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "soundcloud",
@@ -442,7 +442,7 @@
     "soundcloud:user",
     "soundcloud:user:permalink"
    ],
-   "notes": ""
+   "notes": "2026-10-27 样本解析通过"
   },
   {
    "site": "Twitch",
@@ -568,13 +568,13 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "youku",
     "youku:show"
    ],
-   "notes": ""
+   "notes": "2026-10-27 样本解析通过"
   },
   {
    "site": "YouTube",

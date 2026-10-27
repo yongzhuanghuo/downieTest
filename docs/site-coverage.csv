@@ -1,5 +1,5 @@
 site,className,domains,status,statusLabel,verified,priority,ytdlpExtractors,notes
-Bilibili,BilibiliDownloader,https://bilibili.com;http://www.bilibili.tv;http://api.bilibili.com,native,原生插件,yes,P0,BiliBili,
+Bilibili,BilibiliDownloader,https://bilibili.com;http://www.bilibili.tv;http://api.bilibili.com,native,原生插件,yes,P0,BiliBili,2026-10-27 样本解析通过
 Douyin,DouyinDownloader,https://www.douyin.com;https://live.douyin.com;https://music.douyin.com,native,原生插件,yes,P0,Douyin,
 TikTok,TikTokDownloader,https://www.tiktok.com,native,原生插件,no,P0,TikTok;tiktok:collection;tiktok:effect (CURRENTLY BROKEN);tiktok:live;tiktok:sound (CURRENTLY BROKEN);tiktok:tag (CURRENTLY BROKEN);tiktok:user,
 BilibiliEmbed,BilibiliEmbedDownloader,,native,原生插件,no,P1,BiliBili,
@@ -8,30 +8,30 @@ BilibiliBangumi,BilibiliBangumiDownloader,,native_partial,原生插件（部分�
 AbemaTV,AbemaTVDownloader,,ytdlp,yt-dlp（待验证）,no,P0,AbemaTV,
 BBC,BBCDownloader,http://www.bbc.com;https://www.bbc.com;http://www.bbc.co.uk,ytdlp,yt-dlp（待验证）,no,P0,bbc,
 CBS,CBSDownloader,http://www.cbs.com;https://can.cbs.com;https://www.cbs.com,ytdlp,yt-dlp（待验证）,no,P0,,
-CCTV,CCTVDownloader,http://tv.cctv.cn;http://app.cctv.com;http://news.cctv.com,ytdlp,yt-dlp（待验证）,no,P0,CCTV,
+CCTV,CCTVDownloader,http://tv.cctv.cn;http://app.cctv.com;http://news.cctv.com,ytdlp,yt-dlp（待验证）,yes,P0,CCTV,2026-10-27 样本解析通过
 ESPN,ESPNDownloader,http://espn.go.com;http://www.espn.com;https://www.espn.com,ytdlp,yt-dlp（待验证）,no,P0,ESPN,
 Facebook,FacebookDownloader,https://www.facebook.com,ytdlp,yt-dlp（待验证）,no,P0,facebook;facebook:ads;facebook:reel,
 Fox,FoxDownloader,http://www.fox.com;https://www.fox.com;https://api3.fox.com,ytdlp,yt-dlp（待验证）,no,P0,FOX,
 Instagram,InstagramDownloader,http://instagram.com;https://i.instagram.com;https://www.instagram.com,ytdlp,yt-dlp（待验证）,no,P0,Instagram;instagram:story;instagram:tag;instagram:user (CURRENTLY BROKEN),
 Kakao,KakaoDownloader,https://kakaotv.daum.net;https://play-tv.kakao.com,ytdlp,yt-dlp（待验证）,no,P0,Kakao,
 Kaltura,KalturaDownloader,http://www.kaltura.com;http://cdnapi.kaltura.com;https://cdnapisec.kaltura.com,ytdlp,yt-dlp（待验证）,no,P0,Kaltura,generic/base
-MLB,MLBDownloader,https://www.mlb.com;https://dapi.cms.mlbinfra.com;https://media-gateway.mlb.com,ytdlp,yt-dlp（待验证）,no,P0,MLB,
+MLB,MLBDownloader,https://www.mlb.com;https://dapi.cms.mlbinfra.com;https://media-gateway.mlb.com,ytdlp,yt-dlp（待验证）,yes,P0,MLB,2026-10-27 样本解析通过
 MTV,MTVDownloader,http://www.mtv.com;http://media.mtvnservices.com;https://media-utils.mtvnservices.com,ytdlp,yt-dlp（待验证）,no,P0,mtv,
 Naver,NaverDownloader,http://tv.naver.com;https://m.naver.com;http://m.tv.naver.com,ytdlp,yt-dlp（待验证）,no,P0,Naver;Naver:live,
 NBC,NBCDownloader,https://api.nbc.com;https://www.nbc.com;http://www.msnbc.com,ytdlp,yt-dlp（待验证）,no,P0,NBC,
 PBS,PBSDownloader,https://pbskids.org;https://player.pbs.org;https://www.pbslearningmedia.org,ytdlp,yt-dlp（待验证）,no,P0,pbs,
-Pinterest,PinterestDownloader,https://www.pinterest.at;https://www.pinterest.com,ytdlp,yt-dlp（待验证）,no,P0,Pinterest,
+Pinterest,PinterestDownloader,https://www.pinterest.at;https://www.pinterest.com,ytdlp,yt-dlp（待验证）,yes,P0,Pinterest,2026-10-27 样本解析通过
 Radiko,RadikoDownloader,https://radiko.jp;https://api.radiko.jp,ytdlp,yt-dlp（待验证）,no,P0,Radiko,
 Reddit,RedditDownloader,http://reddit.tv;http://www.reddit.com;https://www.reddit.com,ytdlp,yt-dlp（待验证）,no,P0,Reddit,
 Rumble,RumbleDownloader,https://rumble.com,ytdlp,yt-dlp（待验证）,no,P0,Rumble,
-Soundcloud,SoundcloudDownloader,https://soundcloud.com;https://api.soundcloud.com;http://api-v2.soundcloud.com,ytdlp,yt-dlp（待验证）,no,P0,soundcloud;soundcloud:playlist;soundcloud:related;soundcloud:search;soundcloud:set;soundcloud:trackstation;soundcloud:user;soundcloud:user:permalink,
+Soundcloud,SoundcloudDownloader,https://soundcloud.com;https://api.soundcloud.com;http://api-v2.soundcloud.com,ytdlp,yt-dlp（待验证）,yes,P0,soundcloud;soundcloud:playlist;soundcloud:related;soundcloud:search;soundcloud:set;soundcloud:trackstation;soundcloud:user;soundcloud:user:permalink,2026-10-27 样本解析通过
 Twitch,TwitchDownloader,https://twitch.tv;https://api.twitch.tv;https://gql.twitch.tv,ytdlp,yt-dlp（待验证）,no,P0,twitch:clips;twitch:collection;twitch:stream;twitch:videos;twitch:videos:clips;twitch:videos:collections;twitch:vod,
 Twitter,TwitterDownloader,,ytdlp,yt-dlp（待验证）,no,P0,twitter;twitter:amplify;twitter:broadcast;twitter:card;twitter:shortener;twitter:spaces,
 Udemy,UdemyDownloader,https://www.udemy.com,ytdlp,yt-dlp（待验证）,no,P0,udemy;udemy:course,
 Vimeo,VimeoDownloader,http://vimeo.com;https://vimeo.com;https://vimeopro.com,ytdlp,yt-dlp（待验证）,no,P0,vimeo;vimeo:album;vimeo:channel;vimeo:event;vimeo:group;vimeo:likes;vimeo:ondemand;vimeo:pro,
 Weibo,WeiboDownloader,https://weibo.com;https://www.weibo.com;http://video.weibo.com,ytdlp,yt-dlp（待验证）,no,P0,Weibo,
 WeTV,WeTVDownloader,https://wetv.vip;https://play.wetv.vip,ytdlp,yt-dlp（待验证）,no,P0,wetv:episode,
-Youku,YoukuDownloader,http://youku.com;http://m.youku.com;http://v.youku.com,ytdlp,yt-dlp（待验证）,no,P0,youku;youku:show,
+Youku,YoukuDownloader,http://youku.com;http://m.youku.com;http://v.youku.com,ytdlp,yt-dlp（待验证）,yes,P0,youku;youku:show,2026-10-27 样本解析通过
 YouTube,YouTubeDownloader,https://youtube.com;https://m.youtube.com;http://www.youtube.com,ytdlp,yt-dlp（待验证）,no,P0,youtube;youtube:clip;youtube:consent;youtube:favorites;youtube:history;youtube:music:search_url;youtube:notif;youtube:playlist,
 ABCNews,ABCNewsDownloader,http://abcnews.go.com;https://abcnews.go.com,ytdlp,yt-dlp（待验证）,no,P1,abcnews;abcnews:video,
 Acast,AcastDownloader,https://play.acast.com;https://embed.acast.com;https://feeder.acast.com,ytdlp,yt-dlp（待验证）,no,P1,acast;acast:channel,

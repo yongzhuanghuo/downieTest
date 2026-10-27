@@ -30,6 +30,7 @@ EXTRACTORS = ROOT / "docs/data/yt-dlp-extractors.txt"
 OUT_CSV = ROOT / "docs/site-coverage.csv"
 OUT_MD = ROOT / "docs/site-coverage.md"
 OUT_JSON = ROOT / "apps/desktop/assets/site_coverage.json"
+VERIFICATION = ROOT / "docs/site-verification.csv"
 
 NATIVE = {
     "DouyinDownloader",
@@ -100,6 +101,19 @@ def norm(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", (value or "").lower())
 
 
+def load_verification() -> tuple[set[str], list[dict[str, str]]]:
+    if not VERIFICATION.exists():
+        return set(), []
+    with VERIFICATION.open(encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    passed = {
+        r.get("site", "")
+        for r in rows
+        if r.get("ok") == "yes" and r.get("site")
+    }
+    return passed, rows
+
+
 def load_extractors() -> list[str]:
     return [
         line.strip()
@@ -154,7 +168,11 @@ def is_drm(row: dict[str, str]) -> bool:
     return False
 
 
-def classify(row: dict[str, str], extractors: list[str]) -> dict[str, object]:
+def classify(
+    row: dict[str, str],
+    extractors: list[str],
+    verified_sites: set[str],
+) -> dict[str, object]:
     cls = row.get("class", "")
     site = row.get("site", "")
     matches = extractor_matches(row, extractors)
@@ -171,6 +189,9 @@ def classify(row: dict[str, str], extractors: list[str]) -> dict[str, object]:
         status = "generic"
 
     notes = (row.get("notes") or "").strip()
+    sample_verified = site in verified_sites
+    if sample_verified:
+        notes = (notes + "；2026-10-27 样本解析通过" if notes else "2026-10-27 样本解析通过")
     if status == "drm" and "drm" not in notes.lower():
         notes = (notes + "；DRM 正片不支持" if notes else "DRM 正片不支持")
     if status == "generic":
@@ -191,7 +212,8 @@ def classify(row: dict[str, str], extractors: list[str]) -> dict[str, object]:
         ],
         "status": status,
         "statusLabel": STATUS_LABEL[status],
-        "verified": status == "native" and cls in VERIFIED_NATIVE,
+        "verified": (status == "native" and cls in VERIFIED_NATIVE)
+        or sample_verified,
         "priority": row.get("priority") or "P1",
         "ytdlpExtractors": matches,
         "notes": notes,
@@ -238,7 +260,8 @@ def main() -> None:
     with MATRIX.open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
     extractors = load_extractors()
-    coverage = [classify(r, extractors) for r in rows]
+    verified_sites, verification_rows = load_verification()
+    coverage = [classify(r, extractors, verified_sites) for r in rows]
     coverage.sort(
         key=lambda r: (
             STATUS_ORDER.index(r["status"]),
@@ -294,6 +317,7 @@ def main() -> None:
 
     # Markdown：摘要 + 按状态分组的全量表
     counts = {s: sum(1 for r in coverage if r["status"] == s) for s in STATUS_ORDER}
+    status_by_site = {r["site"]: r["statusLabel"] for r in coverage}
     top = [r for r in coverage if r["priority"] == "P0"]
     lines = [
         "# Downie 4 站点覆盖矩阵\n\n",
@@ -308,7 +332,29 @@ def main() -> None:
         f"| 通用资源检测（未复刻） | {counts['generic']} | 没有原生/已知提取器，只能靠通用 HTML/WebView 嗅探；未逐站验证 |\n",
         f"| DRM（不支持） | {counts['drm']} | Downie 自身也拒绝的 DRM 正片 |\n\n",
         "> 重要：`yt-dlp` 不等于“原生复刻”。本表把“能下载”和“代码复刻”分开标注，避免把 yt-dlp 覆盖误报成已完成站点。\n\n",
-        "## P0 站点（35 个）\n\n",
+        "## 最近样本验证\n\n",
+        "来源：`docs/site-verification.csv`（`tools/verify_site_samples.py` 生成）。"
+        "失败不等于站点不支持，需区分样本失效、地区限制、登录/风控和引擎缺陷。\n\n",
+        "| 站点 | 覆盖状态 | 结果 | 详情/错误 | 耗时 |\n|---|---|---|---|---:|\n",
+        *[
+            "| {site} | {status} | {ok} | {detail} | {secs}s |\n".format(
+                site=md_escape(r.get("site", "")),
+                status=md_escape(
+                    r.get("coverage_status")
+                    or status_by_site.get(r.get("site", ""), "")
+                ),
+                ok="通过" if r.get("ok") == "yes" else "失败",
+                detail=md_escape(
+                    (r.get("detail") or r.get("error") or "").replace("|", "/")[:180]
+                ),
+                secs=md_escape(r.get("seconds", "")),
+            )
+            for r in verification_rows
+        ],
+        "> 说明：Douyin 行的失败是 **yt-dlp 直跑**需要 cookie，不代表原生插件；"
+        "TikTok 2.0.19 已改为原生插件，下一次样本验证会更新。"
+        "X 的样本被冻结、YouTube 样本私有、Twitch VOD 已删除，属于样本失效。\n\n",
+        "\n## P0 站点（35 个）\n\n",
         md_table(top),
         "\n## 已原生复刻\n\n",
         md_table([r for r in coverage if r["status"] == "native"]),
