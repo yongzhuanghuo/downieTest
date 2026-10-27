@@ -305,6 +305,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   Future<void> _executeTask(DownloadTask task) async {
     if (_activeIds.contains(task.id) || _cancelled.contains(task.id)) return;
     _activeIds.add(task.id);
+    String? taskLogPath;
 
     try {
       // 确定输出目录（从设置读取，空则用系统默认 Downloads）
@@ -333,7 +334,6 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         url: task.url,
       );
       final outputTemplate = '$targetDir/$baseName.${task.ext}';
-      String? taskLogPath;
       try {
         final dataDir = await SettingsStorage.getStorageDir();
         taskLogPath = '${dataDir.path}/logs/task_${task.id}.log';
@@ -364,12 +364,18 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
               : PluginRegistry.instance.byId(task.extractor);
           if (plugin != null) {
             // 站点插件：formatId 由插件解释（抖音是直链，HLS/DASH 可以是清单）
+            await _appendTaskLog(
+              taskLogPath,
+              '[plugin] ${plugin.id} url=${task.url} '
+              'format=${task.formatId}',
+            );
             result = await plugin.download(PluginDownloadRequest(
               task: task,
               outputPath: outputTemplate,
               onProgress: (p) => _applyProgress(task.id, p),
               shouldCancel: () => _cancelled.contains(task.id),
             ));
+            await _appendTaskLog(taskLogPath, '[plugin] success -> $result');
           } else {
             result = await YtDlpRunner.download(
               url: task.url,
@@ -427,6 +433,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           }
           return;
         } on SitePluginException catch (e) {
+          await _appendTaskLog(taskLogPath, '[error] ${e.message}');
           // 用户暂停/取消：插件抛出异常时按暂停或已取消处理
           if (_cancelled.contains(task.id)) {
             await _markStopped(task.id);
@@ -528,6 +535,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             return;
           }
         } catch (e) {
+          await _appendTaskLog(taskLogPath, '[error] $e');
           if (_cancelled.contains(task.id)) {
             await _markStopped(task.id);
             return;
@@ -949,6 +957,15 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       );
     }
     return inputPath;
+  }
+
+  Future<void> _appendTaskLog(String? path, String message) async {
+    if (path == null || path.isEmpty) return;
+    try {
+      final file = File(path);
+      await file.parent.create(recursive: true);
+      await file.writeAsString('$message\n', mode: FileMode.append);
+    } catch (_) {}
   }
 
   Future<void> _deleteQuietly(String path) async {
