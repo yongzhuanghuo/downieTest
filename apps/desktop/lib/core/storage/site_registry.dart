@@ -106,13 +106,6 @@ const List<SiteConfig> kLoginSites = [
     loginUrl: 'https://www.tiktok.com',
     cookieDomain: '.tiktok.com',
   ),
-  SiteConfig(
-    id: 'kuaishou',
-    name: '快手',
-    domains: ['kuaishou.com'],
-    loginUrl: 'https://www.kuaishou.com',
-    cookieDomain: '.kuaishou.com',
-  ),
 ];
 
 /// 从视频 URL 解析站点配置：命中内置列表则返回，否则按域名自动推导（未知站点也能登录）

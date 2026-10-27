@@ -2,7 +2,7 @@
 
 - **文档状态**：可执行规划 v1
 - **对标基线**：Downie 4 v4.13.3（`CFBundleVersion` 4000，`com.charliemonroe.Downie-4`）
-- **当前产品**：Downie6 v2.0.17+18（Flutter，macOS + Windows）
+- **当前产品**：Downie6 v2.0.20+21（Flutter，macOS + Windows）
 - **更新日期**：2026-10-27
 - **当前执行计划**：[downie-parity-plan.md](downie-parity-plan.md)
 - **站点覆盖全表**：[site-coverage.md](site-coverage.md)

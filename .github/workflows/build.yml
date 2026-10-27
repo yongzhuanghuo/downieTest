@@ -87,7 +87,9 @@ jobs:
           set -o pipefail
           {
             set -x
-            df -h
+            # 仅诊断用途；runner 上偶发某个挂载点异常会让 df 返回 1，
+            # 在 bash -e 下会直接中断 DMG 打包。
+            df -h || true
             APP_DIR="dist/Downie6-macos"
             rm -rf "$APP_DIR" && mkdir -p "$APP_DIR/.background"
             echo "=== Release contents ==="
