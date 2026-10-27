@@ -107,7 +107,11 @@ Future<QuickAddResult> _handleUnsupported(
 
   switch (result.action) {
     case UnsupportedAction.extract:
-      final media = await WebCaptureDialog.show(context, target);
+      final media = await WebCaptureDialog.show(
+        context,
+        target,
+        auto: settings.autoUgeUnsupported,
+      );
       if (media == null || !context.mounted) return QuickAddResult.failed;
       return _enqueueCapturedMedia(context, ref, media);
     case UnsupportedAction.support:

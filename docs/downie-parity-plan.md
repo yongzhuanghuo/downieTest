@@ -1,0 +1,219 @@
+# Downie 4 功能 1:1 复刻执行计划
+
+- **基线**：Downie 4 v4.13.3（`com.charliemonroe.Downie-4`，build 4000）
+- **当前产品**：Downie6 2.0.17+18（Flutter，macOS + Windows）
+- **分析方式**：REA + Mach-O 符号 / 字符串 / Swift 元数据 / 内置 Help Book / Localizable.strings；不做源码复制
+- **站点全量表**：[site-coverage.md](site-coverage.md)（786 行） / [site-coverage.csv](site-coverage.csv)
+- **更新日期**：2026-10-27
+
+---
+
+## 0. 先说清楚三件事
+
+### 0.1 “786 个站点”不是 786 个独立页面
+
+DownieCore 里有 786 个 `*Downloader` 类/变体，包含：
+
+- 基类/抽象类（`Base`、`Configuration`）
+- 同站变体（直播/音频/番剧/嵌入/短链/旧版）
+- 需要登录、地区、Token 的站点
+- DRM 站点（Downie 自己也会拒绝）
+
+所以“复刻”分两个指标，不能混：
+
+| 指标 | 含义 | 当前 |
+|---|---|---|
+| **功能可用** | 用户给一个链接，能解析、选画质、下载、合并 | 原生 3 + yt-dlp 300（待逐站验证）+ 通用资源检测 476（兜底） |
+| **代码原生复刻** | 我们自己的插件按站点行为实现，不依赖 yt-dlp | 3 个：抖音、B 站普通视频、B 站番剧（单集） |
+
+### 0.2 为什么不把 786 个下载器逐个抄一遍
+
+- Downie 是编译后的 Swift，没有源码可抄；只能按符号/字符串/行为重写。
+- 786 个类里大量是变体和基类，不是 786 份独立解析逻辑。
+- 站点改版频繁；原生代码越多，维护成本越高。能由 yt-dlp 稳定覆盖的站点，重复造轮子反而更容易坏。
+- 正确目标是：**每个非 DRM 站点至少有一个可验证的下载引擎**；对 yt-dlp 覆盖差、登录/Token 关键、体验不达标的站点做原生复刻。
+
+### 0.3 “他们能下，我们也能下”的落地方式
+
+每个非 DRM 站点按以下顺序路由：
+
+```
+原生插件（最优，行为可控）
+  → yt-dlp 站点提取器（覆盖长尾）
+  → 通用 HTML 提取（og:video / JSON-LD / <video>）
+  → 自动资源检测（WebView 抓 m3u8/mpd/mp4，2.0.18 新增）
+  → 自定义集成（后续，JS 规则）
+```
+
+任何一层成功即可下载；失败时 UI 必须告诉用户失败在哪一层，而不是只报“不支持”。
+
+---
+
+## 1. 站点覆盖现状（全量见 site-coverage.md）
+
+### 1.1 统计
+
+| 状态 | 数量 | 含义 | 是否算“复刻完成” |
+|---|---:|---|---|
+| 原生插件 | 3 | 抖音、B 站普通视频、iesdouyin | 是 |
+| 原生插件（部分） | 1 | B 站番剧：ep/ss 单集 | 部分 |
+| yt-dlp | 300 | 由 yt-dlp 负责；功能可用但未逐站验证 | 否（功能覆盖） |
+| 通用资源检测（未复刻） | 476 | 没有原生/已知 yt-dlp 提取器；靠自动嗅探 | 否 |
+| DRM（不支持） | 6 | Disney/Apple 等 DRM 正片 | 不适用（Downie 也不下） |
+
+> 表里的 `yt-dlp` 是“功能覆盖”，不是“代码复刻”。我们要的是前者先达标，再按优先级把关键站点升级为后者。
+
+### 1.2 已原生复刻
+
+| 站点 | 覆盖链接 | 实现 | 状态 |
+|---|---|---|---|
+| 抖音 | `douyin.com/video`、`iesdouyin.com/share/video`、短链 | WebView 持续捕获 `aweme/detail` + media 分轨兜底 | 2.0.17 已验证可下载 |
+| B 站普通视频 | `bilibili.com/video/BV/av`、`b23.tv` | WBI 签名 + DASH + ffmpeg 合并 | 已实现 |
+| B 站番剧 | `/bangumi/play/ep|ss` | PGC 接口；ss 取第一集 | 部分（选集待做） |
+
+### 1.3 P0 站点（35 个）状态
+
+完整表见 [site-coverage.md](site-coverage.md) 的 P0 段。摘要：
+
+- 原生：Bilibili、Douyin
+- yt-dlp：其余 P0 大部分
+- 需要重点验证：YouTube（PO Token/SABR）、Instagram、TikTok、X、Twitch、Facebook、Weibo、Youku、WeTV、Udemy（登录/限流/地区）
+
+### 1.4 我们明确不做的
+
+- Netflix / Disney+ / Prime Video / Hulu 等 DRM 正片（Downie 也拒绝）
+- 复制 Downie 的源码、nib、图片、文案、Paddle/授权协议
+- 绕过付费内容或账号权限
+- 承诺某个日期前 786 个全部原生复刻；这是持续维护项目
+
+---
+
+## 2. 站点覆盖执行计划
+
+### S0 — 可见的覆盖矩阵 + 自动嗅探（本批，2.0.18）
+
+- [x] 全量 786 行站点表：`docs/site-coverage.md` / `.csv`
+- [x] 生成脚本：`apps/desktop/tools/generate_site_coverage.py`
+- [x] 应用内「设置 → 支持站点」：搜索、按状态筛选、显示原生/yt-dlp/未复刻/DRM
+- [x] 自动资源检测：无法解析时用 WebView 抓 m3u8/mpd/mp4，自动选最佳地址并下载
+- [x] 通用捕获增强：`<video>` / `<source>` / og:video / JSON-LD / performance / 播放触发
+- [ ] 样本链接验证脚本：从 Downie 的 `testURLStrings` 提取样本，逐站跑 yt-dlp/通用检测，回写 `verified` 列
+- [ ] 失败率记录：按站点记录“解析失败 / 下载失败 / 登录失效”，作为下一批原生站的依据
+
+**验收**：`设置 → 支持站点` 能看到 786 行；搜索 `douyin`/`youtube` 有结果；状态筛选正确；自动检测能对一个 yt-dlp 不支持的测试页抓到媒体并下载。
+
+### S1 — P0 35 站逐站验证 + 修复（2.0.19–2.0.21）
+
+按以下顺序，每个站点必须有：
+
+1. 一个可复现的样本链接（用户提供或从 Downie 测试串提取）
+2. 解析成功、格式列表、下载前 10 秒/完整小文件、合并成功
+3. 记录在 `site-coverage.csv` 的 `verified` + `notes`
+
+分组：
+
+| 批次 | 站点 | 重点 |
+|---|---|---|
+| S1-a | YouTube、TikTok、Instagram、X、Facebook | 登录、PO Token、限流；yt-dlp 失败时做原生/隐藏 WebView |
+| S1-b | Twitch、Vimeo、Reddit、Soundcloud、Bandcamp | 直链/HLS；验证 yt-dlp 与 cookie |
+| S1-c | Weibo、Youku、WeTV、iQiyi、Youku、CCTV、CBS、NBC、PBS、BBC、ESPN、Fox、MLB | 地区/登录/DRM 边界 |
+| S1-d | Udemy、Kakao、Naver、AbemaTV、Radiko、Rumble、Pinterest、Odysee、Kaltura、JWPlayer | 课程/直播/地区/嵌入 |
+| S1-e | 抖音/B 站回归 | 番剧选集、B 站音频、抖音直播/音乐 |
+
+**验收**：35 个 P0 每个都有 `verified=yes/no` 和原因；`yes` 的下载闭环通过。
+
+### S2 — P1 分批（每批 20–30 站）
+
+- 先跑 yt-dlp，失败率高的站点进入原生候选。
+- 优先做有共同技术模式的站点：Brightcove、Kaltura、JWPlayer、ThePlatform、Anvato、Ooyala 等“平台型”下载器，一次覆盖多站。
+- 每批产出：状态表更新 + 至少 1 个回归测试/样本。
+- 目标：每个版本把 `generic` 数量往下压，且不把 `ytdlp` 误报成 `verified`。
+
+### S3 — 自定义集成与运营能力
+
+Downie 的关键长尾能力是 **Custom Integrations**（社区 JS 规则） + **Report a Link**：
+
+- 自定义集成：本地 JS/JSON 规则、注册表、导入/导出、控制台、启用/禁用
+- Report a Link：内置反馈表单，带站点/链接/错误；我们已有支持邮件，后续做结构化上报
+- 站点开关：允许用户禁用某站插件/yt-dlp 提取器
+- 失败率看板：按站点/引擎/版本统计
+
+### S4 — 长尾持续维护
+
+- 每次发版更新 `site-coverage.md`，标注新增/修复/失效站点
+- 站点更新流水线：样本链接 → 自动解析测试 → 失败告警 → 原生/通用修复
+
+---
+
+## 3. 非站点功能差距（按优先级）
+
+| # | 模块 | Downie 4 | 当前 | 优先级 | 计划 |
+|---|---|---|---|---|---|
+| 1 | 画质选择 | 多画质时自动/询问/限制 360p–4K；Prefer MP4 | 自动推荐，无询问/限制 | P0 | 设置项 + 添加前选择弹窗 |
+| 2 | 队列 | 暂停全部/重试全部/重置队列/清空未激活/排序 | 单任务暂停/重试/清空已完成 | P0 | 队列命令 + 排序设置 |
+| 3 | 重复下载 | 检测已下载并询问 | 无 | P0 | URL/文件去重 + 询问 |
+| 4 | 限速/连接数 | 每任务限速、每任务连接数、分块下载 | 无 | P1 | 任务字段 + yt-dlp `--limit-rate`/`--concurrent-fragments` |
+| 5 | 下载提示音 | 成功/失败多种提示音 | 系统通知，无声音 | P1 | 设置 + 系统/内置音 |
+| 6 | 完成后行为 | 退出程序/打开文件夹/加入 Apple Media | 打开文件夹/通知 | P1 | 增加“全部完成后退出”等 |
+| 7 | 菜单栏图标 | 菜单栏 popover 控制队列 | 无 | P1 | `tray_manager` 或原生通道 |
+| 8 | Quick Look | 空格预览下载文件 | 无 | P1 | macOS `qlmanage`/原生预览 |
+| 9 | 下载调试器 | 单任务调试窗口/日志/报告 | 无 | P1 | 任务详情 + 日志导出 |
+| 10 | 搜索/热门下载 | 主窗口搜索 + Top Downloads | 队列搜索面板 | P2 | 搜索已做；Top 需服务端，暂不做 |
+| 11 | 导入 | CSV/XML、阅读列表、文件导入 | 文本文件导入 | P1 | CSV/XML 解析 |
+| 12 | 任务菜单 | 复制下载链接/浏览器打开/报告链接 | 复制原链接/打开目录/重命名等 | P1 | 增加三项 |
+| 13 | 后处理 | 无/MP4/仅音频/仅字幕/自定义脚本；保留原文件 | 无/MP4/MP3 | P1 | 字幕模式 + 自定义脚本 |
+| 14 | 字幕/音频 | 首选语言列表、单/多字幕、自动生成字幕、音轨选择 | 字幕开关 + 语言字符串 | P1 | 列表化 + yt-dlp 参数 + 音轨 |
+| 15 | 目的地 | 确认每次、JSON 元数据、缩略图 JPEG、原文件名 | 目录/模板/分站点/缩略图开关 | P1 | 增加确认/JSON/原文件名 |
+| 16 | 高级 | 连接数、分块、原生 HLS、强制重编码、保留失败文件、代理 WebView | 并发数/代理/yt-dlp 更新/日志 | P1 | 逐项接入 yt-dlp/ffmpeg |
+| 17 | 浏览器扩展 | 安装向导/多浏览器/关闭标签页 | 导出扩展/书签/token/cookie 导入 | P2 | 完善向导 |
+| 18 | 授权 | 14 天试用、邮箱、4 设备、签名令牌、心跳、Keychain | 14 天试用、设备/反激活；明文 Hive/HTTP | P1 | v2 见 rea 文档第 5 节 |
+| 19 | 自定义集成 | 注册表/提交/控制台/JS 执行 | 无 | P2 | S3 |
+| 20 | 多窗口 | 历史/调试/UGE/Quick Look 独立窗 | 单窗口浮层 | P2 | 用户已接受浮层，暂不做真多窗 |
+| 21 | 菜单/快捷键 | File/Edit/Browser/Window/Help + 快捷键 | 标题栏弹出菜单 + 部分快捷键 | P1 | 原生 `PlatformMenuBar`（macOS）+ Windows 菜单 |
+| 22 | 自动化/AppleScript | URL scheme、Services、Intents、自动化模式 | 无 | P2 | 后续 |
+| 23 | iCloud 历史 | 同步历史 | 无 | P3 | 不做（跨端复杂度高） |
+
+---
+
+## 4. 本批（2.0.18）交付清单
+
+### 已在本批实现
+
+1. **站点覆盖矩阵**
+   - `docs/data/downie-site-matrix.csv`（786 行，来自 REA）
+   - `docs/data/yt-dlp-extractors.txt`（1752 个提取器）
+   - `docs/site-coverage.md/.csv`（按状态分组的全量表）
+   - `apps/desktop/tools/generate_site_coverage.py`（可重复生成）
+2. **设置 → 支持站点**
+   - 搜索站点/域名/yt-dlp 提取器
+   - 按原生/部分/yt-dlp/未复刻/DRM 筛选
+   - 显示总数、优先级、是否已验证
+3. **自动资源检测**
+   - 无法解析时（开启“不支持的链接自动用用户自定义提取”），WebView 自动抓 m3u8/mpd/mp4
+   - 第一个候选后等 4 秒，按 HLS > DASH > 直链自动选择；18 秒无候选退回手动
+   - 捕获 `<video>/<source>/og:video/JSON-LD/performance`，并自动尝试播放
+   - 自动过滤音频分轨和 `.m4s/.ts` 分片
+
+### 本批不做（下一批）
+
+- P0 35 站逐站验证（需要样本链接/用户反馈；S1）
+- YouTube/TikTok/Instagram/X 原生插件（S1-a）
+- 限速/连接数/Quick Look/菜单栏图标（P1）
+
+---
+
+## 5. 验证与发布
+
+- CI：`flutter test` + macOS/Windows 构建（现有 GitHub Actions）
+- 站点验证：每个 `verified=yes` 必须有样本链接和一次完整下载记录
+- 文档：每次发版更新 `site-coverage.md` 统计和变更
+- 发布：2.0.18 上传 OSS，更新版本接口；用户可在应用内更新
+
+---
+
+## 6. 非目标
+
+- 不做 DRM 绕过（Widevine/FairPlay/PlayReady）
+- 不复制 Downie 源码/资源/文案/授权协议
+- 不承诺 786 个全部原生复刻；承诺“每个非 DRM 站点至少一个可验证引擎”并持续提高覆盖率
+- 不做 macOS 签名/公证、Windows 代码签名（用户已明确决定）

@@ -169,6 +169,22 @@ final List<HelpTopic> kHelpTopics = [
     ],
   ),
   const HelpTopic(
+    title: '站点覆盖',
+    summary: '哪些站点能下，哪些还需要验证。',
+    paragraphs: [
+      '设置 → 支持站点里列出了 Downie 的 786 个下载器/站点变体，'
+          '并标注为「原生插件」「yt-dlp」「通用资源检测（未复刻）」或「DRM」。'
+          '可以按站点名、域名或 yt-dlp 提取器搜索，也可以按状态筛选。',
+      '「原生插件」是我们自己实现的站点（当前是抖音和 B 站）；'
+          '「yt-dlp」表示功能由 yt-dlp 负责，能下载但还没有逐站验证；'
+          '「通用资源检测」表示没有专门实现，解析失败时会尝试用内置浏览器抓 m3u8/mpd/mp4。'
+          '「DRM」是 Downie 本身也不下载的版权保护内容。',
+      '站点表会随版本更新；如果某个站点失败，请在「不支持的链接」里选择'
+          '「始终自动检测」，或把链接和日志发给支持邮箱。'
+          '完整表格在仓库 docs/site-coverage.md。',
+    ],
+  ),
+  const HelpTopic(
     title: '站点专项提示',
     summary: 'B 站、抖音、YouTube 等常见站点。',
     paragraphs: [

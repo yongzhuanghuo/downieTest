@@ -11,11 +11,21 @@ String? detectMediaKind(String url) {
   final path = lower.split('?').first.split('#').first;
   // HLS/DASH 分片不单独作为下载目标，优先让用户选 manifest
   if (path.endsWith('.m4s') || path.endsWith('.ts')) return null;
+  if (lower.contains('/media-audio-') ||
+      lower.contains('mime_type=audio') ||
+      lower.contains('mimetype=audio')) {
+    return null;
+  }
   if (path.endsWith('.m3u8') || lower.contains('.m3u8')) return 'hls';
   if (path.endsWith('.mpd') || lower.contains('.mpd')) return 'dash';
   if (path.endsWith('.mp4') ||
       path.endsWith('.m4v') ||
-      path.endsWith('.flv')) {
+      path.endsWith('.flv') ||
+      lower.contains('mime_type=video') ||
+      lower.contains('mimetype=video') ||
+      lower.contains('/media-video-') ||
+      lower.contains('/video/mp4') ||
+      lower.contains('format=mp4')) {
     return 'direct';
   }
   return null;

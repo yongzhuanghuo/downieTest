@@ -8,8 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/engine/ytdlp_runner.dart';
 import '../../core/server/browser_bridge.dart';
 import '../../core/storage/site_cookies.dart';
-import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/search_engines.dart';
+import '../../core/sites/site_coverage.dart';
 import '../../shared/theme/design_tokens.dart';
 import '../../shared/widgets/window_panel.dart';
 import '../downloads/download_provider.dart';
@@ -597,42 +597,7 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
           ],
         );
       case 8:
-        final plugins = PluginRegistry.instance.all
-            .where((plugin) => plugin.id != 'GenericWeb')
-            .toList();
-        return ListView(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          children: [
-            Text(
-              '原生站点插件',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            for (final plugin in plugins)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.check_circle,
-                  size: 16,
-                  color: AppTokens.success,
-                ),
-                title: Text(plugin.displayName),
-                subtitle: Text(plugin.id),
-              ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              '其他站点',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              '未命中原生插件时，自动回退 yt-dlp；也可以使用「用户自定义视频提取」'
-              '打开页面捕获 m3u8/mpd/mp4。',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        );
+        return const _SupportedSitesPane();
       case 9:
         return ListView(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -795,6 +760,249 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
       await notifier.setDownloadDir(result);
       if (mounted) setState(() {});
     }
+  }
+}
+
+/// 支持站点：Downie 786 个下载器/变体的状态表。
+///
+/// 数据由 `tools/generate_site_coverage.py` 生成，随安装包内置；
+/// 这里只做搜索/筛选，不发起网络请求。
+class _SupportedSitesPane extends ConsumerStatefulWidget {
+  const _SupportedSitesPane();
+
+  @override
+  ConsumerState<_SupportedSitesPane> createState() =>
+      _SupportedSitesPaneState();
+}
+
+class _SupportedSitesPaneState extends ConsumerState<_SupportedSitesPane> {
+  final TextEditingController _search = TextEditingController();
+  SiteCoverageStatus? _filter;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final async = ref.watch(siteCoverageProvider);
+    return async.when(
+      loading: () => const Center(
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+      error: (e, _) => Center(
+        child: Text(
+          '站点列表加载失败：$e',
+          style: theme.textTheme.bodySmall,
+        ),
+      ),
+      data: (data) {
+        final query = _search.text.trim();
+        final rows = data.sites.where((row) {
+          if (_filter != null && row.status != _filter) return false;
+          return row.matches(query);
+        }).toList(growable: false);
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '共 ${data.total} 个 Downie 下载器 · '
+                      '原生 ${data.counts[SiteCoverageStatus.native] ?? 0} · '
+                      'yt-dlp ${data.counts[SiteCoverageStatus.ytdlp] ?? 0} · '
+                      '未复刻 ${data.counts[SiteCoverageStatus.generic] ?? 0}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  Text(
+                    '显示 ${rows.length}',
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: TextField(
+                controller: _search,
+                onChanged: (_) => setState(() {}),
+                style: const TextStyle(fontSize: 12),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: '搜索站点、域名或 yt-dlp 提取器',
+                  prefixIcon: const Icon(Icons.search, size: 16),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 9,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.button),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  _filterChip(null, '全部', data.sites.length),
+                  for (final status in SiteCoverageStatus.values)
+                    _filterChip(
+                      status,
+                      status.label,
+                      data.counts[status] ?? 0,
+                    ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: rows.isEmpty
+                  ? Center(
+                      child: Text(
+                        '没有匹配的站点',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: rows.length,
+                      separatorBuilder: (_, __) => const Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                      ),
+                      itemBuilder: (context, index) =>
+                          _siteRow(context, rows[index]),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+              child: Text(
+                'yt-dlp 覆盖不等于原生复刻；通用资源检测是兜底，需逐站验证。'
+                '完整表格见仓库 docs/site-coverage.md。',
+                style: theme.textTheme.labelSmall,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _filterChip(SiteCoverageStatus? status, String label, int count) {
+    final selected = _filter == status;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+      child: FilterChip(
+        selected: selected,
+        label: Text('$label $count', style: const TextStyle(fontSize: 11)),
+        visualDensity: VisualDensity.compact,
+        onSelected: (_) => setState(() => _filter = status),
+        showCheckmark: false,
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+      ),
+    );
+  }
+
+  Widget _siteRow(BuildContext context, SiteCoverageEntry row) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final color = switch (row.status) {
+      SiteCoverageStatus.native => AppTokens.success,
+      SiteCoverageStatus.nativePartial => AppTokens.warning,
+      SiteCoverageStatus.ytdlp => AppTokens.accent,
+      SiteCoverageStatus.generic =>
+        dark ? AppTokens.textSecondary : AppTokens.textSecondaryLight,
+      SiteCoverageStatus.drm => AppTokens.error,
+    };
+    final domain = row.domains.isEmpty ? row.className : row.domains.first;
+    final extractorHint = row.ytdlpExtractors.isEmpty
+        ? ''
+        : ' · yt-dlp: ${row.ytdlpExtractors.take(2).join(', ')}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 7, 16, 7),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        row.site,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      row.priority,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: dark
+                            ? AppTokens.textTertiary
+                            : AppTokens.textTertiaryLight,
+                      ),
+                    ),
+                    if (row.verified) ...[
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.verified,
+                        size: 12,
+                        color: AppTokens.success,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$domain$extractorHint',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: dark
+                        ? AppTokens.textTertiary
+                        : AppTokens.textTertiaryLight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              row.status.label,
+              style: TextStyle(fontSize: 10, color: color),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -100,7 +100,7 @@ class _UnsupportedLinkDialogState extends State<UnsupportedLinkDialog> {
                   ),
                   Expanded(
                     child: Text(
-                      '始终在「用户自定义提取」中打开不支持的链接',
+                      '始终自动检测不支持的链接（自动选择最佳媒体）',
                       style: TextStyle(fontSize: 12, color: secondary),
                     ),
                   ),

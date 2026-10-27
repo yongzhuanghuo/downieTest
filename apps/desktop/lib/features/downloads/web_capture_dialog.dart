@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
@@ -37,10 +38,22 @@ class WebCaptureDialog extends StatefulWidget {
   final String url;
   final WebViewEnvironment? environment;
 
-  const WebCaptureDialog({super.key, required this.url, this.environment});
+  /// 自动模式：页面加载后自动选择最佳媒体；找不到时退回手动选择。
+  final bool auto;
+
+  const WebCaptureDialog({
+    super.key,
+    required this.url,
+    this.environment,
+    this.auto = false,
+  });
 
   /// 弹出嗅探窗口；返回 null 表示用户取消
-  static Future<CapturedMedia?> show(BuildContext context, String url) async {
+  static Future<CapturedMedia?> show(
+    BuildContext context,
+    String url, {
+    bool auto = false,
+  }) async {
     WebViewEnvironment? env;
     if (Platform.isWindows) {
       try {
@@ -62,7 +75,7 @@ class WebCaptureDialog extends StatefulWidget {
       barrierColor: Colors.black.withValues(alpha: 0.28),
       transitionDuration: Duration.zero,
       pageBuilder: (_, __, ___) => Center(
-        child: WebCaptureDialog(url: url, environment: env),
+        child: WebCaptureDialog(url: url, environment: env, auto: auto),
       ),
       transitionBuilder: (_, __, ___, child) => child,
     );
@@ -79,6 +92,11 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
   String _pageUrl = '';
   String _title = '';
   bool _collecting = false;
+  bool _autoActive = false;
+  bool _autoTimedOut = false;
+  DateTime? _autoStartedAt;
+  DateTime? _firstMediaAt;
+  Timer? _autoTimer;
   InAppWebViewController? _webController;
   late final TextEditingController _addressController;
   final FocusNode _addressFocus = FocusNode();
@@ -93,19 +111,32 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
   if (window.__downloCaptureInstalled) return;
   window.__downloCaptureInstalled = true;
   const seen = new Set();
-  function report(url) {
+  function absolute(url) {
+    try { return new URL(url, location.href).href; } catch (e) { return url; }
+  }
+  function report(raw) {
     try {
-      if (!url || typeof url !== 'string') return;
-      if (url.startsWith('blob:') || url.startsWith('data:')) return;
+      if (!raw || typeof raw !== 'string') return;
+      const url = absolute(raw.trim());
+      if (!/^https?:/i.test(url)) return;
       const lower = url.toLowerCase();
+      if (lower.indexOf('/media-audio-') >= 0 ||
+          lower.indexOf('mime_type=audio') >= 0 ||
+          lower.indexOf('mimetype=audio') >= 0) return;
       const manifest = lower.indexOf('.m3u8') >= 0 || lower.indexOf('.mpd') >= 0;
-      const direct = /\.(mp4|m4v|flv)(\?|#|$)/.test(lower) || lower.indexOf('mime=video') >= 0 || lower.indexOf('video/mp4') >= 0;
-      const segment = lower.indexOf('.m4s') >= 0 || lower.indexOf('.ts') >= 0 || lower.indexOf('segment') >= 0;
+      const direct = /\.(mp4|m4v|flv)(\?|#|$)/.test(lower) ||
+        lower.indexOf('mime_type=video') >= 0 ||
+        lower.indexOf('mimetype=video') >= 0 ||
+        lower.indexOf('/media-video-') >= 0 ||
+        lower.indexOf('/video/mp4') >= 0 ||
+        lower.indexOf('format=mp4') >= 0;
+      const segment = lower.indexOf('.m4s') >= 0 ||
+        lower.indexOf('.ts') >= 0 || lower.indexOf('/segment') >= 0;
       if (!manifest && !direct) return;
       if (!manifest && segment) return;
       if (seen.has(url)) return;
-      window.flutter_inappwebview.callHandler('media', url);
       seen.add(url);
+      window.flutter_inappwebview.callHandler('media', url);
     } catch (e) {}
   }
   const origFetch = window.fetch;
@@ -128,12 +159,48 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
     try { if (name === 'src' && value) report(value); } catch (e) {}
     return origSet.apply(this, arguments);
   };
+  function walkJson(value, depth) {
+    if (!value || depth > 12) return;
+    if (typeof value === 'string') { report(value); return; }
+    if (Array.isArray(value)) { value.forEach(function(v) { walkJson(v, depth + 1); }); return; }
+    if (typeof value === 'object') {
+      Object.keys(value).forEach(function(k) { walkJson(value[k], depth + 1); });
+    }
+  }
+  function scanDom() {
+    try {
+      document.querySelectorAll('video, source').forEach(function(el) {
+        report(el.currentSrc || el.src || el.getAttribute('src'));
+      });
+      const meta = document.querySelector(
+        'meta[property="og:video"], meta[property="og:video:url"], ' +
+        'meta[property="og:video:secure_url"], meta[name="twitter:player:stream"]');
+      if (meta) report(meta.getAttribute('content'));
+      document.querySelectorAll('script[type="application/ld+json"]').forEach(function(s) {
+        try { walkJson(JSON.parse(s.textContent || ''), 0); } catch (e) {}
+      });
+    } catch (e) {}
+  }
   setInterval(function() {
     try {
       const entries = performance.getEntriesByType('resource');
       for (let i = 0; i < entries.length; i++) report(entries[i].name);
     } catch (e) {}
-  }, 2000);
+  }, 1500);
+  setInterval(scanDom, 2000);
+  setInterval(function() {
+    try {
+      document.querySelectorAll('video').forEach(function(v) {
+        if (v.paused) v.play().catch(function(){});
+      });
+    } catch (e) {}
+  }, 1500);
+  document.addEventListener('playing', function(e) {
+    try { report(e.target.currentSrc || e.target.src); } catch (e) {}
+  }, true);
+  document.addEventListener('loadedmetadata', function(e) {
+    try { report(e.target.currentSrc || e.target.src); } catch (e) {}
+  }, true);
 })();
 ''';
 
@@ -143,13 +210,57 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
     _pageUrl = widget.url;
     _addressController = TextEditingController(text: widget.url);
     _webView2Missing = !isWebView2Available();
+    if (widget.auto && !_webView2Missing) {
+      _autoActive = true;
+      _autoStartedAt = DateTime.now();
+      _autoTimer = Timer.periodic(
+        const Duration(milliseconds: 500),
+        (_) => _tickAuto(),
+      );
+    }
   }
 
   @override
   void dispose() {
+    _autoTimer?.cancel();
     _addressController.dispose();
     _addressFocus.dispose();
     super.dispose();
+  }
+
+  /// 自动模式的节奏：第一个候选出现后等 4 秒，让页面把主视频/清单都发出来，
+  /// 然后按 HLS > DASH > 直链选择；18 秒仍没有候选则退回手动。
+  void _tickAuto() {
+    if (!mounted || !_autoActive || _collecting) return;
+    final now = DateTime.now();
+    final first = _firstMediaAt;
+    if (first != null) {
+      if (now.difference(first) >= const Duration(seconds: 4)) {
+        final best = _bestCandidate();
+        if (best != null) {
+          _autoActive = false;
+          _autoTimer?.cancel();
+          setState(() => _selected = best);
+          unawaited(_use());
+          return;
+        }
+      }
+    } else if (_autoStartedAt != null &&
+        now.difference(_autoStartedAt!) >= const Duration(seconds: 18)) {
+      _autoActive = false;
+      _autoTimedOut = true;
+      _autoTimer?.cancel();
+      if (mounted) setState(() {});
+    }
+  }
+
+  String? _bestCandidate() {
+    for (final kind in const ['hls', 'dash', 'direct']) {
+      for (final entry in _captured.entries) {
+        if (entry.value == kind) return entry.key;
+      }
+    }
+    return null;
   }
 
   Future<void> _go(String input) async {
@@ -170,10 +281,18 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
   }
 
   void _onMedia(String url) {
+    final lower = url.toLowerCase();
+    // 音频分轨不是完整的视频目标；HLS/DASH 清单和视频直链才参与自动选择。
+    if (lower.contains('/media-audio-') ||
+        lower.contains('mime_type=audio') ||
+        lower.contains('mimetype=audio')) {
+      return;
+    }
     final kind = detectMediaKind(url);
     if (kind == null) return;
     if (_captured.containsKey(url)) return;
     if (!mounted) return;
+    _firstMediaAt ??= DateTime.now();
     setState(() {
       _captured[url] = kind;
       _selected ??= url;
@@ -354,6 +473,7 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
                       },
                     ),
             ),
+            if (widget.auto) _buildAutoBanner(theme),
             _buildCapturedPanel(theme),
             Container(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
@@ -391,6 +511,61 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAutoBanner(ThemeData theme) {
+    final String text;
+    if (_collecting) {
+      text = '正在准备下载…';
+    } else if (_autoTimedOut) {
+      text = '未自动检测到媒体，请手动播放视频后选择';
+    } else if (_autoActive && _captured.isEmpty) {
+      text = '正在自动检测媒体…页面加载或播放可能需要几秒';
+    } else if (_autoActive) {
+      text = '已检测到 ${_captured.length} 个媒体，4 秒后自动选择最佳地址';
+    } else if (_selected != null) {
+      text = '已选择媒体，可以点「使用此地址」';
+    } else {
+      text = '请手动选择媒体';
+    }
+    final accent = theme.colorScheme.primary;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 7, 12, 7),
+      color: accent.withValues(alpha: 0.08),
+      child: Row(
+        children: [
+          if (_autoActive && !_collecting)
+            const SizedBox(
+              width: 13,
+              height: 13,
+              child: CircularProgressIndicator(strokeWidth: 1.6),
+            )
+          else
+            Icon(
+              _autoTimedOut ? Icons.info_outline : Icons.auto_awesome,
+              size: 14,
+              color: accent,
+            ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+            ),
+          ),
+          if (_autoActive)
+            TextButton(
+              onPressed: () {
+                _autoActive = false;
+                _autoTimer?.cancel();
+                setState(() {});
+              },
+              child: const Text('手动选择', style: TextStyle(fontSize: 11)),
+            ),
+        ],
       ),
     );
   }
