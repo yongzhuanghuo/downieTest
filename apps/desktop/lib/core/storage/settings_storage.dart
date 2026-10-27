@@ -120,6 +120,9 @@ class AppSettings {
   /// 使用 yt-dlp 原生 HLS 下载器
   final bool nativeHlsEngine;
 
+  /// 在菜单栏 / 系统托盘显示图标
+  final bool showInMenuBar;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -158,6 +161,7 @@ class AppSettings {
     this.subtitleMode = 0,
     this.forceReencode = false,
     this.nativeHlsEngine = false,
+    this.showInMenuBar = true,
   });
 
   static const defaults = AppSettings(
@@ -198,6 +202,7 @@ class AppSettings {
     subtitleMode: 0,
     forceReencode: false,
     nativeHlsEngine: false,
+    showInMenuBar: true,
   );
 
   AppSettings copyWith({
@@ -238,6 +243,7 @@ class AppSettings {
     int? subtitleMode,
     bool? forceReencode,
     bool? nativeHlsEngine,
+    bool? showInMenuBar,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -288,6 +294,7 @@ class AppSettings {
       subtitleMode: subtitleMode ?? this.subtitleMode,
       forceReencode: forceReencode ?? this.forceReencode,
       nativeHlsEngine: nativeHlsEngine ?? this.nativeHlsEngine,
+      showInMenuBar: showInMenuBar ?? this.showInMenuBar,
     );
   }
 
@@ -392,6 +399,7 @@ class SettingsStorage {
         subtitleMode: (raw['subtitleMode'] as num?)?.toInt() ?? 0,
         forceReencode: (raw['forceReencode'] as bool?) ?? false,
         nativeHlsEngine: (raw['nativeHlsEngine'] as bool?) ?? false,
+        showInMenuBar: (raw['showInMenuBar'] as bool?) ?? true,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -464,6 +472,7 @@ class SettingsStorage {
       'subtitleMode': settings.subtitleMode,
       'forceReencode': settings.forceReencode,
       'nativeHlsEngine': settings.nativeHlsEngine,
+      'showInMenuBar': settings.showInMenuBar,
     });
     debugPrint('[Settings] saved: $settings');
   }

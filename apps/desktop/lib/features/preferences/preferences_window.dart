@@ -253,6 +253,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
+              title: const Text('在菜单栏 / 系统托盘显示'),
+              subtitle: const Text('可从菜单栏快速显示窗口、开始/暂停全部下载'),
+              value: settings.showInMenuBar,
+              onChanged: notifier.setShowInMenuBar,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
               title: const Text('全部下载完成后退出应用'),
               value: settings.quitWhenDone,
               onChanged: notifier.setQuitWhenDone,

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/platform/tray_service.dart';
 import '../../core/server/browser_bridge.dart';
 import '../../core/sites/format_selector.dart';
 import '../../core/version/version_check.dart';
@@ -49,6 +50,24 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     super.initState();
     unawaited(ref.read(trialProvider.notifier).ensureStarted());
     unawaited(_syncBrowserBridge());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(TrayService.instance.configure(
+        show: showMainWindow,
+        startAll: () =>
+            ref.read(downloadListProvider.notifier).startAll(),
+        pauseAll: () =>
+            ref.read(downloadListProvider.notifier).pauseAll(),
+        history: () {
+          if (mounted) HistoryWindow.show(context);
+        },
+        settings: () {
+          if (mounted) PreferencesWindow.show(context);
+        },
+        quit: () => windowManager.close(),
+        enabled: ref.read(settingsProvider).showInMenuBar,
+      ));
+    });
     unawaited(() async {
       await Future<void>.delayed(const Duration(seconds: 3));
       if (!mounted) return;
@@ -109,7 +128,12 @@ class _WindowShellState extends ConsumerState<WindowShell> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(settingsProvider, (_, __) => unawaited(_syncBrowserBridge()));
+    ref.listen(settingsProvider, (previous, next) {
+      unawaited(_syncBrowserBridge());
+      if (previous?.showInMenuBar != next.showInMenuBar) {
+        unawaited(TrayService.instance.setEnabled(next.showInMenuBar));
+      }
+    });
     final quickLoading = ref.watch(quickAddLoadingProvider) > 0;
     final isMac = Platform.isMacOS;
     final dark = Theme.of(context).brightness == Brightness.dark;
