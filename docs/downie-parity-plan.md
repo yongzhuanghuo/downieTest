@@ -1,7 +1,7 @@
 # Downie 4 功能 1:1 复刻执行计划
 
 - **基线**：Downie 4 v4.13.3（`com.charliemonroe.Downie-4`，build 4000）
-- **当前产品**：Downie6 2.0.28+29（Flutter，macOS + Windows）
+- **当前产品**：Downie6 2.0.29+30（Flutter，macOS + Windows）
 - **分析方式**：REA + Mach-O 符号 / 字符串 / Swift 元数据 / 内置 Help Book / Localizable.strings；不做源码复制
 - **站点全量表**：[site-coverage.md](site-coverage.md)（786 行） / [site-coverage.csv](site-coverage.csv)
 - **更新日期**：2026-10-27
@@ -172,7 +172,7 @@ Downie 的关键长尾能力是 **Custom Integrations**（社区 JS 规则） + 
 | 18 | 授权 | 14 天试用、邮箱、4 设备、签名令牌、心跳、Keychain | 14 天试用、设备/反激活；明文 Hive/HTTP | P1 | v2 见 rea 文档第 5 节 |
 | 19 | 自定义集成 | 注册表/提交/控制台/JS 执行 | 无 | P2 | S3 |
 | 20 | 多窗口 | 历史/调试/UGE/Quick Look 独立窗 | 单窗口浮层 | P2 | 用户已接受浮层，暂不做真多窗 |
-| 21 | 菜单/快捷键 | File/Edit/Browser/Window/Help + 快捷键 | 2.0.20 原生菜单栏（文件/窗口/帮助）+ 托盘菜单；2.0.21 浏览器菜单 | P1 | 编辑菜单、完整快捷键待做 |
+| 21 | 菜单/快捷键 | File/Edit/Browser/Window/Help + 快捷键 | 2.0.20 原生菜单；2.0.21 浏览器菜单；2.0.29 编辑菜单（剪切/复制/粘贴/全选） | P1 | 菜单快捷键未重复绑定（沿用 Flutter 文本框快捷键） |
 | 22 | 自动化/AppleScript | URL scheme、Services、Intents、自动化模式 | 2.0.22 `downie6://`、open -a/命令行、自动化模式 | P2 | AppleScript/Services/Intents 待做 |
 | 23 | iCloud 历史 | 同步历史 | 无 | P3 | 不做（跨端复杂度高） |
 
