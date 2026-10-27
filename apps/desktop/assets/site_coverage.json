@@ -2,9 +2,9 @@
  "generatedFrom": "Downie 4 v4.13.3 + yt-dlp 2026.07.04",
  "total": 786,
  "counts": {
-  "native": 4,
+  "native": 5,
   "native_partial": 1,
-  "ytdlp": 300,
+  "ytdlp": 299,
   "generic": 475,
   "drm": 6
  },
@@ -40,6 +40,27 @@
    "priority": "P0",
    "ytdlpExtractors": [
     "Douyin"
+   ],
+   "notes": ""
+  },
+  {
+   "site": "TikTok",
+   "className": "TikTokDownloader",
+   "domains": [
+    "https://www.tiktok.com"
+   ],
+   "status": "native",
+   "statusLabel": "原生插件",
+   "verified": false,
+   "priority": "P0",
+   "ytdlpExtractors": [
+    "TikTok",
+    "tiktok:collection",
+    "tiktok:effect (CURRENTLY BROKEN)",
+    "tiktok:live",
+    "tiktok:sound (CURRENTLY BROKEN)",
+    "tiktok:tag (CURRENTLY BROKEN)",
+    "tiktok:user"
    ],
    "notes": ""
   },
@@ -420,27 +441,6 @@
     "soundcloud:trackstation",
     "soundcloud:user",
     "soundcloud:user:permalink"
-   ],
-   "notes": ""
-  },
-  {
-   "site": "TikTok",
-   "className": "TikTokDownloader",
-   "domains": [
-    "https://www.tiktok.com"
-   ],
-   "status": "ytdlp",
-   "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
-   "priority": "P0",
-   "ytdlpExtractors": [
-    "TikTok",
-    "tiktok:collection",
-    "tiktok:effect (CURRENTLY BROKEN)",
-    "tiktok:live",
-    "tiktok:sound (CURRENTLY BROKEN)",
-    "tiktok:tag (CURRENTLY BROKEN)",
-    "tiktok:user"
    ],
    "notes": ""
   },

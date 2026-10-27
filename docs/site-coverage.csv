@@ -1,6 +1,7 @@
 site,className,domains,status,statusLabel,verified,priority,ytdlpExtractors,notes
 Bilibili,BilibiliDownloader,https://bilibili.com;http://www.bilibili.tv;http://api.bilibili.com,native,原生插件,yes,P0,BiliBili,
 Douyin,DouyinDownloader,https://www.douyin.com;https://live.douyin.com;https://music.douyin.com,native,原生插件,yes,P0,Douyin,
+TikTok,TikTokDownloader,https://www.tiktok.com,native,原生插件,no,P0,TikTok;tiktok:collection;tiktok:effect (CURRENTLY BROKEN);tiktok:live;tiktok:sound (CURRENTLY BROKEN);tiktok:tag (CURRENTLY BROKEN);tiktok:user,
 BilibiliEmbed,BilibiliEmbedDownloader,,native,原生插件,no,P1,BiliBili,
 Iesdouyin,IesdouyinDownloader,https://www.iesdouyin.com,native,原生插件,yes,P1,,
 BilibiliBangumi,BilibiliBangumiDownloader,,native_partial,原生插件（部分）,no,P1,BiliBili;BiliBiliBangumi,
@@ -24,7 +25,6 @@ Radiko,RadikoDownloader,https://radiko.jp;https://api.radiko.jp,ytdlp,yt-dlp（�
 Reddit,RedditDownloader,http://reddit.tv;http://www.reddit.com;https://www.reddit.com,ytdlp,yt-dlp（待验证）,no,P0,Reddit,
 Rumble,RumbleDownloader,https://rumble.com,ytdlp,yt-dlp（待验证）,no,P0,Rumble,
 Soundcloud,SoundcloudDownloader,https://soundcloud.com;https://api.soundcloud.com;http://api-v2.soundcloud.com,ytdlp,yt-dlp（待验证）,no,P0,soundcloud;soundcloud:playlist;soundcloud:related;soundcloud:search;soundcloud:set;soundcloud:trackstation;soundcloud:user;soundcloud:user:permalink,
-TikTok,TikTokDownloader,https://www.tiktok.com,ytdlp,yt-dlp（待验证）,no,P0,TikTok;tiktok:collection;tiktok:effect (CURRENTLY BROKEN);tiktok:live;tiktok:sound (CURRENTLY BROKEN);tiktok:tag (CURRENTLY BROKEN);tiktok:user,
 Twitch,TwitchDownloader,https://twitch.tv;https://api.twitch.tv;https://gql.twitch.tv,ytdlp,yt-dlp（待验证）,no,P0,twitch:clips;twitch:collection;twitch:stream;twitch:videos;twitch:videos:clips;twitch:videos:collections;twitch:vod,
 Twitter,TwitterDownloader,,ytdlp,yt-dlp（待验证）,no,P0,twitter;twitter:amplify;twitter:broadcast;twitter:card;twitter:shortener;twitter:spaces,
 Udemy,UdemyDownloader,https://www.udemy.com,ytdlp,yt-dlp（待验证）,no,P0,udemy;udemy:course,

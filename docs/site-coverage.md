@@ -8,9 +8,9 @@
 
 | 状态 | 数量 | 含义 |
 |---|---:|---|
-| 原生插件 | 4 | 我们自己的解析/下载实现 |
+| 原生插件 | 5 | 我们自己的解析/下载实现 |
 | 原生插件（部分） | 1 | 原生实现只覆盖部分链接形态 |
-| yt-dlp | 300 | 功能可用（由 yt-dlp 负责），但不是 Downie 代码复刻；仍需逐站验证 |
+| yt-dlp | 299 | 功能可用（由 yt-dlp 负责），但不是 Downie 代码复刻；仍需逐站验证 |
 | 通用资源检测（未复刻） | 475 | 没有原生/已知提取器，只能靠通用 HTML/WebView 嗅探；未逐站验证 |
 | DRM（不支持） | 6 | Downie 自身也拒绝的 DRM 正片 |
 
@@ -22,6 +22,7 @@
 |---|---|---|---|---|---|---|
 | Bilibili | BilibiliDownloader | https://bilibili.com, http://www.bilibili.tv, http://api.bilibili.com | 原生插件 | 是 | P0 |  |
 | Douyin | DouyinDownloader | https://www.douyin.com, https://live.douyin.com, https://music.douyin.com | 原生插件 | 是 | P0 |  |
+| TikTok | TikTokDownloader | https://www.tiktok.com | 原生插件 | 否 | P0 |  |
 | AbemaTV | AbemaTVDownloader |  | yt-dlp（待验证） | 否 | P0 |  |
 | BBC | BBCDownloader | http://www.bbc.com, https://www.bbc.com, http://www.bbc.co.uk | yt-dlp（待验证） | 否 | P0 |  |
 | CBS | CBSDownloader | http://www.cbs.com, https://can.cbs.com, https://www.cbs.com | yt-dlp（待验证） | 否 | P0 |  |
@@ -42,7 +43,6 @@
 | Reddit | RedditDownloader | http://reddit.tv, http://www.reddit.com, https://www.reddit.com | yt-dlp（待验证） | 否 | P0 |  |
 | Rumble | RumbleDownloader | https://rumble.com | yt-dlp（待验证） | 否 | P0 |  |
 | Soundcloud | SoundcloudDownloader | https://soundcloud.com, https://api.soundcloud.com, http://api-v2.soundcloud.com | yt-dlp（待验证） | 否 | P0 |  |
-| TikTok | TikTokDownloader | https://www.tiktok.com | yt-dlp（待验证） | 否 | P0 |  |
 | Twitch | TwitchDownloader | https://twitch.tv, https://api.twitch.tv, https://gql.twitch.tv | yt-dlp（待验证） | 否 | P0 |  |
 | Twitter | TwitterDownloader |  | yt-dlp（待验证） | 否 | P0 |  |
 | Udemy | UdemyDownloader | https://www.udemy.com | yt-dlp（待验证） | 否 | P0 |  |
@@ -62,6 +62,7 @@
 |---|---|---|---|---|---|---|
 | Bilibili | BilibiliDownloader | https://bilibili.com, http://www.bilibili.tv, http://api.bilibili.com | 原生插件 | 是 | P0 |  |
 | Douyin | DouyinDownloader | https://www.douyin.com, https://live.douyin.com, https://music.douyin.com | 原生插件 | 是 | P0 |  |
+| TikTok | TikTokDownloader | https://www.tiktok.com | 原生插件 | 否 | P0 |  |
 | BilibiliEmbed | BilibiliEmbedDownloader |  | 原生插件 | 否 | P1 |  |
 | Iesdouyin | IesdouyinDownloader | https://www.iesdouyin.com | 原生插件 | 是 | P1 |  |
 
@@ -95,7 +96,6 @@
 | Reddit | RedditDownloader | http://reddit.tv, http://www.reddit.com, https://www.reddit.com | yt-dlp（待验证） | 否 | P0 |  |
 | Rumble | RumbleDownloader | https://rumble.com | yt-dlp（待验证） | 否 | P0 |  |
 | Soundcloud | SoundcloudDownloader | https://soundcloud.com, https://api.soundcloud.com, http://api-v2.soundcloud.com | yt-dlp（待验证） | 否 | P0 |  |
-| TikTok | TikTokDownloader | https://www.tiktok.com | yt-dlp（待验证） | 否 | P0 |  |
 | Twitch | TwitchDownloader | https://twitch.tv, https://api.twitch.tv, https://gql.twitch.tv | yt-dlp（待验证） | 否 | P0 |  |
 | Twitter | TwitterDownloader |  | yt-dlp（待验证） | 否 | P0 |  |
 | Udemy | UdemyDownloader | https://www.udemy.com | yt-dlp（待验证） | 否 | P0 |  |

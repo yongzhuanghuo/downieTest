@@ -38,15 +38,17 @@ class DouyinDownloader {
     required void Function(DownloadProgress) onProgress,
     bool Function()? shouldCancel,
     http.Client? client,
+    String referer = 'https://www.douyin.com/',
+    String cookieSiteId = 'douyin',
   }) async {
     debugPrint('[抖音下载] 开始: $url');
-    final cookie = await SiteCookies.loadCookieHeader('douyin');
+    final cookie = await SiteCookies.loadCookieHeader(cookieSiteId);
     final ownsClient = client == null;
     final effectiveClient = client ?? http.Client();
     try {
       final req = http.Request('GET', Uri.parse(url));
       req.headers['User-Agent'] = ua;
-      req.headers['Referer'] = 'https://www.douyin.com/';
+      req.headers['Referer'] = referer;
       if (cookie.isNotEmpty) req.headers['Cookie'] = cookie;
       final resp = await effectiveClient.send(req);
       if (resp.statusCode != 200 && resp.statusCode != 206) {

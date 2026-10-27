@@ -1,6 +1,7 @@
 import 'plugins/bilibili_plugin.dart';
 import 'plugins/douyin_plugin.dart';
 import 'plugins/generic_web_plugin.dart';
+import 'plugins/tiktok_plugin.dart';
 import 'site_plugin.dart';
 
 /// 站点插件注册表。
@@ -14,8 +15,9 @@ class PluginRegistry {
   static final PluginRegistry instance = PluginRegistry._(<SitePlugin>[
     DouyinPlugin(),
     BilibiliPlugin(),
+    TikTokPlugin(),
     GenericWebPlugin(),
-    // 后续：YouTubePlugin / InstagramPlugin / TikTokPlugin / XPlugin
+    // 后续：YouTubePlugin / InstagramPlugin / XPlugin
   ]);
 
   final List<SitePlugin> _plugins;
