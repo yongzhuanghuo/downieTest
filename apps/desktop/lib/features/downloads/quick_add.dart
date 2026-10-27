@@ -1,13 +1,21 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/models/format_option.dart';
+import '../../data/models/video_info.dart';
+import '../../shared/branding/app_brand.dart';
 import '../home/home_provider.dart';
 import '../license/license_provider.dart';
 import '../license/license_window.dart';
 import '../settings/settings_provider.dart';
 import 'add_urls_panel.dart';
 import 'download_provider.dart';
+import 'unsupported_link_dialog.dart';
+import 'web_capture_dialog.dart';
 
 enum QuickAddResult { added, needsInput, failed, trialEnded }
 
@@ -55,37 +63,15 @@ Future<QuickAddResult> quickAddText(
     await ref.read(parseProvider.notifier).parse(target);
     // 解析（含登录窗口）结束后收起「加载中…」，再处理结果
     finishLoading();
-    if (context.mounted) {
-      final parse = ref.read(parseProvider);
-      final info = parse.videoInfo;
-      if (parse.isError || info == null) {
-        await AddUrlsPanel.show(context, initialText: target);
-        return QuickAddResult.failed;
-      }
+    if (!context.mounted) return QuickAddResult.failed;
 
-      if (!ref.read(canDownloadProvider)) {
-        await LicenseWindow.show(context);
-        return QuickAddResult.trialEnded;
-      }
-
-      final format = info.recommendedFormat;
-      if (format == null) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          const SnackBar(content: Text('没有可用格式')),
-        );
-        return QuickAddResult.failed;
-      }
-
-      final settings = ref.read(settingsProvider);
-      await ref.read(downloadListProvider.notifier).startDownload(
-            videoInfo: info,
-            format: format,
-            downloadSubtitles: settings.defaultDownloadSubtitles,
-            downloadCover: settings.defaultDownloadCover,
-          );
-      return QuickAddResult.added;
+    final parse = ref.read(parseProvider);
+    final info = parse.videoInfo;
+    if (parse.isError || info == null) {
+      // 与 Downie 一样：不打开「添加链接」，直接给不支持的链接提示
+      return _handleUnsupported(context, ref, target);
     }
-    return QuickAddResult.failed;
+    return _enqueueInfo(context, ref, info);
   } catch (e) {
     finishLoading();
     if (context.mounted) {
@@ -97,4 +83,105 @@ Future<QuickAddResult> quickAddText(
   } finally {
     finishLoading();
   }
+}
+
+Future<QuickAddResult> _handleUnsupported(
+  BuildContext context,
+  WidgetRef ref,
+  String target,
+) async {
+  final settings = ref.read(settingsProvider);
+  UnsupportedResult? result;
+  if (settings.autoUgeUnsupported) {
+    result = const UnsupportedResult(UnsupportedAction.extract, true);
+  } else {
+    result = await UnsupportedLinkDialog.show(context);
+  }
+  if (result == null || !context.mounted) return QuickAddResult.failed;
+
+  if (result.autoUge != settings.autoUgeUnsupported) {
+    await ref
+        .read(settingsProvider.notifier)
+        .setAutoUgeUnsupported(result.autoUge);
+  }
+
+  switch (result.action) {
+    case UnsupportedAction.extract:
+      final media = await WebCaptureDialog.show(context, target);
+      if (media == null || !context.mounted) return QuickAddResult.failed;
+      return _enqueueCapturedMedia(context, ref, media);
+    case UnsupportedAction.support:
+      final uri = Uri(
+        scheme: 'mailto',
+        path: AppBrand.supportEmail,
+        queryParameters: {
+          'subject': '请求添加 ${AppBrand.name} 站点支持',
+          'body': '链接：$target',
+        },
+      );
+      try {
+        await launchUrl(uri);
+      } catch (_) {}
+      return QuickAddResult.failed;
+    case UnsupportedAction.ignore:
+      return QuickAddResult.failed;
+  }
+  return QuickAddResult.failed;
+}
+
+Future<QuickAddResult> _enqueueCapturedMedia(
+  BuildContext context,
+  WidgetRef ref,
+  CapturedMedia media,
+) async {
+  final host = Uri.tryParse(media.pageUrl)?.host ?? '';
+  final info = VideoInfo(
+    url: media.pageUrl,
+    title: media.title.isEmpty ? host : media.title,
+    duration: 0,
+    uploader: host,
+    thumbnail: '',
+    extractor: 'GenericWeb',
+    videoId: media.url.hashCode.abs().toString(),
+    formats: [
+      FormatOption(
+        formatId: jsonEncode({
+          'url': media.url,
+          'kind': media.kind,
+          'referer': media.referer,
+          'cookie': media.cookie,
+        }),
+        label: '用户自定义提取 ${media.kind.toUpperCase()}',
+        height: 0,
+        ext: 'mp4',
+      ),
+    ],
+  );
+  return _enqueueInfo(context, ref, info);
+}
+
+Future<QuickAddResult> _enqueueInfo(
+  BuildContext context,
+  WidgetRef ref,
+  VideoInfo info,
+) async {
+  if (!ref.read(canDownloadProvider)) {
+    await LicenseWindow.show(context);
+    return QuickAddResult.trialEnded;
+  }
+  final format = info.recommendedFormat;
+  if (format == null) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(content: Text('没有可用格式')),
+    );
+    return QuickAddResult.failed;
+  }
+  final settings = ref.read(settingsProvider);
+  await ref.read(downloadListProvider.notifier).startDownload(
+        videoInfo: info,
+        format: format,
+        downloadSubtitles: settings.defaultDownloadSubtitles,
+        downloadCover: settings.defaultDownloadCover,
+      );
+  return QuickAddResult.added;
 }

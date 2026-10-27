@@ -37,6 +37,14 @@ class DouyinPlugin extends SitePlugin {
         retryable: false,
         requiresLogin: true,
       );
+    } catch (e) {
+      // 网络/JSON/node 签名等非预期错误也进入登录/验证码流程，
+      // 避免用户只看到一句「解析失败」而没有恢复入口。
+      throw SitePluginException(
+        e.toString(),
+        retryable: false,
+        requiresLogin: true,
+      );
     }
   }
 

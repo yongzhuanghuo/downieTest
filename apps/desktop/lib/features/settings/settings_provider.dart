@@ -77,6 +77,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setAutoUgeUnsupported(bool value) async {
+    final next = state.copyWith(autoUgeUnsupported: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setSubfolderBySite(bool value) async {
     final next = state.copyWith(subfolderBySite: value);
     await SettingsStorage.instance.save(next);

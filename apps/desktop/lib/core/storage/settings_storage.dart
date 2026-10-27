@@ -63,6 +63,9 @@ class AppSettings {
   /// 是否按来源站点建子文件夹
   final bool subfolderBySite;
 
+  /// 不支持的链接始终用「用户自定义视频提取」打开
+  final bool autoUgeUnsupported;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -82,6 +85,7 @@ class AppSettings {
     this.subtitleLangs = '',
     this.filenameTemplate = '{title}',
     this.subfolderBySite = false,
+    this.autoUgeUnsupported = false,
   });
 
   static const defaults = AppSettings(
@@ -103,6 +107,7 @@ class AppSettings {
     subtitleLangs: '',
     filenameTemplate: '{title}',
     subfolderBySite: false,
+    autoUgeUnsupported: false,
   );
 
   AppSettings copyWith({
@@ -124,6 +129,7 @@ class AppSettings {
     String? subtitleLangs,
     String? filenameTemplate,
     bool? subfolderBySite,
+    bool? autoUgeUnsupported,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -148,6 +154,8 @@ class AppSettings {
       subtitleLangs: subtitleLangs ?? this.subtitleLangs,
       filenameTemplate: filenameTemplate ?? this.filenameTemplate,
       subfolderBySite: subfolderBySite ?? this.subfolderBySite,
+      autoUgeUnsupported:
+          autoUgeUnsupported ?? this.autoUgeUnsupported,
     );
   }
 
@@ -226,6 +234,8 @@ class SettingsStorage {
         filenameTemplate:
             (raw['filenameTemplate'] as String?) ?? '{title}',
         subfolderBySite: (raw['subfolderBySite'] as bool?) ?? false,
+        autoUgeUnsupported:
+            (raw['autoUgeUnsupported'] as bool?) ?? false,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -278,6 +288,7 @@ class SettingsStorage {
       'subtitleLangs': settings.subtitleLangs,
       'filenameTemplate': settings.filenameTemplate,
       'subfolderBySite': settings.subfolderBySite,
+      'autoUgeUnsupported': settings.autoUgeUnsupported,
     });
     debugPrint('[Settings] saved: $settings');
   }

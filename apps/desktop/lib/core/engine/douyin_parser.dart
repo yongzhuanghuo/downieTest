@@ -65,25 +65,45 @@ class DouyinParser {
   static Future<String> _expand(String url) async {
     final client = http.Client();
     try {
+      final savedCookie = await SiteCookies.loadCookieHeader('douyin');
       var current = Uri.parse(url);
       // 短链可能 302 多次（v.douyin.com → www.douyin.com/video/xxx），最多追 5 跳
       for (var i = 0; i < 5; i++) {
-        final m = RegExp(r'/video/(\d+)').firstMatch(current.toString());
-        if (m != null) return m.group(1)!;
+        final id = _idFromUrl(current.toString());
+        if (id != null) return id;
         final req = http.Request('GET', current);
         req.followRedirects = false;
         req.headers['User-Agent'] = ua;
+        req.headers['Accept'] = 'text/html,application/xhtml+xml';
+        req.headers['Accept-Language'] = 'zh-CN,zh;q=0.9';
+        if (savedCookie.isNotEmpty) req.headers['Cookie'] = savedCookie;
         final resp = await client.send(req);
         final location = resp.headers['location'];
         if (location == null || location.isEmpty) break;
         current = current.resolve(location);
       }
-      final m = RegExp(r'(\d{15,})').firstMatch(current.toString());
-      if (m == null) throw DouyinParseException('无法从链接提取 aweme_id');
-      return m.group(1)!;
+      final id = _idFromUrl(current.toString());
+      if (id != null) return id;
+      throw DouyinParseException('无法从链接提取 aweme_id');
     } finally {
       client.close();
     }
+  }
+
+  static String? _idFromUrl(String url) {
+    final patterns = [
+      RegExp(r'/video/(\d+)'),
+      RegExp(r'/note/(\d+)'),
+      RegExp(r'/vsdetail/(\d+)'),
+      RegExp(r'[?&](?:modal_id|vid|aweme_id)=(\d+)'),
+    ];
+    for (final pattern in patterns) {
+      final m = pattern.firstMatch(url);
+      if (m != null) return m.group(1);
+    }
+    // 最后才用「任意 15 位以上数字」，避免误取时间戳等
+    final fallback = RegExp(r'(\d{15,})').firstMatch(url);
+    return fallback?.group(1);
   }
 
   /// 从 ttwid.bytedance.com 拿 ttwid（设备追踪 cookie）
