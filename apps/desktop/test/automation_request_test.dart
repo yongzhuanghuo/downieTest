@@ -1,3 +1,4 @@
+import 'package:downie_test/core/platform/automation_queue.dart';
 import 'package:downie_test/core/platform/automation_request.dart';
 import 'package:downie_test/data/models/download_task.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +32,19 @@ void main() {
     );
     expect(req!.postprocessing, PostprocessingMode.mp4);
     expect(req.openInUge, isTrue);
+  });
+
+  test('command-line queue keeps only valid links and drains', () {
+    AutomationQueue.seed([
+      '--some-flag',
+      'https://example.com/a',
+      'downie6://XUOpenURL?url=https%3A%2F%2Fexample.com%2Fb',
+    ]);
+    final pending = AutomationQueue.drain();
+    expect(pending, hasLength(2));
+    expect(pending.first.url, 'https://example.com/a');
+    expect(pending.last.url, 'https://example.com/b');
+    expect(AutomationQueue.drain(), isEmpty);
   });
 
   test('rejects malformed or non-http payloads', () {
