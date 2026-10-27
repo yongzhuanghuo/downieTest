@@ -2,9 +2,11 @@ site,className,domains,status,statusLabel,verified,priority,ytdlpExtractors,note
 Bilibili,BilibiliDownloader,https://bilibili.com;http://www.bilibili.tv;http://api.bilibili.com,native,原生插件,yes,P0,BiliBili,2026-10-27 样本解析通过
 Douyin,DouyinDownloader,https://www.douyin.com;https://live.douyin.com;https://music.douyin.com,native,原生插件,yes,P0,Douyin,
 TikTok,TikTokDownloader,https://www.tiktok.com,native,原生插件,no,P0,TikTok;tiktok:collection;tiktok:effect (CURRENTLY BROKEN);tiktok:live;tiktok:sound (CURRENTLY BROKEN);tiktok:tag (CURRENTLY BROKEN);tiktok:user,
+Weibo,WeiboDownloader,https://weibo.com;https://www.weibo.com;http://video.weibo.com,native,原生插件,no,P0,Weibo,
 BilibiliEmbed,BilibiliEmbedDownloader,,native,原生插件,no,P1,BiliBili,
 Iesdouyin,IesdouyinDownloader,https://www.iesdouyin.com,native,原生插件,yes,P1,,
 Kuaishou,KuaishouDownloader,https://www.kuaishou.com;https://live.kuaishou.com,native,原生插件,no,P1,,
+WeiboHTML5,WeiboHTML5Downloader,,native,原生插件,no,P1,Weibo,
 BilibiliBangumi,BilibiliBangumiDownloader,,native_partial,原生插件（部分）,no,P1,BiliBili;BiliBiliBangumi,
 AbemaTV,AbemaTVDownloader,,ytdlp,yt-dlp（待验证）,no,P0,AbemaTV,
 BBC,BBCDownloader,http://www.bbc.com;https://www.bbc.com;http://www.bbc.co.uk,ytdlp,yt-dlp（待验证）,no,P0,bbc,
@@ -30,7 +32,6 @@ Twitch,TwitchDownloader,https://twitch.tv;https://api.twitch.tv;https://gql.twit
 Twitter,TwitterDownloader,,ytdlp,yt-dlp（待验证）,no,P0,twitter;twitter:amplify;twitter:broadcast;twitter:card;twitter:shortener;twitter:spaces,
 Udemy,UdemyDownloader,https://www.udemy.com,ytdlp,yt-dlp（待验证）,no,P0,udemy;udemy:course,
 Vimeo,VimeoDownloader,http://vimeo.com;https://vimeo.com;https://vimeopro.com,ytdlp,yt-dlp（待验证）,no,P0,vimeo;vimeo:album;vimeo:channel;vimeo:event;vimeo:group;vimeo:likes;vimeo:ondemand;vimeo:pro,
-Weibo,WeiboDownloader,https://weibo.com;https://www.weibo.com;http://video.weibo.com,ytdlp,yt-dlp（待验证）,no,P0,Weibo,
 WeTV,WeTVDownloader,https://wetv.vip;https://play.wetv.vip,ytdlp,yt-dlp（待验证）,no,P0,wetv:episode,
 Youku,YoukuDownloader,http://youku.com;http://m.youku.com;http://v.youku.com,ytdlp,yt-dlp（待验证）,yes,P0,youku;youku:show,2026-10-27 样本解析通过
 YouTube,YouTubeDownloader,https://youtube.com;https://m.youtube.com;http://www.youtube.com,ytdlp,yt-dlp（待验证）,no,P0,youtube;youtube:clip;youtube:consent;youtube:favorites;youtube:history;youtube:music:search_url;youtube:notif;youtube:playlist,
@@ -730,7 +731,6 @@ Wav,WavDownloader,http://wav.tv;https://www.wavve.com;https://apis.wavve.com,gen
 WebCookingClasses,WebCookingClassesDownloader,http://www.webcookingclasses.com,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 Webinar,WebinarDownloader,https://events.webinar.ru,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 WebMD,WebMDDownloader,http://www.webmd.com;https://www.webmd.com;https://webmd-vh.akamaihd.net,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
-WeiboHTML5,WeiboHTML5Downloader,,generic,通用资源检测（未复刻）,no,P1,Weibo,未原生复刻，需通用资源检测/自定义集成验证
 WeiboLiveShow,WeiboLiveShowDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 WeiboShow,WeiboShowDownloader,,generic,通用资源检测（未复刻）,no,P1,Weibo,未原生复刻，需通用资源检测/自定义集成验证
 WeiboTVVideo,WeiboTVVideoDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证

@@ -2,10 +2,10 @@
  "generatedFrom": "Downie 4 v4.13.3 + yt-dlp 2026.07.04",
  "total": 786,
  "counts": {
-  "native": 6,
+  "native": 8,
   "native_partial": 1,
-  "ytdlp": 299,
-  "generic": 474,
+  "ytdlp": 298,
+  "generic": 473,
   "drm": 6
  },
  "sites": [
@@ -65,6 +65,23 @@
    "notes": ""
   },
   {
+   "site": "Weibo",
+   "className": "WeiboDownloader",
+   "domains": [
+    "https://weibo.com",
+    "https://www.weibo.com",
+    "http://video.weibo.com"
+   ],
+   "status": "native",
+   "statusLabel": "原生插件",
+   "verified": false,
+   "priority": "P0",
+   "ytdlpExtractors": [
+    "Weibo"
+   ],
+   "notes": ""
+  },
+  {
    "site": "BilibiliEmbed",
    "className": "BilibiliEmbedDownloader",
    "domains": [],
@@ -102,6 +119,19 @@
    "verified": false,
    "priority": "P1",
    "ytdlpExtractors": [],
+   "notes": ""
+  },
+  {
+   "site": "WeiboHTML5",
+   "className": "WeiboHTML5Downloader",
+   "domains": [],
+   "status": "native",
+   "statusLabel": "原生插件",
+   "verified": false,
+   "priority": "P1",
+   "ytdlpExtractors": [
+    "Weibo"
+   ],
    "notes": ""
   },
   {
@@ -536,23 +566,6 @@
     "vimeo:likes",
     "vimeo:ondemand",
     "vimeo:pro"
-   ],
-   "notes": ""
-  },
-  {
-   "site": "Weibo",
-   "className": "WeiboDownloader",
-   "domains": [
-    "https://weibo.com",
-    "https://www.weibo.com",
-    "http://video.weibo.com"
-   ],
-   "status": "ytdlp",
-   "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
-   "priority": "P0",
-   "ytdlpExtractors": [
-    "Weibo"
    ],
    "notes": ""
   },
@@ -10176,19 +10189,6 @@
    "verified": false,
    "priority": "P1",
    "ytdlpExtractors": [],
-   "notes": "未原生复刻，需通用资源检测/自定义集成验证"
-  },
-  {
-   "site": "WeiboHTML5",
-   "className": "WeiboHTML5Downloader",
-   "domains": [],
-   "status": "generic",
-   "statusLabel": "通用资源检测（未复刻）",
-   "verified": false,
-   "priority": "P1",
-   "ytdlpExtractors": [
-    "Weibo"
-   ],
    "notes": "未原生复刻，需通用资源检测/自定义集成验证"
   },
   {

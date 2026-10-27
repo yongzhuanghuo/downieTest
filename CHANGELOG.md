@@ -24,9 +24,17 @@
 - 从文件导入支持 XML
 - 新增启动时自动检查更新开关、禁用登录对话框、纯音频格式（MP3/M4A/Opus）
 - 新增 TikTok 原生解析：页面 hydration 数据、无水印多画质、短链展开、代理/登录 cookie
-- macOS 增加原生菜单栏：文件/编辑/窗口/帮助、打开链接、设置、历史、更新、退出
-- 新增快手原生插件：__APOLLO_STATE__ / VisionVideoDetailPhoto；失败回退 yt-dlp/UGE
 - 设置项持久化并带默认值，旧配置自动兼容
+
+## 2.0.20（2026-10-27）
+
+### 站点与 macOS 菜单
+
+- 新增快手原生插件：__APOLLO_STATE__ / VisionVideoDetailPhoto；失败回退 yt-dlp/UGE
+- 新增微博原生插件：ajax/statuses/show、media_info/stream_url、登录 cookie；无登录时提示登录
+- macOS 原生菜单栏：文件/窗口/帮助、打开链接、粘贴板添加、设置、历史、更新、退出
+- 站点覆盖：8 个原生（抖音/B站/B站嵌入/iesdouyin/TikTok/快手/微博/H5）+ 298 yt-dlp + 473 通用 + 6 DRM
+- 记录 22 条真实样本验证结果；通过样本的站点标记为已验证
 
 ## 2.0.18（2026-10-27）
 

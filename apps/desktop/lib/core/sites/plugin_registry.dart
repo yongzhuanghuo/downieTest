@@ -3,6 +3,7 @@ import 'plugins/douyin_plugin.dart';
 import 'plugins/generic_web_plugin.dart';
 import 'plugins/kuaishou_plugin.dart';
 import 'plugins/tiktok_plugin.dart';
+import 'plugins/weibo_plugin.dart';
 import 'site_plugin.dart';
 
 /// 站点插件注册表。
@@ -18,6 +19,7 @@ class PluginRegistry {
     BilibiliPlugin(),
     TikTokPlugin(),
     KuaishouPlugin(),
+    WeiboPlugin(),
     GenericWebPlugin(),
     // 后续：YouTubePlugin / InstagramPlugin / XPlugin
   ]);

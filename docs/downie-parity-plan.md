@@ -23,7 +23,7 @@ DownieCore 里有 786 个 `*Downloader` 类/变体，包含：
 
 | 指标 | 含义 | 当前 |
 |---|---|---|
-| **功能可用** | 用户给一个链接，能解析、选画质、下载、合并 | 原生 6 + yt-dlp 299（待逐站验证）+ 通用资源检测 474（兜底） |
+| **功能可用** | 用户给一个链接，能解析、选画质、下载、合并 | 原生 8 + yt-dlp 298（待逐站验证）+ 通用资源检测 473（兜底） |
 | **代码原生复刻** | 我们自己的插件按站点行为实现，不依赖 yt-dlp | 3 个：抖音、B 站普通视频、B 站番剧（单集） |
 
 ### 0.2 为什么不把 786 个下载器逐个抄一遍
@@ -55,10 +55,10 @@ DownieCore 里有 786 个 `*Downloader` 类/变体，包含：
 
 | 状态 | 数量 | 含义 | 是否算“复刻完成” |
 |---|---:|---|---|
-| 原生插件 | 6 | 抖音、B 站普通视频、B 站嵌入播放器、iesdouyin、TikTok、快手 | 部分已验证 |
+| 原生插件 | 8 | 抖音、B 站普通视频、B 站嵌入播放器、iesdouyin、TikTok、快手、微博/H5 | 部分已验证 |
 | 原生插件（部分） | 1 | B 站番剧：ep/ss 单集 | 部分 |
 | yt-dlp | 300 | 由 yt-dlp 负责；功能可用但未逐站验证 | 否（功能覆盖） |
-| 通用资源检测（未复刻） | 474 | 没有原生/已知 yt-dlp 提取器；靠自动嗅探 | 否 |
+| 通用资源检测（未复刻） | 473 | 没有原生/已知 yt-dlp 提取器；靠自动嗅探 | 否 |
 | DRM（不支持） | 6 | Disney/Apple 等 DRM 正片 | 不适用（Downie 也不下） |
 
 > 表里的 `yt-dlp` 是“功能覆盖”，不是“代码复刻”。我们要的是前者先达标，再按优先级把关键站点升级为后者。
@@ -72,7 +72,8 @@ DownieCore 里有 786 个 `*Downloader` 类/变体，包含：
 | B 站嵌入播放器 | `player.bilibili.com?bvid=/aid=` | 归一化为普通视频链接 | 2.0.19 已实现，待样本回归 |
 | B 站番剧 | `/bangumi/play/ep|ss` | PGC 接口；ss 取第一集 | 部分（选集待做） |
 | TikTok | `tiktok.com/@user/video`、`vm/vt.tiktok.com` 短链 | 页面 hydration + 无水印 bitrateInfo + 桌面 UA/Referer | 2.0.19 原生实现，单测通过，待真实下载回归 |
-| 快手 | `kuaishou.com/short-video/<id>`、`v.kuaishou.com` 短链 | `__APOLLO_STATE__` 的 VisionVideoDetailPhoto 节点 | 2.0.19 原生实现，单测通过，待真实下载回归 |
+| 快手 | `kuaishou.com/short-video/<id>`、`v.kuaishou.com` 短链 | `__APOLLO_STATE__` 的 VisionVideoDetailPhoto 节点 | 2.0.20 原生实现，单测通过，待真实下载回归 |
+| 微博 | `weibo.com/tv/show/<fid>`、`h5.video.weibo.com/show/<fid>`、正文链接 | `ajax/statuses/show` + media_info/stream_url；需要登录 cookie | 2.0.20 原生实现，单测通过，待真实登录回归 |
 
 ### 1.3 P0 站点（35 个）状态
 
