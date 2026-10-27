@@ -86,6 +86,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   Timer? _captureTimer;
   int _captureTries = 0;
   bool _reloadedAfterLogin = false;
+  String _currentPageUrl = '';
 
   String get _loginUrl => widget.initialUrl ?? widget.site.loginUrl;
 
@@ -161,7 +162,16 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   Future<void> _finish() async {
     setState(() => _saving = true);
     try {
-      await _captureDouyin();
+      if (widget.site.id == 'douyin') {
+        // 给视频页一点时间发起 aweme/detail；用户可能登录后立刻点 ✓
+        for (var i = 0; i < 12; i++) {
+          await _captureDouyin();
+          if (DouyinParser.cachedVideo(_loginUrl) != null) break;
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        }
+        debugPrint(
+            '[登录] 抖音缓存状态: ${DouyinParser.cachedVideo(_loginUrl) != null}');
+      }
       // Windows 上必须传 webViewEnvironment，否则 CookieManager 报 Cannot obtain the WebViewEnvironment
       final allCookies = await CookieManager.instance(
         webViewEnvironment: widget.environment,
@@ -261,17 +271,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         _pollTimer?.cancel();
         _captureTries = 0;
         unawaited(_captureDouyin());
-        // 登录后重新打开原始短链：此时带上登录态，短链才会跳到视频页，
-        // 页面自己的 aweme/detail 请求会被上面的 hook 截获。
-        if (widget.site.id == 'douyin' && !_reloadedAfterLogin) {
-          _reloadedAfterLogin = true;
-          final controller = _controller;
-          if (controller != null) {
-            unawaited(controller.loadUrl(
-              urlRequest: URLRequest(url: WebUri(_loginUrl)),
-            ));
-          }
-        }
+        _maybeReloadAfterLogin();
       }
     } catch (e) {
       debugPrint('[登录] 检测登录态失败: $e');
@@ -367,6 +367,27 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     }
   }
 
+  /// 登录后如果页面停在首页，再打开一次短链；如果已经在视频页，
+  /// 不要打断页面自己的 aweme/detail 请求。
+  void _maybeReloadAfterLogin() {
+    if (widget.site.id != 'douyin' ||
+        !_loginDetected ||
+        _reloadedAfterLogin ||
+        _pageLoading) {
+      return;
+    }
+    final onVideoPage =
+        RegExp(r'/(?:video|note)/\d+').hasMatch(_currentPageUrl);
+    _reloadedAfterLogin = true;
+    if (onVideoPage) return;
+    final controller = _controller;
+    if (controller == null) return;
+    debugPrint('[登录] 登录后重开短链: $_loginUrl');
+    unawaited(controller.loadUrl(
+      urlRequest: URLRequest(url: WebUri(_loginUrl)),
+    ));
+  }
+
   /// 读取登录 WebView 截获的 aweme/detail，写入解析缓存。
   Future<void> _captureDouyin() async {
     if (widget.site.id != 'douyin') return;
@@ -382,6 +403,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       final map = jsonDecode(_unwrap(raw)) as Map<String, dynamic>;
       final data = (map['data'] as String?) ?? '';
       final href = (map['href'] as String?) ?? '';
+      debugPrint(
+          '[登录] 抖音探测 #${_captureTries + 1}: href=$href data=${data.length}');
       if (data.isNotEmpty) {
         var cached = DouyinParser.cacheCaptured(_loginUrl, data);
         if (widget.initialUrl != null) {
@@ -657,16 +680,19 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                         },
                         onLoadStart: (controller, url) {
                           debugPrint('[登录] 开始加载: $url');
+                          if (url != null) _currentPageUrl = url.toString();
                           if (mounted && !_pageLoading) {
                             setState(() => _pageLoading = true);
                           }
                         },
                         onLoadStop: (controller, url) {
                           debugPrint('[登录] 加载完成: $url');
+                          if (url != null) _currentPageUrl = url.toString();
                           if (mounted && _pageLoading) {
                             setState(() => _pageLoading = false);
                           }
                           _detectLogin();
+                          _maybeReloadAfterLogin();
                           _captureTries = 0;
                           unawaited(_captureDouyin());
                         },

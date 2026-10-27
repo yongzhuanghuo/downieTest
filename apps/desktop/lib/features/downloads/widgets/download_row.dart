@@ -328,6 +328,15 @@ class DownloadRow extends ConsumerWidget {
             case 'priority:high':
               await notifier.setPriority(task.id, DownloadPriority.high);
               break;
+            case 'subtitles':
+              await notifier.setDownloadSubtitles(
+                task.id,
+                !task.downloadSubtitles,
+              );
+              break;
+            case 'cover':
+              await notifier.setDownloadCover(task.id, !task.downloadCover);
+              break;
             case 'pause':
               await notifier.pause(task.id);
               break;
@@ -355,6 +364,18 @@ class DownloadRow extends ConsumerWidget {
                 checked: task.priority == priority,
                 child: Text(priority.label),
               ),
+          ],
+          if (task.status == DownloadStatus.pending) ...[
+            CheckedPopupMenuItem(
+              value: 'subtitles',
+              checked: task.downloadSubtitles,
+              child: const Text('下载字幕'),
+            ),
+            CheckedPopupMenuItem(
+              value: 'cover',
+              checked: task.downloadCover,
+              child: const Text('保存缩略图'),
+            ),
           ],
           if (task.isPaused)
             const PopupMenuItem(value: 'resume', child: Text('继续下载'))
@@ -409,13 +430,26 @@ class DownloadRow extends ConsumerWidget {
   }
 
   String _metaText(DownloadTask task) {
+    final host = Uri.tryParse(task.url)?.host ?? '';
+    final site = host.isNotEmpty ? host : task.extractor;
     final parts = <String>[
       if (task.priority != DownloadPriority.normal) task.priority.label,
-      if (task.extractor.isNotEmpty) task.extractor,
+      if (site.isNotEmpty) site,
       if (task.formatLabel.isNotEmpty) task.formatLabel,
-      if (task.fileSize > 0) _formatBytes(task.fileSize),
+      if (task.duration > 0) _formatDuration(task.duration),
     ];
-    return parts.join(' · ');
+    return parts.join(' - ');
+  }
+
+  String _formatDuration(int seconds) {
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    if (h > 0) {
+      return '$h:${m.toString().padLeft(2, '0')}:'
+          '${s.toString().padLeft(2, '0')}';
+    }
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   String _statusLine(DownloadTask task) {
@@ -483,18 +517,6 @@ class DownloadRow extends ConsumerWidget {
     } catch (e) {
       debugPrint('[下载行] 打开目录失败: $e');
     }
-  }
-
-  String _formatBytes(int bytes) {
-    if (bytes <= 0) return '';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    double value = bytes.toDouble();
-    var unit = 0;
-    while (value >= 1024 && unit < units.length - 1) {
-      value /= 1024;
-      unit++;
-    }
-    return '${value.toStringAsFixed(unit == 0 ? 0 : 1)}${units[unit]}';
   }
 
   String _formatSpeed(int bps) {

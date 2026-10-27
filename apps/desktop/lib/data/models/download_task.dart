@@ -58,6 +58,9 @@ class DownloadTask {
   /// 视频标题
   final String title;
 
+  /// 视频时长（秒，0=未知）
+  final int duration;
+
   /// 缩略图 URL
   final String thumbnail;
 
@@ -131,6 +134,7 @@ class DownloadTask {
     required this.id,
     required this.url,
     required this.title,
+    this.duration = 0,
     required this.thumbnail,
     required this.extractor,
     required this.formatId,
@@ -163,6 +167,7 @@ class DownloadTask {
     DownloadStatus? status,
     Object? progress = _unset,
     String? title,
+    int? duration,
     String? formatId,
     String? formatLabel,
     int? height,
@@ -186,6 +191,7 @@ class DownloadTask {
       id: id,
       url: url,
       title: title ?? this.title,
+      duration: duration ?? this.duration,
       thumbnail: thumbnail,
       extractor: extractor,
       formatId: formatId ?? this.formatId,
@@ -276,6 +282,7 @@ class DownloadTask {
       id: map['id'] as String,
       url: map['url'] as String,
       title: (map['title'] as String?) ?? '',
+      duration: (map['duration'] as num?)?.toInt() ?? 0,
       thumbnail: (map['thumb_url'] as String?) ?? '',
       extractor: (map['source'] as String?) ?? 'Unknown',
       formatId: map['format_id'] as String,
@@ -316,6 +323,7 @@ class DownloadTask {
       'id': id,
       'url': url,
       'title': title,
+      'duration': duration,
       'thumb_url': thumbnail,
       'format_id': formatId,
       'format_label': formatLabel,

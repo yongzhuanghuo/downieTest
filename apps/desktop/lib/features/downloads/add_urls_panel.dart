@@ -330,24 +330,6 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
           Row(
             children: [
               Checkbox(
-                value: _downloadSubtitles,
-                onChanged: _busy
-                    ? null
-                    : (value) =>
-                        setState(() => _downloadSubtitles = value ?? false),
-              ),
-              const Text('下载字幕', style: TextStyle(fontSize: 12)),
-              const SizedBox(width: AppSpacing.lg),
-              Checkbox(
-                value: _downloadCover,
-                onChanged: _busy
-                    ? null
-                    : (value) =>
-                        setState(() => _downloadCover = value ?? false),
-              ),
-              const Text('下载封面', style: TextStyle(fontSize: 12)),
-              const SizedBox(width: AppSpacing.lg),
-              Checkbox(
                 value: _expandPlaylist,
                 onChanged: _busy
                     ? null

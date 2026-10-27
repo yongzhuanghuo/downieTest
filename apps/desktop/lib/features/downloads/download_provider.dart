@@ -139,6 +139,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       id: const Uuid().v4(),
       url: videoInfo.url,
       title: videoInfo.title,
+      duration: videoInfo.duration,
       thumbnail: videoInfo.thumbnail,
       extractor: videoInfo.extractor,
       formatId: format.formatId,
@@ -171,6 +172,20 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       default:
         return PostprocessingMode.none;
     }
+  }
+
+  /// 等待中的任务是否下载字幕
+  Future<void> setDownloadSubtitles(String id, bool value) async {
+    final task = _find(id);
+    if (task == null || task.status != DownloadStatus.pending) return;
+    await _apply(id, (t) => t.copyWith(downloadSubtitles: value));
+  }
+
+  /// 等待中的任务是否保存缩略图
+  Future<void> setDownloadCover(String id, bool value) async {
+    final task = _find(id);
+    if (task == null || task.status != DownloadStatus.pending) return;
+    await _apply(id, (t) => t.copyWith(downloadCover: value));
   }
 
   /// 修改下载完成后的处理方式（下载中也可改，完成时读取最新值）

@@ -47,6 +47,7 @@ class DownloadsDao {
       {
         'status': task.status.index,
         'title': task.title,
+        'duration': task.duration,
         'postprocessing': task.postprocessing.name,
         'priority': task.priority.index,
         'download_subtitles': task.downloadSubtitles ? 1 : 0,

@@ -11,7 +11,7 @@ class AppDatabase {
   AppDatabase._();
 
   static const _dbName = 'downlo_pro.db';
-  static const _dbVersion = 3;
+  static const _dbVersion = 4;
 
   static Database? _instance;
 
@@ -50,6 +50,7 @@ class AppDatabase {
         id TEXT PRIMARY KEY,
         url TEXT NOT NULL,
         title TEXT,
+        duration INTEGER DEFAULT 0,
         thumb_url TEXT,
         format_id TEXT NOT NULL,
         format_label TEXT,
@@ -97,6 +98,11 @@ class AppDatabase {
       );
       await db.execute(
         'ALTER TABLE downloads ADD COLUMN download_cover INTEGER DEFAULT 0',
+      );
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+        'ALTER TABLE downloads ADD COLUMN duration INTEGER DEFAULT 0',
       );
     }
   }

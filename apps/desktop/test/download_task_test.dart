@@ -32,6 +32,12 @@ void main() {
     expect(restored.availableFormats, isEmpty); // 格式列表不持久化
   });
 
+  test('duration survives map round-trip', () {
+    final task = _task().copyWith(duration: 738);
+    expect(task.duration, 738);
+    expect(DownloadTask.fromMap(task.toMap()).duration, 738);
+  });
+
   test('priority and subtitle flags survive map round-trip', () {
     final task = _task().copyWith(
       priority: DownloadPriority.high,
