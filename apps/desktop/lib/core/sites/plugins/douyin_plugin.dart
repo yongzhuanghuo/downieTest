@@ -17,10 +17,35 @@ class DouyinPlugin extends SitePlugin {
   @override
   bool matches(Uri uri, String rawInput) {
     final host = uri.host.toLowerCase();
-    return host == 'douyin.com' ||
-        host.endsWith('.douyin.com') ||
-        host == 'iesdouyin.com' ||
-        host.endsWith('.iesdouyin.com');
+    final path = uri.path.toLowerCase();
+    final query = uri.queryParameters;
+
+    // 短链：v.douyin.com/xxxx
+    if (host == 'v.douyin.com' || host.endsWith('.v.douyin.com')) {
+      return true;
+    }
+
+    final isDouyin =
+        host == 'douyin.com' || host.endsWith('.douyin.com');
+    final isIes =
+        host == 'iesdouyin.com' || host.endsWith('.iesdouyin.com');
+    if (!isDouyin && !isIes) return false;
+
+    // 直播/音乐等子域交给 yt-dlp / 通用资源检测，不能在这里一律吞掉。
+    if (host.startsWith('live.') || host.startsWith('music.')) return false;
+
+    final hasVideoQuery = query.containsKey('modal_id') ||
+        query.containsKey('vid') ||
+        query.containsKey('aweme_id');
+    if (hasVideoQuery) return true;
+
+    return path.startsWith('/video/') ||
+        path.startsWith('/note/') ||
+        path.startsWith('/vsdetail/') ||
+        path.startsWith('/share/video/') ||
+        path.startsWith('/share/note/') ||
+        path.startsWith('/share/vsdetail/') ||
+        path.startsWith('/share/user/');
   }
 
   @override

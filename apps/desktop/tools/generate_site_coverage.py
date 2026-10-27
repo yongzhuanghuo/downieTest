@@ -35,6 +35,7 @@ NATIVE = {
     "DouyinDownloader",
     "IesdouyinDownloader",
     "BilibiliDownloader",
+    "BilibiliEmbedDownloader",
 }
 NATIVE_PARTIAL = {"BilibiliBangumiDownloader"}
 

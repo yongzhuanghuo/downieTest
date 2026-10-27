@@ -2,10 +2,10 @@
  "generatedFrom": "Downie 4 v4.13.3 + yt-dlp 2026.07.04",
  "total": 786,
  "counts": {
-  "native": 3,
+  "native": 4,
   "native_partial": 1,
   "ytdlp": 300,
-  "generic": 476,
+  "generic": 475,
   "drm": 6
  },
  "sites": [
@@ -40,6 +40,19 @@
    "priority": "P0",
    "ytdlpExtractors": [
     "Douyin"
+   ],
+   "notes": ""
+  },
+  {
+   "site": "BilibiliEmbed",
+   "className": "BilibiliEmbedDownloader",
+   "domains": [],
+   "status": "native",
+   "statusLabel": "原生插件",
+   "verified": true,
+   "priority": "P1",
+   "ytdlpExtractors": [
+    "BiliBili"
    ],
    "notes": ""
   },
@@ -5343,19 +5356,6 @@
   {
    "site": "BilibiliCool",
    "className": "BilibiliCoolDownloader",
-   "domains": [],
-   "status": "generic",
-   "statusLabel": "通用资源检测（未复刻）",
-   "verified": false,
-   "priority": "P1",
-   "ytdlpExtractors": [
-    "BiliBili"
-   ],
-   "notes": "未原生复刻，需通用资源检测/自定义集成验证"
-  },
-  {
-   "site": "BilibiliEmbed",
-   "className": "BilibiliEmbedDownloader",
    "domains": [],
    "status": "generic",
    "statusLabel": "通用资源检测（未复刻）",

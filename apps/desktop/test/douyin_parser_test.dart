@@ -1,9 +1,29 @@
 import 'dart:convert';
 
 import 'package:downie_test/core/engine/douyin_parser.dart';
+import 'package:downie_test/core/sites/plugins/douyin_plugin.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('DouyinPlugin only claims video-like URLs', () {
+    final plugin = DouyinPlugin();
+    bool match(String url) => plugin.matches(Uri.parse(url), url);
+    expect(match('https://www.douyin.com/video/7701030749851389219'), isTrue);
+    expect(match('https://www.douyin.com/note/7701030749851389219'), isTrue);
+    expect(match('https://v.douyin.com/VbqfzLlhxHw/'), isTrue);
+    expect(
+      match('https://www.iesdouyin.com/share/video/7701030749851389219/'),
+      isTrue,
+    );
+    expect(
+      match('https://www.douyin.com/user/x?modal_id=7701030749851389219'),
+      isTrue,
+    );
+    expect(match('https://live.douyin.com/123456'), isFalse);
+    expect(match('https://music.douyin.com/'), isFalse);
+    expect(match('https://www.douyin.com/'), isFalse);
+  });
+
   test('cacheCaptured parses aweme_detail and caches by id', () {
     const id = '7701030749851389219';
     final body = jsonEncode({

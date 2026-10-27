@@ -40,6 +40,11 @@ class BilibiliPlugin extends SitePlugin {
   bool matches(Uri uri, String rawInput) {
     final host = uri.host.toLowerCase();
     if (host == 'b23.tv' || host.endsWith('.b23.tv')) return true;
+    if (host == 'player.bilibili.com') {
+      return uri.queryParameters.containsKey('bvid') ||
+          uri.queryParameters.containsKey('aid') ||
+          uri.queryParameters.containsKey('avid');
+    }
     if (host == 'bilibili.com' || host.endsWith('.bilibili.com')) {
       return uri.path.startsWith('/video/') ||
           uri.path.startsWith('/bangumi/play/');
@@ -49,7 +54,19 @@ class BilibiliPlugin extends SitePlugin {
 
   @override
   Future<VideoInfo> parse(String url) async {
-    final resolved = await _expandShortLink(url);
+    var resolved = await _expandShortLink(url);
+    // 嵌入播放器：player.bilibili.com/player.html?bvid=... / aid=...
+    final inputUri = Uri.parse(resolved);
+    if (inputUri.host.toLowerCase() == 'player.bilibili.com') {
+      final bvid = inputUri.queryParameters['bvid'];
+      final aid = inputUri.queryParameters['aid'] ??
+          inputUri.queryParameters['avid'];
+      if (bvid != null && bvid.isNotEmpty) {
+        resolved = 'https://www.bilibili.com/video/$bvid';
+      } else if (aid != null && aid.isNotEmpty) {
+        resolved = 'https://www.bilibili.com/video/av$aid';
+      }
+    }
     final uri = Uri.parse(resolved);
 
     // 番剧：ep/ss 走 pgc 接口

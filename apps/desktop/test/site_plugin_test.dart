@@ -20,6 +20,14 @@ void main() {
         isTrue,
       );
       expect(
+        plugin.matches(Uri.parse('https://live.douyin.com/123'), ''),
+        isFalse,
+      );
+      expect(
+        plugin.matches(Uri.parse('https://www.douyin.com/'), ''),
+        isFalse,
+      );
+      expect(
         plugin.matches(Uri.parse('https://www.youtube.com/watch?v=abc'), ''),
         isFalse,
       );
@@ -47,6 +55,15 @@ void main() {
       expect(
         plugin.matches(
           Uri.parse('https://www.bilibili.com/bangumi/play/ss123'),
+          '',
+        ),
+        isTrue,
+      );
+      expect(
+        plugin.matches(
+          Uri.parse(
+            'https://player.bilibili.com/player.html?bvid=BV1xx411c7mD',
+          ),
           '',
         ),
         isTrue,

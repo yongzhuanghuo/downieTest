@@ -1,6 +1,7 @@
 site,className,domains,status,statusLabel,verified,priority,ytdlpExtractors,notes
 Bilibili,BilibiliDownloader,https://bilibili.com;http://www.bilibili.tv;http://api.bilibili.com,native,原生插件,yes,P0,BiliBili,
 Douyin,DouyinDownloader,https://www.douyin.com;https://live.douyin.com;https://music.douyin.com,native,原生插件,yes,P0,Douyin,
+BilibiliEmbed,BilibiliEmbedDownloader,,native,原生插件,yes,P1,BiliBili,
 Iesdouyin,IesdouyinDownloader,https://www.iesdouyin.com,native,原生插件,yes,P1,,
 BilibiliBangumi,BilibiliBangumiDownloader,,native_partial,原生插件（部分）,no,P1,BiliBili;BiliBiliBangumi,
 AbemaTV,AbemaTVDownloader,,ytdlp,yt-dlp（待验证）,no,P0,AbemaTV,
@@ -350,7 +351,6 @@ BBCVideos,BBCVideosDownloader,,generic,通用资源检测（未复刻）,no,P1,b
 BedBathAndBeyond,BedBathAndBeyondDownloader,https://video.bedbathandbeyond.com,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 BFIPlayer,BFIPlayerDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 BilibiliCool,BilibiliCoolDownloader,,generic,通用资源检测（未复刻）,no,P1,BiliBili,未原生复刻，需通用资源检测/自定义集成验证
-BilibiliEmbed,BilibiliEmbedDownloader,,generic,通用资源检测（未复刻）,no,P1,BiliBili,未原生复刻，需通用资源检测/自定义集成验证
 BilibiliInternational,BilibiliInternationalDownloader,,generic,通用资源检测（未复刻）,no,P1,BiliBili,未原生复刻，需通用资源检测/自定义集成验证
 BilibiliMovie,BilibiliMovieDownloader,,generic,通用资源检测（未复刻）,no,P1,BiliBili,未原生复刻，需通用资源检测/自定义集成验证
 BilibiliNew,BilibiliNewDownloader,,generic,通用资源检测（未复刻）,no,P1,BiliBili,未原生复刻，需通用资源检测/自定义集成验证
