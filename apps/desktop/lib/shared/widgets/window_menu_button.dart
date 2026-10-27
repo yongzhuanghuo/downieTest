@@ -267,7 +267,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
     final result = await FilePicker.platform.pickFiles(
       dialogTitle: '选择包含链接的文本文件',
       type: FileType.custom,
-      allowedExtensions: const ['txt', 'text', 'csv', 'md'],
+      allowedExtensions: const ['txt', 'text', 'csv', 'xml', 'md'],
     );
     final path = result?.files.firstOrNull?.path;
     if (path == null || !mounted) return;

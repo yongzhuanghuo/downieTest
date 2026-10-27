@@ -12,6 +12,7 @@ import '../../../shared/branding/app_brand.dart';
 import '../../../shared/theme/design_tokens.dart';
 import '../../settings/settings_provider.dart';
 import '../download_provider.dart';
+import '../task_debug_dialog.dart';
 
 /// 全宽下载行：缩略图 banner + 标题/状态/操作覆盖层。
 ///
@@ -339,6 +340,9 @@ class DownloadRow extends ConsumerWidget {
             case 'report':
               await _reportLink(task);
               break;
+            case 'debug':
+              await TaskDebugDialog.show(context, task);
+              break;
             case 'open':
               if (task.outputPath != null) {
                 await _openContainingFolder(task.outputPath!);
@@ -432,6 +436,8 @@ class DownloadRow extends ConsumerWidget {
           ],
           if (task.isRunning)
             const PopupMenuItem(value: 'cancel', child: Text('取消下载')),
+          const PopupMenuDivider(),
+          const PopupMenuItem(value: 'debug', child: Text('调试信息…')),
           if (task.isFinished)
             const PopupMenuItem(value: 'remove', child: Text('移除')),
         ],
