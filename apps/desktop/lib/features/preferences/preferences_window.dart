@@ -357,6 +357,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
+              title: const Text('按播放列表 / 番剧分文件夹'),
+              subtitle: const Text('例如 B站番剧名/第 1 集.mp4；可与按站点分文件夹叠加'),
+              value: settings.subfolderByPlaylist,
+              onChanged: notifier.setSubfolderByPlaylist,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
               title: const Text('每次询问保存位置'),
               subtitle: const Text('添加下载时先选择目录；取消则不加入队列'),
               value: settings.askForDestination,

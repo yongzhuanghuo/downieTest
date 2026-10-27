@@ -108,6 +108,9 @@ class DownloadTask {
   /// 本任务单独指定的保存目录（空=使用全局下载目录）
   final String destinationDir;
 
+  /// 所属播放列表/番剧名称（空=单视频）
+  final String playlistTitle;
+
   /// 当前状态
   final DownloadStatus status;
 
@@ -161,6 +164,7 @@ class DownloadTask {
     this.throttleKbps = 0,
     this.connections = 0,
     this.destinationDir = '',
+    this.playlistTitle = '',
     this.status = DownloadStatus.pending,
     this.progress,
     this.fileSize = 0,
@@ -195,6 +199,7 @@ class DownloadTask {
     int? throttleKbps,
     int? connections,
     String? destinationDir,
+    String? playlistTitle,
     int? fileSize,
     int? downloadedBytes,
     int? speed,
@@ -224,6 +229,7 @@ class DownloadTask {
       throttleKbps: throttleKbps ?? this.throttleKbps,
       connections: connections ?? this.connections,
       destinationDir: destinationDir ?? this.destinationDir,
+      playlistTitle: playlistTitle ?? this.playlistTitle,
       status: status ?? this.status,
       progress: identical(progress, _unset)
           ? this.progress
@@ -322,6 +328,7 @@ class DownloadTask {
       throttleKbps: (map['throttle_kbps'] as num?)?.toInt() ?? 0,
       connections: (map['connections'] as num?)?.toInt() ?? 0,
       destinationDir: (map['destination_dir'] as String?) ?? '',
+      playlistTitle: (map['playlist_title'] as String?) ?? '',
       audioOnly: (map['height'] as num?)?.toInt() == 0 &&
           (map['format_label'] as String?)?.toLowerCase().contains('音频') == true,
       status: DownloadStatus.values[(map['status'] as int?) ?? 0],
@@ -359,6 +366,7 @@ class DownloadTask {
       'throttle_kbps': throttleKbps,
       'connections': connections,
       'destination_dir': destinationDir,
+      'playlist_title': playlistTitle,
       'file_size': fileSize,
       'downloaded_bytes': downloadedBytes,
       'speed': speed,

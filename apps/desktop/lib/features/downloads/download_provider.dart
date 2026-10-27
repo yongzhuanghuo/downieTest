@@ -204,6 +204,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       downloadCover: downloadCover,
       throttleKbps: throttleKbps,
       destinationDir: taskDestination,
+      playlistTitle: videoInfo.playlistTitle,
       postprocessing: _defaultPostprocessing(),
       createdAt: DateTime.now(),
     );
@@ -315,6 +316,13 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         final site = sanitizePathSegment(task.extractor);
         targetDir = '$outputDir/${site.isEmpty ? 'Other' : site}';
         await Directory(targetDir).create(recursive: true);
+      }
+      if (settings.subfolderByPlaylist && task.playlistTitle.trim().isNotEmpty) {
+        final playlist = sanitizePathSegment(task.playlistTitle);
+        if (playlist.isNotEmpty) {
+          targetDir = '$targetDir/$playlist';
+          await Directory(targetDir).create(recursive: true);
+        }
       }
       final baseName = renderFilenameTemplate(
         settings.filenameTemplate,

@@ -423,6 +423,7 @@ class BilibiliPlugin extends SitePlugin {
       videoId: 'ep$epId',
       formats: formats,
       subtitleLangs: _subtitleLangs(playResult),
+      playlistTitle: seasonTitle,
       rawJson: <String, dynamic>{'season': result, 'episode': ep},
     );
   }

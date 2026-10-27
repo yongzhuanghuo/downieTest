@@ -358,7 +358,8 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '粘贴视频链接，自动解析并加入下载队列。',
+            '粘贴视频链接，自动解析并加入下载队列；'
+            '也支持 url/title/path 的 CSV/XML 导入。',
             style: TextStyle(fontSize: 12, color: secondary),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -369,7 +370,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
             maxLines: 4,
             style: TextStyle(fontSize: 13, color: text),
             decoration: const InputDecoration(
-              hintText: 'https://...\n支持一次粘贴多条链接；抖音、B站、YouTube 等',
+              hintText: 'https://...\n支持一次粘贴多条链接；也可粘贴 url/title/path CSV 或 <downloads> XML',
             ),
           ),
           if (_error != null) ...[

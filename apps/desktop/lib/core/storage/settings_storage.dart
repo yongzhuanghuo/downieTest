@@ -63,6 +63,9 @@ class AppSettings {
   /// 是否按来源站点建子文件夹
   final bool subfolderBySite;
 
+  /// 按播放列表/番剧分文件夹
+  final bool subfolderByPlaylist;
+
   /// 每次添加下载时询问保存目录
   final bool askForDestination;
 
@@ -163,6 +166,7 @@ class AppSettings {
     this.subtitleLangs = '',
     this.filenameTemplate = '{title}',
     this.subfolderBySite = false,
+    this.subfolderByPlaylist = false,
     this.askForDestination = false,
     this.autoUgeUnsupported = false,
     this.qualityPreference = 0,
@@ -211,6 +215,7 @@ class AppSettings {
     subtitleLangs: '',
     filenameTemplate: '{title}',
     subfolderBySite: false,
+    subfolderByPlaylist: false,
     askForDestination: false,
     autoUgeUnsupported: false,
     qualityPreference: 0,
@@ -259,6 +264,7 @@ class AppSettings {
     String? subtitleLangs,
     String? filenameTemplate,
     bool? subfolderBySite,
+    bool? subfolderByPlaylist,
     bool? askForDestination,
     bool? autoUgeUnsupported,
     int? qualityPreference,
@@ -310,6 +316,8 @@ class AppSettings {
       subtitleLangs: subtitleLangs ?? this.subtitleLangs,
       filenameTemplate: filenameTemplate ?? this.filenameTemplate,
       subfolderBySite: subfolderBySite ?? this.subfolderBySite,
+      subfolderByPlaylist:
+          subfolderByPlaylist ?? this.subfolderByPlaylist,
       askForDestination:
           askForDestination ?? this.askForDestination,
       autoUgeUnsupported:
@@ -427,6 +435,8 @@ class SettingsStorage {
         filenameTemplate:
             (raw['filenameTemplate'] as String?) ?? '{title}',
         subfolderBySite: (raw['subfolderBySite'] as bool?) ?? false,
+        subfolderByPlaylist:
+            (raw['subfolderByPlaylist'] as bool?) ?? false,
         askForDestination:
             (raw['askForDestination'] as bool?) ?? false,
         autoUgeUnsupported:
@@ -518,6 +528,7 @@ class SettingsStorage {
       'subtitleLangs': settings.subtitleLangs,
       'filenameTemplate': settings.filenameTemplate,
       'subfolderBySite': settings.subfolderBySite,
+      'subfolderByPlaylist': settings.subfolderByPlaylist,
       'askForDestination': settings.askForDestination,
       'autoUgeUnsupported': settings.autoUgeUnsupported,
       'qualityPreference': settings.qualityPreference,

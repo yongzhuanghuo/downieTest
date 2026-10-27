@@ -80,6 +80,11 @@ void main() {
     );
   });
 
+  test('playlist title survives map round-trip', () {
+    final task = _task().copyWith(playlistTitle: '示例番剧');
+    expect(DownloadTask.fromMap(task.toMap()).playlistTitle, '示例番剧');
+  });
+
   test('copyWith can clear nullable fields', () {
     final task = _task().copyWith(
       error: 'boom',

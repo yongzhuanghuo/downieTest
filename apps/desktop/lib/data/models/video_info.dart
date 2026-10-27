@@ -32,6 +32,9 @@ class VideoInfo {
   /// 可用字幕语言列表
   final List<String> subtitleLangs;
 
+  /// 所属播放列表/番剧名称（空=单视频）
+  final String playlistTitle;
+
   /// 原始 JSON（调试用）
   final Map<String, dynamic>? rawJson;
 
@@ -45,6 +48,7 @@ class VideoInfo {
     required this.videoId,
     required this.formats,
     this.subtitleLangs = const [],
+    this.playlistTitle = '',
     this.rawJson,
   });
 
@@ -91,5 +95,6 @@ class VideoInfo {
         'videoId': videoId,
         'formats': formats.map((f) => f.toJson()).toList(),
         'subtitleLangs': subtitleLangs,
+        'playlistTitle': playlistTitle,
       };
 }

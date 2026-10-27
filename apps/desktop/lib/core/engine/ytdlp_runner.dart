@@ -227,6 +227,7 @@ class YtDlpRunner {
             needsMerge: true,
           ),
         ],
+        playlistTitle: json['playlist_title'] as String? ?? '',
         rawJson: json,
       ));
     }
