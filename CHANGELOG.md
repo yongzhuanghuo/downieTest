@@ -13,6 +13,7 @@
 - 通用 HTML 提取增强：data-src 懒加载、itemprop/contentUrl、video_url/play_url/hls_url 等字段
 - macOS 原生菜单新增「浏览器」：登录浏览器、用户自定义视频提取
 - 浏览器扩展新增安装向导（Chrome/Edge 加载已解压扩展、Firefox 书签方案）
+- 站点覆盖修正：Odysee 归入 yt-dlp（lbry 提取器），当前 299 yt-dlp / 472 通用
 
 ## 2.0.20（2026-10-27）
 

@@ -4,8 +4,8 @@
  "counts": {
   "native": 9,
   "native_partial": 0,
-  "ytdlp": 298,
-  "generic": 473,
+  "ytdlp": 299,
+  "generic": 472,
   "drm": 6
  },
  "sites": [
@@ -380,6 +380,24 @@
    "priority": "P0",
    "ytdlpExtractors": [
     "NBC"
+   ],
+   "notes": ""
+  },
+  {
+   "site": "Odysee",
+   "className": "OdyseeDownloader",
+   "domains": [
+    "https://odysee.com",
+    "https://api.na-backend.odysee.com"
+   ],
+   "status": "ytdlp",
+   "statusLabel": "yt-dlp（待验证）",
+   "verified": false,
+   "priority": "P0",
+   "ytdlpExtractors": [
+    "lbry",
+    "lbry:channel",
+    "lbry:playlist"
    ],
    "notes": ""
   },
@@ -4831,20 +4849,6 @@
    "priority": "P0",
    "ytdlpExtractors": [],
    "notes": "generic/base；未原生复刻，需通用资源检测/自定义集成验证"
-  },
-  {
-   "site": "Odysee",
-   "className": "OdyseeDownloader",
-   "domains": [
-    "https://odysee.com",
-    "https://api.na-backend.odysee.com"
-   ],
-   "status": "generic",
-   "statusLabel": "通用资源检测（未复刻）",
-   "verified": false,
-   "priority": "P0",
-   "ytdlpExtractors": [],
-   "notes": "未原生复刻，需通用资源检测/自定义集成验证"
   },
   {
    "site": "Wavve",

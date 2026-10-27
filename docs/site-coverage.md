@@ -10,8 +10,8 @@
 |---|---:|---|
 | 原生插件 | 9 | 我们自己的解析/下载实现 |
 | 原生插件（部分） | 0 | 原生实现只覆盖部分链接形态 |
-| yt-dlp | 298 | 功能可用（由 yt-dlp 负责），但不是 Downie 代码复刻；仍需逐站验证 |
-| 通用资源检测（未复刻） | 473 | 没有原生/已知提取器，只能靠通用 HTML/WebView 嗅探；未逐站验证 |
+| yt-dlp | 299 | 功能可用（由 yt-dlp 负责），但不是 Downie 代码复刻；仍需逐站验证 |
+| 通用资源检测（未复刻） | 472 | 没有原生/已知提取器，只能靠通用 HTML/WebView 嗅探；未逐站验证 |
 | DRM（不支持） | 6 | Downie 自身也拒绝的 DRM 正片 |
 
 > 重要：`yt-dlp` 不等于“原生复刻”。本表把“能下载”和“代码复刻”分开标注，避免把 yt-dlp 覆盖误报成已完成站点。
@@ -69,6 +69,7 @@
 | MTV | MTVDownloader | http://www.mtv.com, http://media.mtvnservices.com, https://media-utils.mtvnservices.com | yt-dlp（待验证） | 否 | P0 |  |
 | Naver | NaverDownloader | http://tv.naver.com, https://m.naver.com, http://m.tv.naver.com | yt-dlp（待验证） | 否 | P0 |  |
 | NBC | NBCDownloader | https://api.nbc.com, https://www.nbc.com, http://www.msnbc.com | yt-dlp（待验证） | 否 | P0 |  |
+| Odysee | OdyseeDownloader | https://odysee.com, https://api.na-backend.odysee.com | yt-dlp（待验证） | 否 | P0 |  |
 | PBS | PBSDownloader | https://pbskids.org, https://player.pbs.org, https://www.pbslearningmedia.org | yt-dlp（待验证） | 否 | P0 |  |
 | Pinterest | PinterestDownloader | https://www.pinterest.at, https://www.pinterest.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | Radiko | RadikoDownloader | https://radiko.jp, https://api.radiko.jp | yt-dlp（待验证） | 否 | P0 |  |
@@ -83,7 +84,6 @@
 | Youku | YoukuDownloader | http://youku.com, http://m.youku.com, http://v.youku.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | YouTube | YouTubeDownloader | https://youtube.com, https://m.youtube.com, http://www.youtube.com | yt-dlp（待验证） | 否 | P0 |  |
 | JWPlayer | JWPlayerDownloader | https://cdn.jwplayer.com | 通用资源检测（未复刻） | 否 | P0 | generic/base；未原生复刻，需通用资源检测/自定义集成验证 |
-| Odysee | OdyseeDownloader | https://odysee.com, https://api.na-backend.odysee.com | 通用资源检测（未复刻） | 否 | P0 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | Wavve | WavveDownloader | https://www.wavve.com, https://apis.wavve.com | 通用资源检测（未复刻） | 否 | P0 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | Disney | DisneyDownloader | http://video.disney.com, http://watchdisneyxd.go.com | DRM（不支持） | 否 | P0 | DRM host: Downie refuses |
 
@@ -119,6 +119,7 @@
 | MTV | MTVDownloader | http://www.mtv.com, http://media.mtvnservices.com, https://media-utils.mtvnservices.com | yt-dlp（待验证） | 否 | P0 |  |
 | Naver | NaverDownloader | http://tv.naver.com, https://m.naver.com, http://m.tv.naver.com | yt-dlp（待验证） | 否 | P0 |  |
 | NBC | NBCDownloader | https://api.nbc.com, https://www.nbc.com, http://www.msnbc.com | yt-dlp（待验证） | 否 | P0 |  |
+| Odysee | OdyseeDownloader | https://odysee.com, https://api.na-backend.odysee.com | yt-dlp（待验证） | 否 | P0 |  |
 | PBS | PBSDownloader | https://pbskids.org, https://player.pbs.org, https://www.pbslearningmedia.org | yt-dlp（待验证） | 否 | P0 |  |
 | Pinterest | PinterestDownloader | https://www.pinterest.at, https://www.pinterest.com | yt-dlp（待验证） | 是 | P0 | 2026-10-27 样本解析通过 |
 | Radiko | RadikoDownloader | https://radiko.jp, https://api.radiko.jp | yt-dlp（待验证） | 否 | P0 |  |
@@ -409,7 +410,6 @@
 | 站点 | Downie 类 | 域名 | 状态 | 已验证 | 优先级 | 备注 |
 |---|---|---|---|---|---|---|
 | JWPlayer | JWPlayerDownloader | https://cdn.jwplayer.com | 通用资源检测（未复刻） | 否 | P0 | generic/base；未原生复刻，需通用资源检测/自定义集成验证 |
-| Odysee | OdyseeDownloader | https://odysee.com, https://api.na-backend.odysee.com | 通用资源检测（未复刻） | 否 | P0 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | Wavve | WavveDownloader | https://www.wavve.com, https://apis.wavve.com | 通用资源检测（未复刻） | 否 | P0 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | ABCiView | ABCiViewDownloader |  | 通用资源检测（未复刻） | 否 | P1 | 未原生复刻，需通用资源检测/自定义集成验证 |
 | ABCShows | ABCShowsDownloader |  | 通用资源检测（未复刻） | 否 | P1 | 未原生复刻，需通用资源检测/自定义集成验证 |

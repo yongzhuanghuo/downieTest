@@ -22,6 +22,7 @@ MLB,MLBDownloader,https://www.mlb.com;https://dapi.cms.mlbinfra.com;https://medi
 MTV,MTVDownloader,http://www.mtv.com;http://media.mtvnservices.com;https://media-utils.mtvnservices.com,ytdlp,yt-dlp（待验证）,no,P0,mtv,
 Naver,NaverDownloader,http://tv.naver.com;https://m.naver.com;http://m.tv.naver.com,ytdlp,yt-dlp（待验证）,no,P0,Naver;Naver:live,
 NBC,NBCDownloader,https://api.nbc.com;https://www.nbc.com;http://www.msnbc.com,ytdlp,yt-dlp（待验证）,no,P0,NBC,
+Odysee,OdyseeDownloader,https://odysee.com;https://api.na-backend.odysee.com,ytdlp,yt-dlp（待验证）,no,P0,lbry;lbry:channel;lbry:playlist,
 PBS,PBSDownloader,https://pbskids.org;https://player.pbs.org;https://www.pbslearningmedia.org,ytdlp,yt-dlp（待验证）,no,P0,pbs,
 Pinterest,PinterestDownloader,https://www.pinterest.at;https://www.pinterest.com,ytdlp,yt-dlp（待验证）,yes,P0,Pinterest,2026-10-27 样本解析通过
 Radiko,RadikoDownloader,https://radiko.jp;https://api.radiko.jp,ytdlp,yt-dlp（待验证）,no,P0,Radiko,
@@ -307,7 +308,6 @@ Zoom,ZoomDownloader,https://zoom.us;https://trhc.zoom.us;https://us02web.zoom.us
 Zype,ZypeDownloader,https://player.zype.com,ytdlp,yt-dlp（待验证）,no,P1,Zype,
 XU,XUDownloader,https://article.xuexi.cn,ytdlp,yt-dlp（待验证）,no,P2,,generic/base
 JWPlayer,JWPlayerDownloader,https://cdn.jwplayer.com,generic,通用资源检测（未复刻）,no,P0,,generic/base；未原生复刻，需通用资源检测/自定义集成验证
-Odysee,OdyseeDownloader,https://odysee.com;https://api.na-backend.odysee.com,generic,通用资源检测（未复刻）,no,P0,,未原生复刻，需通用资源检测/自定义集成验证
 Wavve,WavveDownloader,https://www.wavve.com;https://apis.wavve.com,generic,通用资源检测（未复刻）,no,P0,,未原生复刻，需通用资源检测/自定义集成验证
 ABCiView,ABCiViewDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 ABCShows,ABCShowsDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证

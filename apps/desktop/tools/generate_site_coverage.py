@@ -44,6 +44,11 @@ NATIVE = {
     "BilibiliBangumiDownloader",
 }
 NATIVE_PARTIAL: set[str] = set()
+
+# Downie 类名与 yt-dlp 提取器名不同、但确认由 yt-dlp 覆盖的站点。
+EXTRACTOR_ALIASES = {
+    "OdyseeDownloader": "lbry",
+}
 VERIFIED_NATIVE = {
     "DouyinDownloader",
     "IesdouyinDownloader",
@@ -180,6 +185,14 @@ def classify(
     cls = row.get("class", "")
     site = row.get("site", "")
     matches = extractor_matches(row, extractors)
+    alias = EXTRACTOR_ALIASES.get(cls)
+    if alias:
+        alias_base = norm(alias)
+        matches = sorted({
+            full
+            for full in extractors
+            if norm(full.split(":")[0]) == alias_base
+        })
 
     if cls in NATIVE:
         status = "native"
@@ -187,7 +200,7 @@ def classify(
         status = "native_partial"
     elif is_drm(row):
         status = "drm"
-    elif row.get("ytdlp") == "yes":
+    elif row.get("ytdlp") == "yes" or alias:
         status = "ytdlp"
     else:
         status = "generic"
