@@ -1,7 +1,7 @@
 # Downie 4 功能 1:1 复刻执行计划
 
 - **基线**：Downie 4 v4.13.3（`com.charliemonroe.Downie-4`，build 4000）
-- **当前产品**：Downie6 2.0.24+25（Flutter，macOS + Windows）
+- **当前产品**：Downie6 2.0.25+26（Flutter，macOS + Windows）
 - **分析方式**：REA + Mach-O 符号 / 字符串 / Swift 元数据 / 内置 Help Book / Localizable.strings；不做源码复制
 - **站点全量表**：[site-coverage.md](site-coverage.md)（786 行） / [site-coverage.csv](site-coverage.csv)
 - **更新日期**：2026-10-27
