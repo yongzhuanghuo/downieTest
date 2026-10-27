@@ -27,6 +27,26 @@ void main() {
     expect(urls, contains('https://cdn.example.com/e.flv'));
   });
 
+  test('extracts lazy-loaded sources and itemprop/JSON video fields', () {
+    const html = '''
+<html><head>
+<meta itemprop="contentUrl" content="https://cdn.example.com/a.mp4">
+</head><body>
+<video data-src="/media/lazy.mp4"></video>
+<source data-url="https://cdn.example.com/b.m3u8">
+<script>window.__DATA__ = {"video_url":"https://cdn.example.com/c.mp4"};</script>
+</body></html>
+''';
+    final urls = GenericHtmlExtractor.extractMediaUrls(
+      html,
+      'https://example.com/page',
+    );
+    expect(urls, contains('https://cdn.example.com/a.mp4'));
+    expect(urls, contains('https://example.com/media/lazy.mp4'));
+    expect(urls, contains('https://cdn.example.com/b.m3u8'));
+    expect(urls, contains('https://cdn.example.com/c.mp4'));
+  });
+
   test('deduplicates and preserves order', () {
     const html = '''
 <video src="https://cdn.example.com/a.mp4"></video>

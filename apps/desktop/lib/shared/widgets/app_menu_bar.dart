@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/storage/site_registry.dart';
 import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/downloads/quick_add.dart';
+import '../../features/downloads/site_login_dialog.dart';
 import '../../features/help/help_window.dart';
 import '../../features/help/support_dialog.dart';
 import '../../features/history/history_window.dart';
@@ -116,6 +118,19 @@ class AppMenuBar extends ConsumerWidget {
         ],
       ),
       PlatformMenu(
+        label: '浏览器',
+        menus: [
+          PlatformMenuItem(
+            label: '登录浏览器…',
+            onSelected: _openLoginBrowser,
+          ),
+          PlatformMenuItem(
+            label: '用户自定义视频提取…',
+            onSelected: _openGuidedExtraction,
+          ),
+        ],
+      ),
+      PlatformMenu(
         label: '窗口',
         menus: [
           PlatformMenuItem(
@@ -183,6 +198,43 @@ class AppMenuBar extends ConsumerWidget {
   void _openUrls() {
     final ctx = _ctx;
     if (ctx != null) AddUrlsPanel.show(ctx);
+  }
+
+  Future<void> _openLoginBrowser() async {
+    final ctx = _ctx;
+    if (ctx == null) return;
+    final site = await showDialog<SiteConfig>(
+      context: ctx,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('登录浏览器'),
+        children: [
+          for (final site in kLoginSites)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(dialogContext).pop(site),
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(site.name),
+                subtitle: Text(site.domains.join(', ')),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (site == null || !ctx.mounted) return;
+    await SiteLoginDialog.show(ctx, site);
+  }
+
+  Future<void> _openGuidedExtraction() async {
+    final ctx = _ctx;
+    if (ctx == null) return;
+    String? text;
+    try {
+      final data = await Clipboard.getData('text/plain');
+      text = data?.text;
+    } catch (_) {}
+    if (!ctx.mounted) return;
+    await AddUrlsPanel.show(ctx, initialText: text);
   }
 
   Future<void> _addFromClipboard(WidgetRef ref) async {

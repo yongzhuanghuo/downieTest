@@ -142,13 +142,16 @@ class GenericHtmlExtractor {
     for (final tag in RegExp(r'<meta\b[^>]*>', caseSensitive: false)
         .allMatches(html)) {
       final raw = tag.group(0)!;
-      final key = _attribute(raw, 'property') ?? _attribute(raw, 'name');
+      final key = _attribute(raw, 'property') ??
+          _attribute(raw, 'name') ??
+          _attribute(raw, 'itemprop');
       if (key == null) continue;
       if (!const {
         'og:video',
         'og:video:url',
         'og:video:secure_url',
         'twitter:player:stream',
+        'contenturl',
       }.contains(key.toLowerCase())) {
         continue;
       }
@@ -156,16 +159,17 @@ class GenericHtmlExtractor {
       if (content != null) add(content);
     }
 
+    // 普通 src 与懒加载 data-src。
     for (final match in RegExp(
-      r'''<(?:video|source)\b[^>]*\bsrc\s*=\s*["']([^"']+)''',
+      r'''<(?:video|source)\b[^>]*\b(?:src|data-src|data-video-src|data-url)\s*=\s*["']([^"']+)''',
       caseSensitive: false,
     ).allMatches(html)) {
       add(match.group(1)!);
     }
 
-    // JSON-LD / 内联脚本里的 contentUrl
+    // JSON-LD / 内联脚本里的媒体字段。
     for (final match in RegExp(
-      r'''["']contentUrl["']\s*:\s*["']([^"']+)''',
+      r'''["'](?:contentUrl|videoUrl|video_url|playUrl|play_url|hlsUrl|hls_url|mp4Url|mp4_url|streamUrl|stream_url)["']\s*:\s*["']([^"']+)''',
       caseSensitive: false,
     ).allMatches(html)) {
       add(match.group(1)!);

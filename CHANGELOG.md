@@ -9,6 +9,10 @@
 - 新增「按播放列表 / 番剧分文件夹」；B 站番剧整季与 yt-dlp 播放列表共用（DB v8）
 - 高级设置新增 HTTP 分块大小（1/5/10 MB，对应 yt-dlp --http-chunk-size）
 - 高级设置新增自动化模式：抑制登录/画质/重复确认等阻塞对话框
+- 历史记录每行新增「打开原始链接」
+- 通用 HTML 提取增强：data-src 懒加载、itemprop/contentUrl、video_url/play_url/hls_url 等字段
+- macOS 原生菜单新增「浏览器」：登录浏览器、用户自定义视频提取
+- 浏览器扩展新增安装向导（Chrome/Edge 加载已解压扩展、Firefox 书签方案）
 
 ## 2.0.20（2026-10-27）
 

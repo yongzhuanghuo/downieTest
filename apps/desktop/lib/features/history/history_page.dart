@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/storage/downloads_dao.dart';
 import '../../data/models/download_task.dart';
@@ -208,6 +209,12 @@ class HistoryPage extends ConsumerWidget {
                     tooltip: '打开文件',
                     onPressed: () => _openFile(t.outputPath!),
                   ),
+                if (t.url.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.public),
+                    tooltip: '打开原始链接',
+                    onPressed: () => _openOriginal(t.url),
+                  ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: '从历史中删除',
@@ -256,6 +263,16 @@ class HistoryPage extends ConsumerWidget {
       }
     } catch (e) {
       debugPrint('[打开目录] 失败: $e');
+    }
+  }
+
+  Future<void> _openOriginal(String url) async {
+    try {
+      final uri = Uri.tryParse(url);
+      if (uri == null || !uri.hasScheme) return;
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('[打开原始链接] 失败: $e');
     }
   }
 

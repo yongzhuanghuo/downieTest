@@ -629,6 +629,10 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
                       icon: const Icon(Icons.extension_outlined, size: 14),
                       label: const Text('导出浏览器扩展'),
                     ),
+                    TextButton(
+                      onPressed: () => _showExtensionGuide(context),
+                      child: const Text('安装向导…'),
+                    ),
                   ],
                 ),
                 Text(
@@ -968,6 +972,34 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
         );
       }
     }
+  }
+
+  Future<void> _showExtensionGuide(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('浏览器扩展安装向导'),
+        content: const SizedBox(
+          width: 480,
+          child: SelectableText(
+            '1. 点击「导出浏览器扩展」，选择保存目录。\n'
+            '2. Chrome / Edge 打开扩展管理页，开启右上角「开发者模式」。\n'
+            '3. 点击「加载已解压的扩展程序」，选择刚导出的目录。\n'
+            '4. 按提示填写本页的浏览器桥接 token；工具会自动填写。\n'
+            '5. Firefox 暂不支持扩展，可先使用「复制书签脚本」作为书签。\n\n'
+            '安装后，在视频页面点击扩展图标或书签即可把链接发送到 '
+            'Downie6；扩展不会读取页面内容，只发送当前页面地址。',
+            style: TextStyle(fontSize: 12, height: 1.6),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _clearCookies(BuildContext context) async {
