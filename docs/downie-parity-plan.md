@@ -69,7 +69,7 @@ DownieCore 里有 786 个 `*Downloader` 类/变体，包含：
 | 抖音 | `douyin.com/video`、`iesdouyin.com/share/video`、短链 | WebView 持续捕获 `aweme/detail` + media 分轨兜底 | 2.0.17 已验证可下载 |
 | B 站普通视频 | `bilibili.com/video/BV/av`、`b23.tv` | WBI 签名 + DASH + ffmpeg 合并 | 已实现 |
 | B 站嵌入播放器 | `player.bilibili.com?bvid=/aid=` | 归一化为普通视频链接 | 2.0.19 已实现，待样本回归 |
-| B 站番剧 | `/bangumi/play/ep|ss` | PGC 接口；ss 取第一集 | 部分（选集待做） |
+| B 站番剧 | `/bangumi/play/ep`、`/bangumi/play/ss` | PGC 接口；ss 默认第一集，展开播放列表时整季逐集入队 | 2.0.20 已实现整季展开，待真实下载回归 |
 | TikTok | `tiktok.com/@user/video`、`vm/vt.tiktok.com` 短链 | 页面 hydration + 无水印 bitrateInfo + 桌面 UA/Referer | 2.0.19 原生实现，单测通过，待真实下载回归 |
 | 快手 | `kuaishou.com/short-video/<id>`、`v.kuaishou.com` 短链 | `__APOLLO_STATE__` 的 VisionVideoDetailPhoto 节点 | 2.0.20 原生实现，单测通过，待真实下载回归 |
 | 微博 | `weibo.com/tv/show/<fid>`、`h5.video.weibo.com/show/<fid>`、正文链接 | `ajax/statuses/show` + media_info/stream_url；需要登录 cookie | 2.0.20 原生实现，单测通过，待真实登录回归 |
@@ -78,7 +78,7 @@ DownieCore 里有 786 个 `*Downloader` 类/变体，包含：
 
 完整表见 [site-coverage.md](site-coverage.md) 的 P0 段。摘要：
 
-- 原生：Bilibili、Douyin
+- 原生：Bilibili（普通/嵌入/番剧）、Douyin、TikTok、Kuaishou、Weibo
 - yt-dlp：其余 P0 大部分
 - 需要重点验证：YouTube（PO Token/SABR）、Instagram、TikTok、X、Twitch、Facebook、Weibo、Youku、WeTV、Udemy（登录/限流/地区）
 
@@ -155,7 +155,7 @@ Downie 的关键长尾能力是 **Custom Integrations**（社区 JS 规则） + 
 | 1 | 画质选择 | 多画质时自动/询问/限制 360p–4K；Prefer MP4 | 2.0.19 已实现自动/询问/限制/优先 MP4 | P0 | 已完成，待逐站回归 |
 | 2 | 队列 | 暂停全部/重试全部/重置队列/清空未激活/排序 | 2.0.19 已实现全部命令 + 排序 | P0 | 已完成 |
 | 3 | 重复下载 | 检测已下载并询问 | 2.0.19 已实现 URL 去重询问 | P0 | 已完成 |
-| 4 | 限速/连接数 | 每任务限速、每任务连接数、分块下载 | 2.0.19 已实现全局限速/连接数（yt-dlp 路径） | P1 | 每任务限速待做 |
+| 4 | 限速/连接数 | 每任务限速、每任务连接数、分块下载 | 2.0.19 全局限速/连接数；2.0.20 每任务限速（DB v5）与连接数（DB v6） | P1 | 分块下载待做 |
 | 5 | 下载提示音 | 成功/失败多种提示音 | 2.0.19 已实现系统提示音开关 | P1 | 多音效待做 |
 | 6 | 完成后行为 | 退出程序/打开文件夹/加入 Apple Media | 2.0.19 已实现完成后退出/打开文件夹/通知 | P1 | Apple Media 未做 |
 | 7 | 菜单栏图标 | 菜单栏 popover 控制队列 | 2.0.19 已实现托盘菜单 | P1 | 已完成 |
@@ -172,7 +172,7 @@ Downie 的关键长尾能力是 **Custom Integrations**（社区 JS 规则） + 
 | 18 | 授权 | 14 天试用、邮箱、4 设备、签名令牌、心跳、Keychain | 14 天试用、设备/反激活；明文 Hive/HTTP | P1 | v2 见 rea 文档第 5 节 |
 | 19 | 自定义集成 | 注册表/提交/控制台/JS 执行 | 无 | P2 | S3 |
 | 20 | 多窗口 | 历史/调试/UGE/Quick Look 独立窗 | 单窗口浮层 | P2 | 用户已接受浮层，暂不做真多窗 |
-| 21 | 菜单/快捷键 | File/Edit/Browser/Window/Help + 快捷键 | 标题栏菜单 + 托盘菜单 + 部分快捷键 | P1 | 原生菜单栏/完整快捷键待做 |
+| 21 | 菜单/快捷键 | File/Edit/Browser/Window/Help + 快捷键 | 2.0.20 原生菜单栏（文件/窗口/帮助）+ 托盘菜单 + 部分快捷键 | P1 | 编辑/浏览器菜单、完整快捷键待做 |
 | 22 | 自动化/AppleScript | URL scheme、Services、Intents、自动化模式 | 无 | P2 | 后续 |
 | 23 | iCloud 历史 | 同步历史 | 无 | P3 | 不做（跨端复杂度高） |
 

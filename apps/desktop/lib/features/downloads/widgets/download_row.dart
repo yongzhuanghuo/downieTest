@@ -363,6 +363,9 @@ class DownloadRow extends ConsumerWidget {
             case 'throttle':
               await _pickThrottle(context, notifier, task);
               break;
+            case 'connections':
+              await _pickConnections(context, notifier, task);
+              break;
             case 'subtitles':
               await notifier.setDownloadSubtitles(
                 task.id,
@@ -420,6 +423,7 @@ class DownloadRow extends ConsumerWidget {
               child: const Text('保存缩略图'),
             ),
             const PopupMenuItem(value: 'throttle', child: Text('限速…')),
+            const PopupMenuItem(value: 'connections', child: Text('连接数…')),
           ],
           if (task.isPaused)
             const PopupMenuItem(value: 'resume', child: Text('继续下载'))
@@ -487,6 +491,48 @@ class DownloadRow extends ConsumerWidget {
     );
     if (value != null) {
       await notifier.setThrottle(task.id, value);
+    }
+  }
+
+  Future<void> _pickConnections(
+    BuildContext context,
+    DownloadListNotifier notifier,
+    DownloadTask task,
+  ) async {
+    const options = <int, String>{
+      0: '使用全局设置',
+      1: '1（不分片）',
+      2: '2',
+      4: '4',
+      8: '8',
+      16: '16',
+    };
+    final value = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('本任务连接数'),
+        children: [
+          for (final entry in options.entries)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(entry.key),
+              child: Row(
+                children: [
+                  Icon(
+                    task.connections == entry.key
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(entry.value),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (value != null) {
+      await notifier.setConnections(task.id, value);
     }
   }
 
@@ -578,6 +624,7 @@ class DownloadRow extends ConsumerWidget {
       if (task.priority != DownloadPriority.normal) task.priority.label,
       if (task.throttleKbps > 0)
         '限速 ${task.throttleKbps >= 1000 ? '${(task.throttleKbps / 1000).toStringAsFixed(1)} MB/s' : '${task.throttleKbps} KB/s'}',
+      if (task.connections > 0) '${task.connections} 连接',
       if (site.isNotEmpty) site,
       if (task.formatLabel.isNotEmpty) task.formatLabel,
       if (task.duration > 0) _formatDuration(task.duration),

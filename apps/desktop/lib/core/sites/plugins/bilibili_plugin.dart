@@ -330,7 +330,7 @@ class BilibiliPlugin extends SitePlugin {
         : ((result['sections'] as List?) ?? const <dynamic>[])
             .whereType<Map>()
             .expand((section) =>
-                (section['episodes'] as List?) ?? const <dynamic>)
+                (section['episodes'] as List?) ?? const <dynamic>[])
             .toList();
     return raw
         .whereType<Map>()

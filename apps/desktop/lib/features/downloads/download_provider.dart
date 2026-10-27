@@ -239,6 +239,13 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     await _apply(id, (t) => t.copyWith(throttleKbps: kbps.clamp(0, 1000000)));
   }
 
+  /// 设置等待中任务的连接数（0=使用全局）
+  Future<void> setConnections(String id, int value) async {
+    final task = _find(id);
+    if (task == null || task.status != DownloadStatus.pending) return;
+    await _apply(id, (t) => t.copyWith(connections: value.clamp(0, 32)));
+  }
+
   /// 调整等待中任务的队列优先级
   Future<void> setPriority(String id, DownloadPriority priority) async {
     final task = _find(id);
@@ -338,6 +345,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
               downloadSubtitles: task.downloadSubtitles,
               downloadCover: task.downloadCover,
               throttleKbps: task.throttleKbps,
+              connections: task.connections,
             );
           }
           if (_cancelled.contains(task.id)) {

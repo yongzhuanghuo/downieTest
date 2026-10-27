@@ -100,6 +100,9 @@ class DownloadTask {
   /// 本任务限速（kB/s，0=使用全局设置）
   final int throttleKbps;
 
+  /// 本任务连接数（0=使用全局设置）
+  final int connections;
+
   /// 当前状态
   final DownloadStatus status;
 
@@ -151,6 +154,7 @@ class DownloadTask {
     this.downloadSubtitles = false,
     this.downloadCover = false,
     this.throttleKbps = 0,
+    this.connections = 0,
     this.status = DownloadStatus.pending,
     this.progress,
     this.fileSize = 0,
@@ -183,6 +187,7 @@ class DownloadTask {
     bool? downloadSubtitles,
     bool? downloadCover,
     int? throttleKbps,
+    int? connections,
     int? fileSize,
     int? downloadedBytes,
     int? speed,
@@ -210,6 +215,7 @@ class DownloadTask {
       downloadSubtitles: downloadSubtitles ?? this.downloadSubtitles,
       downloadCover: downloadCover ?? this.downloadCover,
       throttleKbps: throttleKbps ?? this.throttleKbps,
+      connections: connections ?? this.connections,
       status: status ?? this.status,
       progress: identical(progress, _unset)
           ? this.progress
@@ -306,6 +312,7 @@ class DownloadTask {
       downloadSubtitles: ((map['download_subtitles'] as num?)?.toInt() ?? 0) == 1,
       downloadCover: ((map['download_cover'] as num?)?.toInt() ?? 0) == 1,
       throttleKbps: (map['throttle_kbps'] as num?)?.toInt() ?? 0,
+      connections: (map['connections'] as num?)?.toInt() ?? 0,
       audioOnly: (map['height'] as num?)?.toInt() == 0 &&
           (map['format_label'] as String?)?.toLowerCase().contains('音频') == true,
       status: DownloadStatus.values[(map['status'] as int?) ?? 0],
@@ -341,6 +348,7 @@ class DownloadTask {
       'download_subtitles': downloadSubtitles ? 1 : 0,
       'download_cover': downloadCover ? 1 : 0,
       'throttle_kbps': throttleKbps,
+      'connections': connections,
       'file_size': fileSize,
       'downloaded_bytes': downloadedBytes,
       'speed': speed,

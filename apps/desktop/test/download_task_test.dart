@@ -58,6 +58,12 @@ void main() {
     expect(DownloadTask.fromMap(task.toMap()).throttleKbps, 1000);
   });
 
+  test('connections survive map round-trip', () {
+    final task = _task().copyWith(connections: 8);
+    expect(DownloadTask.fromMap(task.toMap()).connections, 8);
+    expect(DownloadTask.fromMap(task.toMap()).toMap()['connections'], 8);
+  });
+
   test('copyWith can clear nullable fields', () {
     final task = _task().copyWith(
       error: 'boom',

@@ -261,6 +261,7 @@ class YtDlpRunner {
     bool downloadSubtitles = false,
     bool downloadCover = false,
     int throttleKbps = 0,
+    int connections = 0,
   }) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
@@ -313,6 +314,8 @@ class YtDlpRunner {
 
     final settings = SettingsStorage.instance.current;
     final proxy = settings.proxy;
+    final effectiveConnections =
+        connections > 0 ? connections : settings.connectionsPerDownload;
     final subtitleLangs =
         settings.subtitleLangs.replaceAll(RegExp(r'\s+'), '');
     final args = <String>[
@@ -323,8 +326,8 @@ class YtDlpRunner {
       '-f', formatId,
       '-o', outputPath,
       '--ffmpeg-location', actualFfmpegPath,
-      if (settings.connectionsPerDownload > 1)
-        ...['--concurrent-fragments', '${settings.connectionsPerDownload}'],
+      if (effectiveConnections > 1)
+        ...['--concurrent-fragments', '$effectiveConnections'],
       if ((throttleKbps > 0 ? throttleKbps : settings.throttleKbps) > 0)
         ...[
           '--limit-rate',
