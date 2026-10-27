@@ -52,7 +52,13 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   Future<void> setDefaultPostprocessing(int mode) async {
-    final next = state.copyWith(defaultPostprocessing: mode.clamp(0, 2));
+    final next = state.copyWith(defaultPostprocessing: mode.clamp(0, 3));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setPostprocessingScript(String value) async {
+    final next = state.copyWith(postprocessingScript: value.trim());
     await SettingsStorage.instance.save(next);
     state = next;
   }
@@ -103,6 +109,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> setPreferMp4(bool value) async {
     final next = state.copyWith(preferMp4: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setForceMp4(bool value) async {
+    final next = state.copyWith(forceMp4: value);
     await SettingsStorage.instance.save(next);
     state = next;
   }
@@ -187,6 +199,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> setSubtitleMode(int value) async {
     final next = state.copyWith(subtitleMode: value.clamp(0, 1));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setKeepSubtitleFormat(bool value) async {
+    final next = state.copyWith(keepSubtitleFormat: value);
     await SettingsStorage.instance.save(next);
     state = next;
   }

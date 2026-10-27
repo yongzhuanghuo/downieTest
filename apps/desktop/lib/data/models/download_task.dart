@@ -4,7 +4,7 @@ import 'download_progress.dart';
 import 'format_option.dart';
 
 /// 下载完成后的处理方式
-enum PostprocessingMode { none, mp4, audio }
+enum PostprocessingMode { none, mp4, audio, custom }
 
 extension PostprocessingModeX on PostprocessingMode {
   String get label {
@@ -15,6 +15,8 @@ extension PostprocessingModeX on PostprocessingMode {
         return 'MP4';
       case PostprocessingMode.audio:
         return '仅音频';
+      case PostprocessingMode.custom:
+        return '自定义脚本';
     }
   }
 }

@@ -101,11 +101,6 @@
 | Kuaishou | KuaishouDownloader | https://www.kuaishou.com, https://live.kuaishou.com | 原生插件 | 否 | P1 |  |
 | WeiboHTML5 | WeiboHTML5Downloader |  | 原生插件 | 否 | P1 |  |
 
-## 原生部分支持
-
-| 站点 | Downie 类 | 域名 | 状态 | 已验证 | 优先级 | 备注 |
-|---|---|---|---|---|---|---|
-
 ## yt-dlp 功能覆盖（代码未复刻，待逐站验证）
 
 | 站点 | Downie 类 | 域名 | 状态 | 已验证 | 优先级 | 备注 |

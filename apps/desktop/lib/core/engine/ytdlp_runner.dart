@@ -342,6 +342,7 @@ class YtDlpRunner {
       if (downloadSubtitles) ...[
         '--write-subs',
         if (settings.includeAutoSubtitles) '--write-auto-subs',
+        if (!settings.keepSubtitleFormat) ...['--convert-subs', 'srt'],
         if (subtitleLangs.isNotEmpty) ...[
           '--sub-langs',
           settings.subtitleMode == 1

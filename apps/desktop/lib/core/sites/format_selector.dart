@@ -13,10 +13,17 @@ FormatOption? selectFormatForDownload(
   VideoInfo info, {
   int qualityPreference = 0,
   bool preferMp4 = true,
+  bool forceMp4 = false,
 }) {
   if (info.formats.isEmpty) return null;
   final videos = info.formats.where((f) => !f.audioOnly).toList();
   var pool = videos.isEmpty ? List<FormatOption>.of(info.formats) : videos;
+
+  // Downie 的「强制 MP4」：宁可降低分辨率，也不选 WebM/其他容器。
+  if (forceMp4) {
+    final mp4 = pool.where(_isMp4).toList();
+    if (mp4.isNotEmpty) pool = mp4;
+  }
 
   final maxHeight = switch (qualityPreference) {
     2 => 360,

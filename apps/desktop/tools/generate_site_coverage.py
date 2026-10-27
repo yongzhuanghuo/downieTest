@@ -362,8 +362,14 @@ def main() -> None:
         md_table(top),
         "\n## 已原生复刻\n\n",
         md_table([r for r in coverage if r["status"] == "native"]),
-        "\n## 原生部分支持\n\n",
-        md_table([r for r in coverage if r["status"] == "native_partial"]),
+        *(
+            [
+                "\n## 原生部分支持\n\n",
+                md_table([r for r in coverage if r["status"] == "native_partial"]),
+            ]
+            if counts["native_partial"]
+            else []
+        ),
         "\n## yt-dlp 功能覆盖（代码未复刻，待逐站验证）\n\n",
         md_table([r for r in coverage if r["status"] == "ytdlp"]),
         "\n## 通用资源检测/未复刻（需逐站验证）\n\n",

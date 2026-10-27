@@ -192,6 +192,7 @@ Future<QuickAddResult> _enqueueInfo(
       info,
       qualityPreference: settings.qualityPreference,
       preferMp4: settings.preferMp4,
+      forceMp4: settings.forceMp4,
     );
   }
   if (format == null) {

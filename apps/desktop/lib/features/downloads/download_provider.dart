@@ -206,6 +206,8 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         return PostprocessingMode.mp4;
       case 2:
         return PostprocessingMode.audio;
+      case 3:
+        return PostprocessingMode.custom;
       default:
         return PostprocessingMode.none;
     }
@@ -767,6 +769,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     String inputPath,
   ) async {
     if (task.postprocessing == PostprocessingMode.none) return inputPath;
+    if (task.postprocessing == PostprocessingMode.custom) {
+      return _runCustomPostprocessing(id, inputPath);
+    }
     final ext = _extensionOf(inputPath);
 
     if (task.postprocessing == PostprocessingMode.audio) {
@@ -820,6 +825,60 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           audioOnly: false,
         ));
     return converted;
+  }
+
+  /// 运行用户自定义后处理脚本：文件路径作为第一个参数。
+  /// macOS/Linux 用 /bin/sh（不要求脚本有可执行位）；Windows 支持
+  /// .ps1/.bat/.cmd，其余交给 shell。
+  Future<String> _runCustomPostprocessing(String id, String inputPath) async {
+    final script = SettingsStorage.instance.current.postprocessingScript.trim();
+    if (script.isEmpty) {
+      throw Exception('未设置自定义后处理脚本，请在「偏好设置 → 后处理」中选择');
+    }
+    if (!File(script).existsSync()) {
+      throw Exception('自定义后处理脚本不存在：$script');
+    }
+    await _apply(id, (t) => t.copyWith(
+          status: DownloadStatus.merging,
+          progress: const DownloadProgress(
+            downloadedBytes: 0,
+            speed: 0,
+            stage: DownloadStage.postProcessing,
+            detail: '运行自定义后处理',
+          ),
+        ));
+
+    ProcessResult result;
+    if (Platform.isWindows) {
+      final ext = _extensionOf(script);
+      if (ext == 'ps1') {
+        result = await Process.run('powershell', [
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-File',
+          script,
+          inputPath,
+        ]);
+      } else {
+        result = await Process.run(
+          'cmd',
+          ['/c', script, inputPath],
+          runInShell: true,
+        );
+      }
+    } else {
+      result = await Process.run('/bin/sh', [script, inputPath]);
+    }
+
+    final output = '${result.stdout}\n${result.stderr}'.trim();
+    if (result.exitCode != 0) {
+      throw Exception(
+        '自定义后处理失败（退出码 ${result.exitCode}）'
+        '${output.isEmpty ? '' : '：$output'}',
+      );
+    }
+    return inputPath;
   }
 
   Future<void> _deleteQuietly(String path) async {

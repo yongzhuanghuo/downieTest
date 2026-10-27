@@ -53,6 +53,14 @@ void main() {
     expect(restored.downloadCover, isTrue);
   });
 
+  test('custom postprocessing survives map round-trip', () {
+    final task = _task().copyWith(postprocessing: PostprocessingMode.custom);
+    expect(
+      DownloadTask.fromMap(task.toMap()).postprocessing,
+      PostprocessingMode.custom,
+    );
+  });
+
   test('throttle survives map round-trip', () {
     final task = _task().copyWith(throttleKbps: 1000);
     expect(DownloadTask.fromMap(task.toMap()).throttleKbps, 1000);

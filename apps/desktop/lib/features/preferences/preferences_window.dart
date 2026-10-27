@@ -237,6 +237,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
+              title: const Text('强制 MP4'),
+              subtitle: const Text('宁可降低分辨率也只选 MP4；需要最高画质时请关闭'),
+              value: settings.forceMp4,
+              onChanged: notifier.setForceMp4,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
               title: const Text('重复链接时询问'),
               subtitle: const Text('链接已在队列或下载过时，先确认再添加'),
               value: settings.duplicatePrompt,
@@ -630,6 +638,7 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
                 ButtonSegment(value: 0, label: Text('无')),
                 ButtonSegment(value: 1, label: Text('转换为 MP4')),
                 ButtonSegment(value: 2, label: Text('仅音频 MP3')),
+                ButtonSegment(value: 3, label: Text('自定义脚本')),
               ],
               selected: {settings.defaultPostprocessing},
               onSelectionChanged: (values) =>
@@ -641,6 +650,48 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               '已经是目标格式时不会重复转换。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (settings.defaultPostprocessing == 3) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      settings.postprocessingScript.isEmpty
+                          ? '未选择自定义后处理脚本'
+                          : settings.postprocessingScript,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  TextButton.icon(
+                    onPressed: () async {
+                      final result = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: const [
+                          'sh',
+                          'command',
+                          'bat',
+                          'cmd',
+                          'ps1',
+                        ],
+                      );
+                      final path = result?.files.single.path;
+                      if (path != null) {
+                        await notifier.setPostprocessingScript(path);
+                      }
+                    },
+                    icon: const Icon(Icons.terminal, size: 14),
+                    label: const Text('选择脚本…'),
+                  ),
+                ],
+              ),
+              Text(
+                '脚本的第一个参数是下载完成的文件路径；退出码非 0 视为后处理失败。',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -678,6 +729,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               subtitle: const Text('新任务默认保存最高清的一张缩略图'),
               value: settings.defaultDownloadCover,
               onChanged: notifier.setDefaultDownloadCover,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('保留字幕原始格式'),
+              subtitle: const Text('关闭时统一转换为 .srt（Downie 默认）'),
+              value: settings.keepSubtitleFormat,
+              onChanged: notifier.setKeepSubtitleFormat,
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(

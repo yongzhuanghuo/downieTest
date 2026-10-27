@@ -38,6 +38,12 @@ const f1080 = FormatOption(
   height: 1080,
   ext: 'mp4',
 );
+const f1080webm = FormatOption(
+  formatId: '1080w',
+  label: '1080p WEBM',
+  height: 1080,
+  ext: 'webm',
+);
 const audio = FormatOption(
   formatId: 'audio',
   label: 'MP3',
@@ -60,6 +66,22 @@ void main() {
       preferMp4: true,
     );
     expect(selected!.formatId, '720m');
+  });
+
+  test('force MP4 sacrifices higher resolution in other containers', () {
+    final selected = selectFormatForDownload(
+      info([f1080webm, f720webm, f720mp4, f360]),
+      forceMp4: true,
+    );
+    expect(selected!.formatId, '720m');
+  });
+
+  test('force MP4 falls back to available formats when none is MP4', () {
+    final selected = selectFormatForDownload(
+      info([f1080webm, f720webm]),
+      forceMp4: true,
+    );
+    expect(selected!.formatId, '1080w');
   });
 
   test('quality limit selects highest within limit', () {

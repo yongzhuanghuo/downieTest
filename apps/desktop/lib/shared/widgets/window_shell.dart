@@ -112,6 +112,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
         info,
         qualityPreference: settings.qualityPreference,
         preferMp4: settings.preferMp4,
+        forceMp4: settings.forceMp4,
       );
       if (format == null) return false;
       await ref.read(downloadListProvider.notifier).startDownload(

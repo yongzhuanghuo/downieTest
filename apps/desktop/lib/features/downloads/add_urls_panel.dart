@@ -223,6 +223,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
       info,
       qualityPreference: settings.qualityPreference,
       preferMp4: settings.preferMp4,
+      forceMp4: settings.forceMp4,
     );
     if (format == null) return '没有可用格式';
     await ref.read(downloadListProvider.notifier).startDownload(

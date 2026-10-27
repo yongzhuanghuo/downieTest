@@ -72,6 +72,9 @@ class AppSettings {
   /// 同分辨率时优先 MP4
   final bool preferMp4;
 
+  /// 强制只用 MP4（忽略更高分辨率但非 MP4 的格式）
+  final bool forceMp4;
+
   /// 重复链接是否询问
   final bool duplicatePrompt;
 
@@ -108,11 +111,17 @@ class AppSettings {
   /// 转换完成后删除原始下载文件
   final bool deleteOriginalAfterConversion;
 
+  /// 自定义后处理脚本路径（PostprocessingMode.custom）
+  final String postprocessingScript;
+
   /// 下载自动生成的字幕
   final bool includeAutoSubtitles;
 
   /// 字幕模式：0=全部匹配，1=只取第一个匹配
   final int subtitleMode;
+
+  /// 保留字幕原始格式（关闭时统一转成 SRT，与 Downie 默认一致）
+  final bool keepSubtitleFormat;
 
   /// HLS/DASH 强制重新编码
   final bool forceReencode;
@@ -154,6 +163,7 @@ class AppSettings {
     this.autoUgeUnsupported = false,
     this.qualityPreference = 0,
     this.preferMp4 = true,
+    this.forceMp4 = false,
     this.duplicatePrompt = true,
     this.queueSort = 0,
     this.queueSortDesc = false,
@@ -166,8 +176,10 @@ class AppSettings {
     this.showThumbnails = true,
     this.clearMissingHistory = false,
     this.deleteOriginalAfterConversion = false,
+    this.postprocessingScript = '',
     this.includeAutoSubtitles = true,
     this.subtitleMode = 0,
+    this.keepSubtitleFormat = false,
     this.forceReencode = false,
     this.nativeHlsEngine = false,
     this.showInMenuBar = true,
@@ -198,6 +210,7 @@ class AppSettings {
     autoUgeUnsupported: false,
     qualityPreference: 0,
     preferMp4: true,
+    forceMp4: false,
     duplicatePrompt: true,
     queueSort: 0,
     queueSortDesc: false,
@@ -210,8 +223,10 @@ class AppSettings {
     showThumbnails: true,
     clearMissingHistory: false,
     deleteOriginalAfterConversion: false,
+    postprocessingScript: '',
     includeAutoSubtitles: true,
     subtitleMode: 0,
+    keepSubtitleFormat: false,
     forceReencode: false,
     nativeHlsEngine: false,
     showInMenuBar: true,
@@ -242,6 +257,7 @@ class AppSettings {
     bool? autoUgeUnsupported,
     int? qualityPreference,
     bool? preferMp4,
+    bool? forceMp4,
     bool? duplicatePrompt,
     int? queueSort,
     bool? queueSortDesc,
@@ -254,8 +270,10 @@ class AppSettings {
     bool? showThumbnails,
     bool? clearMissingHistory,
     bool? deleteOriginalAfterConversion,
+    String? postprocessingScript,
     bool? includeAutoSubtitles,
     int? subtitleMode,
+    bool? keepSubtitleFormat,
     bool? forceReencode,
     bool? nativeHlsEngine,
     bool? showInMenuBar,
@@ -291,6 +309,7 @@ class AppSettings {
       qualityPreference:
           qualityPreference ?? this.qualityPreference,
       preferMp4: preferMp4 ?? this.preferMp4,
+      forceMp4: forceMp4 ?? this.forceMp4,
       duplicatePrompt: duplicatePrompt ?? this.duplicatePrompt,
       queueSort: queueSort ?? this.queueSort,
       queueSortDesc: queueSortDesc ?? this.queueSortDesc,
@@ -307,9 +326,13 @@ class AppSettings {
           clearMissingHistory ?? this.clearMissingHistory,
       deleteOriginalAfterConversion:
           deleteOriginalAfterConversion ?? this.deleteOriginalAfterConversion,
+      postprocessingScript:
+          postprocessingScript ?? this.postprocessingScript,
       includeAutoSubtitles:
           includeAutoSubtitles ?? this.includeAutoSubtitles,
       subtitleMode: subtitleMode ?? this.subtitleMode,
+      keepSubtitleFormat:
+          keepSubtitleFormat ?? this.keepSubtitleFormat,
       forceReencode: forceReencode ?? this.forceReencode,
       nativeHlsEngine: nativeHlsEngine ?? this.nativeHlsEngine,
       showInMenuBar: showInMenuBar ?? this.showInMenuBar,
@@ -401,6 +424,7 @@ class SettingsStorage {
         qualityPreference:
             (raw['qualityPreference'] as num?)?.toInt() ?? 0,
         preferMp4: (raw['preferMp4'] as bool?) ?? true,
+        forceMp4: (raw['forceMp4'] as bool?) ?? false,
         duplicatePrompt: (raw['duplicatePrompt'] as bool?) ?? true,
         queueSort: (raw['queueSort'] as num?)?.toInt() ?? 0,
         queueSortDesc: (raw['queueSortDesc'] as bool?) ?? false,
@@ -417,9 +441,13 @@ class SettingsStorage {
             (raw['clearMissingHistory'] as bool?) ?? false,
         deleteOriginalAfterConversion:
             (raw['deleteOriginalAfterConversion'] as bool?) ?? false,
+        postprocessingScript:
+            (raw['postprocessingScript'] as String?) ?? '',
         includeAutoSubtitles:
             (raw['includeAutoSubtitles'] as bool?) ?? true,
         subtitleMode: (raw['subtitleMode'] as num?)?.toInt() ?? 0,
+        keepSubtitleFormat:
+            (raw['keepSubtitleFormat'] as bool?) ?? false,
         forceReencode: (raw['forceReencode'] as bool?) ?? false,
         nativeHlsEngine: (raw['nativeHlsEngine'] as bool?) ?? false,
         showInMenuBar: (raw['showInMenuBar'] as bool?) ?? true,
@@ -483,6 +511,7 @@ class SettingsStorage {
       'autoUgeUnsupported': settings.autoUgeUnsupported,
       'qualityPreference': settings.qualityPreference,
       'preferMp4': settings.preferMp4,
+      'forceMp4': settings.forceMp4,
       'duplicatePrompt': settings.duplicatePrompt,
       'queueSort': settings.queueSort,
       'queueSortDesc': settings.queueSortDesc,
@@ -496,8 +525,10 @@ class SettingsStorage {
       'clearMissingHistory': settings.clearMissingHistory,
       'deleteOriginalAfterConversion':
           settings.deleteOriginalAfterConversion,
+      'postprocessingScript': settings.postprocessingScript,
       'includeAutoSubtitles': settings.includeAutoSubtitles,
       'subtitleMode': settings.subtitleMode,
+      'keepSubtitleFormat': settings.keepSubtitleFormat,
       'forceReencode': settings.forceReencode,
       'nativeHlsEngine': settings.nativeHlsEngine,
       'showInMenuBar': settings.showInMenuBar,
