@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/server/browser_bridge.dart';
@@ -16,6 +18,7 @@ import '../../features/home/home_provider.dart';
 import '../../features/license/license_provider.dart';
 import '../../features/preferences/preferences_window.dart';
 import '../../features/settings/settings_provider.dart';
+import '../theme/design_tokens.dart';
 import 'window_status_bar.dart';
 import 'window_title_bar.dart';
 
@@ -37,6 +40,8 @@ class WindowShell extends ConsumerStatefulWidget {
 }
 
 class _WindowShellState extends ConsumerState<WindowShell> {
+  bool _dropHover = false;
+
   @override
   void initState() {
     super.initState();
@@ -100,7 +105,22 @@ class _WindowShellState extends ConsumerState<WindowShell> {
   Widget build(BuildContext context) {
     ref.listen(settingsProvider, (_, __) => unawaited(_syncBrowserBridge()));
     final isMac = Platform.isMacOS;
-    return CallbackShortcuts(
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return DropRegion(
+      formats: const [
+        Formats.uri,
+        Formats.plainText,
+        Formats.plainTextFile,
+      ],
+      hitTestBehavior: HitTestBehavior.opaque,
+      onDropOver: _onDropOver,
+      onDropEnter: (_) => setState(() => _dropHover = true),
+      onDropLeave: (_) => setState(() => _dropHover = false),
+      onDropEnded: (_) => setState(() => _dropHover = false),
+      onPerformDrop: _onPerformDrop,
+      child: Stack(
+        children: [
+          CallbackShortcuts(
       bindings: {
         SingleActivator(
           LogicalKeyboardKey.keyO,
@@ -147,6 +167,156 @@ class _WindowShellState extends ConsumerState<WindowShell> {
           ),
         ),
       ),
+          ),
+          if (_dropHover)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: _dropOverlay(dark),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  Widget _dropOverlay(bool dark) {
+    return Container(
+      margin: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: (dark ? AppTokens.window : AppTokens.windowLight)
+            .withValues(alpha: 0.92),
+        border: Border.all(color: AppTokens.accent, width: 2),
+        borderRadius: BorderRadius.circular(AppRadius.window),
+      ),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.download, size: 36, color: AppTokens.accent),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            '松开以添加链接',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: dark
+                  ? AppTokens.textPrimary
+                  : AppTokens.textPrimaryLight,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  DropOperation _onDropOver(DropOverEvent event) {
+    for (final item in event.session.items) {
+      if (item.canProvide(Formats.uri) ||
+          item.canProvide(Formats.plainText) ||
+          item.canProvide(Formats.plainTextFile)) {
+        return DropOperation.copy;
+      }
+    }
+    return DropOperation.none;
+  }
+
+  Future<void> _onPerformDrop(PerformDropEvent event) async {
+    final urls = <String>[];
+    for (final item in event.session.items) {
+      final text = await _readDropText(item);
+      if (text == null || text.trim().isEmpty) continue;
+      final whole = wholeHttpUrl(text);
+      if (whole != null) {
+        urls.add(whole);
+      } else {
+        urls.addAll(extractUrls(text));
+      }
+    }
+    if (!mounted) return;
+    setState(() => _dropHover = false);
+    final unique = urls.toSet().toList();
+    if (unique.isEmpty) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('没有识别到可下载的链接')),
+      );
+      return;
+    }
+    await AddUrlsPanel.show(context, initialText: unique.join('\n'));
+  }
+
+  Future<String?> _readDropText(DropItem item) async {
+    final reader = item.dataReader;
+    if (reader == null) return null;
+
+    if (reader.canProvide(Formats.uri)) {
+      final completer = Completer<NamedUri?>();
+      final progress = reader.getValue<NamedUri>(
+        Formats.uri,
+        (value) {
+          if (!completer.isCompleted) completer.complete(value);
+        },
+        onError: (_) {
+          if (!completer.isCompleted) completer.complete(null);
+        },
+      );
+      if (progress != null) {
+        final value = await completer.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => null,
+        );
+        if (value != null) return value.uri.toString();
+      }
+    }
+
+    if (reader.canProvide(Formats.plainText)) {
+      final completer = Completer<String?>();
+      final progress = reader.getValue<String>(
+        Formats.plainText,
+        (value) {
+          if (!completer.isCompleted) completer.complete(value);
+        },
+        onError: (_) {
+          if (!completer.isCompleted) completer.complete(null);
+        },
+      );
+      if (progress != null) {
+        final value = await completer.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => null,
+        );
+        if (value != null) return value;
+      }
+    }
+
+    if (reader.canProvide(Formats.plainTextFile)) {
+      final completer = Completer<String?>();
+      final progress = reader.getFile(
+        Formats.plainTextFile,
+        (file) async {
+          try {
+            if ((file.fileSize ?? 0) > 1024 * 1024) {
+              if (!completer.isCompleted) completer.complete(null);
+              return;
+            }
+            final bytes = await file.readAll();
+            if (!completer.isCompleted) {
+              completer.complete(utf8.decode(bytes, allowMalformed: true));
+            }
+          } catch (_) {
+            if (!completer.isCompleted) completer.complete(null);
+          }
+        },
+        onError: (_) {
+          if (!completer.isCompleted) completer.complete(null);
+        },
+      );
+      if (progress != null) {
+        return completer.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => null,
+        );
+      }
+    }
+    return null;
   }
 }

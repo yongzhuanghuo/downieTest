@@ -72,5 +72,6 @@ yt-dlp / ffmpeg 放在 `assets/bin/{macos,windows}/`（被 .gitignore 忽略，�
   > 注意 `services/media-api` 里有另一套抖音解析（纯 HTTP + a_bogus 签名，不需要浏览器），两套互相独立。见 [docs/architecture.md](../../docs/architecture.md)。
 - **macOS 无沙箱**：entitlements 里没有 `app-sandbox`，子进程可读浏览器 cookie / 写任意目录。
 - **包体积**：内嵌 ffmpeg(~130MB) + yt-dlp(~38MB)，安装包超 100MB，Gitee Releases 放不下（更新包建议阿里云 OSS，见 [docs/roadmap.md](../../docs/roadmap.md) 阶段 16）。
+- **不做代码签名/公证**：用户已明确决定不做 macOS Developer ID 签名/公证和 Windows Authenticode；不要建议购买证书或给 CI 加签名步骤。安装说明继续用 macOS 右键打开、Windows“仍要运行”绕过 Gatekeeper/SmartScreen。
 - **工程内路径都是自定位的**：`pubspec.yaml` 的 asset 键、`tools/generate_icons.sh`（用 `dirname $0/..`）、`windows/installer/setup.iss`（相对 .iss 自身）、Xcode 工程（`$FLUTTER_ROOT` / `$PROJECT_DIR` / `$PODS_ROOT`）。整个工程可以整体移动而不改任何内部引用。
 - **IDE 工程根**：用 IDE 打开时应以 `apps/desktop/` 为工程根（不是仓库根），否则 Dart/Flutter 插件识别不到 `pubspec.yaml`。

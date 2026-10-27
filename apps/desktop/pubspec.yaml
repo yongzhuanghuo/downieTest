@@ -41,6 +41,9 @@ dependencies:
   file_picker: ^8.1.2
   flutter_inappwebview: ^6.1.5
 
+  # 原生拖拽（macOS/Windows 的链接与文本拖入）
+  super_drag_and_drop: ^0.9.1
+
   # 版本更新推送（读版本号 + 打开下载链接）
   package_info_plus: ^8.0.0
   url_launcher: ^6.3.0

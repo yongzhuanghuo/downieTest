@@ -14,7 +14,7 @@
 2. **做不到“源码级复刻”**：REA 目前只完成了 Mach-O、符号、字符串、资源层面的静态分析；Ghidra/Hopper 尚未安装，没有逐函数反编译，也拿不到原始 Swift 工程。
 3. **不支持 DRM 正片**：Netflix / Disney+ / Prime Video 等 Widevine/FairPlay/PlayReady 内容，Downie 自己也明确拒绝下载。这不是我们没做，而是不在范围。
 4. **786 个下载器类不能靠一次性交付**：正确目标是 Top 20–30 + 通用 WebView 嗅探 + 自定义集成 + yt-dlp 兜底，然后按失败率持续补站。
-5. **当前进度（2026-10-26）**：Downie 风格 UI、DMG/EXE 发布链、应用内更新、抖音/B站插件、通用网页提取、14 天服务端试用、反激活、暂停/继续、优先级、批量链接、播放列表展开、系统通知、浏览器书签/Chrome 扩展均已落地；Top 30 中大部分站点仍走 yt-dlp，拖拽、签名公证、浏览器 cookie 自动导入之外的深度站点定制仍未完成。
+5. **当前进度（2026-10-26）**：Downie 风格 UI、DMG/EXE 发布链、应用内更新、抖音/B站插件、通用网页提取、14 天服务端试用、反激活、暂停/继续、优先级、批量链接、播放列表展开、系统通知、浏览器书签/Chrome 扩展均已落地；Top 30 中大部分站点仍走 yt-dlp，拖拽和部分站点的原生定制仍未完成；签名/公证按用户决定不做。
 
 ---
 
@@ -83,7 +83,7 @@ rea analyze "/Applications/Downie 4.app"
 | UX | 浏览器扩展、剪贴板/拖拽、通知、外观、导入 | Downie 风格主界面、粘贴/多链接/文件导入、系统通知、Chrome 扩展/书签已完成；原生拖拽未做 |
 | 高级 | 自定义集成（Registry/提交/控制台/JS 执行）、快速预览 | 未开始 |
 | 授权 | 14 天试用、邮箱绑定、4 设备、反激活、找回、撤销 | 14 天试用、邮箱存储、4 设备绑定、反激活已上线；邮件 OTP/自动找回/签名令牌/心跳撤销未做 |
-| 发布 | macOS/Windows 安装包、更新提示、OTA/OSS | DMG + EXE + OSS + 版本接口 + 应用内下载安装已完成；签名/公证/HTTPS 未做 |
+| 发布 | macOS/Windows 安装包、更新提示、OTA/OSS | DMG + EXE + OSS + 版本接口 + 应用内下载安装已完成；签名/公证按用户决定不做；HTTPS 未做 |
 
 ### 2.2 明确不做
 
@@ -91,6 +91,7 @@ rea analyze "/Applications/Downie 4.app"
 - 不复制 Downie 的源码、资源、nib/storyboard、文案、授权协议或密钥。
 - 不承诺 786 个站点在某个时间点全部支持；这是持续维护目标。
 - 不绕过付费内容或账号权限；只使用用户本人有权访问的登录态。
+- **不做 macOS Developer ID 签名/公证，也不做 Windows Authenticode 代码签名**（用户 2026-10-27 明确决定）。安装时继续用右键打开 / “仍要运行”；不要再把证书、签名、公证列入发布待办。
 
 ---
 
@@ -116,7 +117,7 @@ rea analyze "/Applications/Downie 4.app"
 | 安全存储 | Keychain | DPAPI / Credential Manager |
 | 本地 HTTP 服务 | Dart `HttpServer` | Dart `HttpServer` |
 | 更新 | Sparkle 或自有更新器 | WinSparkle/Squirrel 或自有更新器 |
-| 签名 | Developer ID + notarization | Authenticode（建议 EV） |
+| 签名 | 不做（用户决定，保留右键打开） | 不做（用户决定，保留“仍要运行”） |
 | 安装包 | DMG | Inno Setup（当前）/ NSIS |
 
 ### 3.3 解析/下载主链路
@@ -315,7 +316,7 @@ Downie 二进制中的证据：
 - macOS DMG 可挂载、可拖入 Applications、安装说明可打开。
 - Windows 安装包可安装/卸载/升级，WebView2 缺失时能引导安装。
 - 版本接口能驱动更新提示；OSS 固定文件名可下载。
-- macOS Developer ID + notarization；Windows Authenticode（上线前）。
+- 按用户决定不做 macOS 签名/公证和 Windows 代码签名；安装说明保留右键打开/“仍要运行”步骤。
 
 ### 8.4 质量
 
@@ -334,8 +335,8 @@ Downie 二进制中的证据：
 | 786 站长尾 | 永远做不完 | Top 30 + 通用嗅探 + 自定义集成，不承诺全量 |
 | DRM 内容 | 无法下载 | UI 明确提示，不绕过 |
 | 站点 ToS/版权 | 法律风险 | 只处理用户有权访问的内容；商业上线前法务评估 |
-| Windows SmartScreen/杀软 | 安装受阻 | 代码签名、避免加壳、建立下载信誉 |
-| macOS Gatekeeper | 首次打开被拦 | Developer ID + notarization；安装说明给右键打开步骤 |
+| Windows SmartScreen/杀软 | 安装受阻 | 不做代码签名；安装说明提示“更多信息 → 仍要运行” |
+| macOS Gatekeeper | 首次打开被拦 | 不做公证；安装说明给右键打开/仍要打开步骤 |
 | 授权被改本地文件 | 收入损失 | 签名令牌 + Keychain/DPAPI + 服务端校验 |
 | 维护成本 | 长期人力 | 插件 SDK、站点更新流水线、自动化回归 |
 
@@ -364,8 +365,9 @@ Downie 二进制中的证据：
 3. **Top 10 站点**：在抖音/B站之外补 YouTube、Instagram、TikTok、X、快手等高频站。
 4. **浏览器扩展 + 本地 HTTP 服务**：把“浏览器里看到视频 → 应用下载”的路径打通。
 5. **字幕/后处理/自定义集成**：补齐 Downie 的高级功能面。
-6. **签名与公证**：macOS notarization、Windows Authenticode，解决 Gatekeeper/SmartScreen。
-7. **站点运营**：失败率监控、插件 SDK、站点更新流水线。
+6. **站点运营**：失败率监控、插件 SDK、站点更新流水线。
+
+> 签名/公证/代码签名已按用户决定移出路线图，不再列入待办。
 
 ---
 
