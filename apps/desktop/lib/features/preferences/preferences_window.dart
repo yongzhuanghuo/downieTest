@@ -1580,6 +1580,14 @@ class _AdvancedPaneState extends ConsumerState<_AdvancedPane> {
         SwitchListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
+          title: const Text('失败后保留未完成文件'),
+          subtitle: const Text('关闭后清理 .part/.ytdl 临时文件；已下载的完整文件不受影响'),
+          value: settings.keepFailedFiles,
+          onChanged: notifier.setKeepFailedFiles,
+        ),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
           title: const Text('强制重新编码 HLS/DASH'),
           subtitle: const Text('传递 --recode-video mp4；会增加处理时间'),
           value: settings.forceReencode,

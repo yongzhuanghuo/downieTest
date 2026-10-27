@@ -306,6 +306,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     if (_activeIds.contains(task.id) || _cancelled.contains(task.id)) return;
     _activeIds.add(task.id);
     String? taskLogPath;
+    String? outputTemplate;
 
     try {
       // 确定输出目录（从设置读取，空则用系统默认 Downloads）
@@ -333,7 +334,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         extractor: task.extractor,
         url: task.url,
       );
-      final outputTemplate = '$targetDir/$baseName.${task.ext}';
+      outputTemplate = '$targetDir/$baseName.${task.ext}';
       try {
         final dataDir = await SettingsStorage.getStorageDir();
         taskLogPath = '${dataDir.path}/logs/task_${task.id}.log';
@@ -371,7 +372,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             );
             result = await plugin.download(PluginDownloadRequest(
               task: task,
-              outputPath: outputTemplate,
+              outputPath: outputTemplate!,
               onProgress: (p) => _applyProgress(task.id, p),
               shouldCancel: () => _cancelled.contains(task.id),
             ));
@@ -380,7 +381,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             result = await YtDlpRunner.download(
               url: task.url,
               formatId: task.formatId,
-              outputPath: outputTemplate,
+              outputPath: outputTemplate!,
               onProgress: (p) => _applyProgress(task.id, p),
               shouldCancel: () => _cancelled.contains(task.id),
               audioOnly: task.audioOnly,
@@ -559,6 +560,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       }
       if (finishedStatus == DownloadStatus.failed) {
         unawaited(SystemNotifications.downloadFailed(task.title));
+        if (!SettingsStorage.instance.current.keepFailedFiles) {
+          await _deletePartialFiles(outputTemplate);
+        }
       }
       // 调度器继续填坑
       unawaited(_scheduler());
@@ -965,6 +969,30 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       final file = File(path);
       await file.parent.create(recursive: true);
       await file.writeAsString('$message\n', mode: FileMode.append);
+    } catch (_) {}
+  }
+
+  /// 删除 yt-dlp 的未完成文件（.part/.ytdl）。
+  Future<void> _deletePartialFiles(String? template) async {
+    if (template == null || template.isEmpty) return;
+    await _deleteQuietly('$template.part');
+    await _deleteQuietly('$template.ytdl');
+    try {
+      final file = File(template);
+      final dir = file.parent;
+      final slash = template.lastIndexOf(RegExp(r'[\\/]'));
+      final name = template.substring(slash + 1);
+      final dot = name.lastIndexOf('.');
+      final base = dot > 0 ? name.substring(0, dot) : name;
+      await for (final entity in dir.list()) {
+        if (entity is! File) continue;
+        final childSlash = entity.path.lastIndexOf(RegExp(r'[\\/]'));
+        final child = entity.path.substring(childSlash + 1);
+        if (!child.startsWith('$base.')) continue;
+        if (child.endsWith('.part') || child.endsWith('.ytdl')) {
+          await _deleteQuietly(entity.path);
+        }
+      }
     } catch (_) {}
   }
 

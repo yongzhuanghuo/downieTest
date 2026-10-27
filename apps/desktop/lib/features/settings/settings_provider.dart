@@ -287,6 +287,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setKeepFailedFiles(bool value) async {
+    final next = state.copyWith(keepFailedFiles: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setPreferredAudioFormat(String value) async {
     const allowed = {'mp3', 'm4a', 'opus'};
     final next = state.copyWith(

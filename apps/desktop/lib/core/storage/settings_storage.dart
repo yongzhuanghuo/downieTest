@@ -162,6 +162,9 @@ class AppSettings {
   /// 家长控制：禁止下载成人站点
   final bool blockAdultSites;
 
+  /// 失败后保留未完成文件（.part/.ytdl）
+  final bool keepFailedFiles;
+
   /// 纯音频下载格式（yt-dlp 任务）：mp3/m4a/opus
   final String preferredAudioFormat;
 
@@ -217,6 +220,7 @@ class AppSettings {
     this.disableLoginDialogs = false,
     this.automatedMode = false,
     this.blockAdultSites = false,
+    this.keepFailedFiles = true,
     this.preferredAudioFormat = 'mp3',
   });
 
@@ -272,6 +276,7 @@ class AppSettings {
     disableLoginDialogs: false,
     automatedMode: false,
     blockAdultSites: false,
+    keepFailedFiles: true,
     preferredAudioFormat: 'mp3',
   );
 
@@ -327,6 +332,7 @@ class AppSettings {
     bool? disableLoginDialogs,
     bool? automatedMode,
     bool? blockAdultSites,
+    bool? keepFailedFiles,
     String? preferredAudioFormat,
   }) {
     return AppSettings(
@@ -398,6 +404,7 @@ class AppSettings {
           disableLoginDialogs ?? this.disableLoginDialogs,
       automatedMode: automatedMode ?? this.automatedMode,
       blockAdultSites: blockAdultSites ?? this.blockAdultSites,
+      keepFailedFiles: keepFailedFiles ?? this.keepFailedFiles,
       preferredAudioFormat:
           preferredAudioFormat ?? this.preferredAudioFormat,
     );
@@ -524,6 +531,7 @@ class SettingsStorage {
             (raw['disableLoginDialogs'] as bool?) ?? false,
         automatedMode: (raw['automatedMode'] as bool?) ?? false,
         blockAdultSites: (raw['blockAdultSites'] as bool?) ?? false,
+        keepFailedFiles: (raw['keepFailedFiles'] as bool?) ?? true,
         preferredAudioFormat:
             (raw['preferredAudioFormat'] as String?) ?? 'mp3',
       );
@@ -612,6 +620,7 @@ class SettingsStorage {
       'disableLoginDialogs': settings.disableLoginDialogs,
       'automatedMode': settings.automatedMode,
       'blockAdultSites': settings.blockAdultSites,
+      'keepFailedFiles': settings.keepFailedFiles,
       'preferredAudioFormat': settings.preferredAudioFormat,
     });
     debugPrint('[Settings] saved: $settings');
