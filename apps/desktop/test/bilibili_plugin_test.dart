@@ -17,6 +17,15 @@ void main() {
     expect(BilibiliPlugin.looksLikeSeason(
       'https://www.bilibili.com/video/BV1xx411c7mD',
     ), isFalse);
+    expect(BilibiliPlugin.looksLikeVideo(
+      'https://www.bilibili.com/video/BV1xx411c7mD?p=2',
+    ), isTrue);
+    expect(BilibiliPlugin.looksLikeVideo(
+      'https://www.bilibili.com/video/av12345',
+    ), isTrue);
+    expect(BilibiliPlugin.looksLikeVideo(
+      'https://www.bilibili.com/bangumi/play/ss28747',
+    ), isFalse);
   });
 
   test('extracts episode URLs in order and de-duplicates', () {

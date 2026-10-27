@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/engine/ytdlp_runner.dart';
 import 'core/ffmpeg/ffmpeg_runner.dart';
+import 'core/platform/automation_queue.dart';
 import 'core/platform/binary_initializer.dart';
 import 'core/platform/binary_locator.dart';
 import 'core/storage/settings_storage.dart';
@@ -18,7 +19,8 @@ import 'shared/branding/app_brand.dart';
 const Size _defaultWindowSize = Size(1200, 750);
 const Size _minWindowSize = Size(800, 600);
 
-void main() async {
+void main(List<String> args) async {
+  AutomationQueue.seed(args);
   WidgetsFlutterBinding.ensureInitialized();
 
   // 初始化窗口管理器（桌面端）

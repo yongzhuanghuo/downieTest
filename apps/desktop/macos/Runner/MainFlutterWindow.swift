@@ -10,6 +10,12 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    let linkChannel = FlutterMethodChannel(
+      name: "downie6/links",
+      binaryMessenger: flutterViewController.engine.binaryMessenger
+    )
+    AppDelegate.attachLinkChannel(linkChannel)
+
     super.awakeFromNib()
   }
 }

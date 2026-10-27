@@ -5,7 +5,7 @@
 #define MyAppName "Downie6"
 ; 安装目录使用 Downie6；旧版 4KDownle 的目录不会被自动迁移
 #define MyAppDirName "Downie6"
-#define MyAppVersion "2.0.21"
+#define MyAppVersion "2.0.22"
 #define MyAppExeName "Downie6.exe"
 
 [Setup]
@@ -36,6 +36,13 @@ Source: "..\..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ign
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Registry]
+; downie6:// 自动化协议（Windows 通过命令行参数传给 Dart main）
+Root: HKLM; Subkey: "Software\Classes\downie6"; ValueType: string; ValueName: ""; ValueData: "URL:Downie6 Protocol"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Classes\downie6"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKLM; Subkey: "Software\Classes\downie6\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKLM; Subkey: "Software\Classes\downie6\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Run]
 ; 没装 WebView2 就静默安装（/norestart 避免强制重启）

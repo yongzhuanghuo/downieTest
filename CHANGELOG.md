@@ -1,6 +1,17 @@
 # 更新日志
 
-## 2.0.21（开发中）
+## 2.0.22（开发中）
+
+### 站点与通知
+
+- B 站普通视频勾选「展开播放列表」时展开多 P，逐 P 入队并写入番剧/合集名
+- 下载失败时也发送系统通知（与完成通知共用开关与节流）
+- 新增 `downie6://` 自动化：url/title/destination/postprocessing/action=open_in_uge
+  - macOS 支持 `open -a Downie6 <链接>` 与 URL scheme（Info.plist 已注册）
+  - Windows 安装包注册协议，命令行参数进入 Dart main
+- 自动化请求跳过保存位置询问；postprocessing 支持 mp4/audio
+
+## 2.0.21（2026-10-27）
 
 ### 导入与目的地
 
@@ -14,7 +25,6 @@
 - macOS 原生菜单新增「浏览器」：登录浏览器、用户自定义视频提取
 - 浏览器扩展新增安装向导（Chrome/Edge 加载已解压扩展、Firefox 书签方案）
 - 站点覆盖修正：Odysee 归入 yt-dlp（lbry 提取器），当前 299 yt-dlp / 472 通用
-- 下载失败时也发送系统通知（与完成通知共用开关与节流）
 
 ## 2.0.20（2026-10-27）
 

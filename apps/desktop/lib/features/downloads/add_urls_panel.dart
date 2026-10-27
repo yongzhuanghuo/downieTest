@@ -130,6 +130,28 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
       final importedEntry =
           imported != null && i < imported.length ? imported[i] : null;
       try {
+        // B 站多 P 视频：展开播放列表时逐 P 入队。
+        if (importedEntry == null &&
+            _expandPlaylist &&
+            BilibiliPlugin.looksLikeVideo(target)) {
+          setState(() => _progress = '正在解析 B 站分 P…');
+          var parts = const <VideoInfo>[];
+          try {
+            parts = await BilibiliPlugin().parseParts(target);
+          } catch (e) {
+            debugPrint('[添加链接] B 站分 P 解析失败，按单视频处理: $e');
+          }
+          if (parts.length > 1) {
+            setState(() => _progress = 'B 站 ${parts.length} P，正在入队…');
+            final count = await enqueueEntries(parts);
+            if (trialBlocked) break;
+            if (count == 0) {
+              failures.add('${_shortUrl(target)}：B 站分 P 都未能加入队列');
+            }
+            continue;
+          }
+        }
+
         // B 站番剧：ss 链接整季展开，逐集解析入队。
         if (importedEntry == null &&
             _expandPlaylist &&

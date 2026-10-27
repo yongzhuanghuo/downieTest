@@ -113,6 +113,87 @@ class BilibiliPlugin extends SitePlugin {
     final pageData = pages.isNotEmpty
         ? (pages[index] as Map<String, dynamic>)
         : data;
+
+    return _buildVideoInfo(
+      data: data,
+      pageData: pageData,
+      pageIndex: index,
+      pageCount: pages.length,
+      bvid: bvid,
+      aid: aid,
+      wbi: wbi,
+      cookie: cookie,
+    );
+  }
+
+  /// 是否是普通视频链接（/video/BV… 或 /video/av…）。
+  static bool looksLikeVideo(String url) => RegExp(
+        r'bilibili\.com/video/(?:BV[0-9A-Za-z]+|av\d+)',
+        caseSensitive: false,
+      ).hasMatch(url);
+
+  /// 多 P 视频展开：只有单 P 时返回空列表，调用方按普通视频处理。
+  Future<List<VideoInfo>> parseParts(String url) async {
+    final resolved = await _expandShortLink(url);
+    final uri = Uri.parse(resolved);
+    final bv = RegExp(r'/video/(BV[0-9A-Za-z]+)').firstMatch(uri.path);
+    final av = RegExp(r'/video/av(\d+)', caseSensitive: false)
+        .firstMatch(uri.path);
+    if (bv == null && av == null) return const [];
+    final bvid = bv?.group(1);
+    final aid = av?.group(1);
+
+    final cookie = await _cookieHeader();
+    final wbi = await _fetchWbi(cookie);
+    final view = await _getJson(
+      '/x/web-interface/wbi/view?${wbi.sign({
+        if (bvid != null) 'bvid': bvid,
+        if (aid != null) 'aid': aid,
+      })}',
+      cookie,
+    );
+    _throwIfError(view);
+    final data = view['data'] as Map<String, dynamic>?;
+    if (data == null) return const [];
+    final pages = (data['pages'] as List?) ?? const [];
+    if (pages.length <= 1) return const [];
+
+    final infos = <VideoInfo>[];
+    for (var i = 0; i < pages.length && i < 200; i++) {
+      final raw = pages[i];
+      if (raw is! Map) continue;
+      final pageData = Map<String, dynamic>.from(raw);
+      try {
+        infos.add(await _buildVideoInfo(
+          data: data,
+          pageData: pageData,
+          pageIndex: i,
+          pageCount: pages.length,
+          bvid: bvid,
+          aid: aid,
+          wbi: wbi,
+          cookie: cookie,
+        ));
+      } catch (e) {
+        debugPrint('[B站] 跳过 P${i + 1}: $e');
+      }
+    }
+    if (infos.isEmpty) {
+      throw const SitePluginException('B 站多 P 视频没有可下载的分 P', retryable: false);
+    }
+    return infos;
+  }
+
+  Future<VideoInfo> _buildVideoInfo({
+    required Map<String, dynamic> data,
+    required Map<String, dynamic> pageData,
+    required int pageIndex,
+    required int pageCount,
+    required String? bvid,
+    required String? aid,
+    required BilibiliWbi wbi,
+    required String cookie,
+  }) async {
     final cid =
         (pageData['cid'] as num?)?.toInt() ?? (data['cid'] as num?)?.toInt();
     if (cid == null) {
@@ -146,7 +227,7 @@ class BilibiliPlugin extends SitePlugin {
     final title = (data['title'] as String?) ?? 'B 站视频';
     final part = (pageData['part'] as String?) ?? '';
     final displayTitle =
-        pages.length > 1 && part.isNotEmpty ? '$title - $part' : title;
+        pageCount > 1 && part.isNotEmpty ? '$title - $part' : title;
     final owner = (data['owner'] as Map?)?['name'] as String? ?? '';
     final duration = (pageData['duration'] as num?)?.toInt() ??
         (data['duration'] as num?)?.toInt() ??
@@ -157,16 +238,18 @@ class BilibiliPlugin extends SitePlugin {
       pic = 'https://${pic.substring(7)}';
     }
 
+    final baseUrl = 'https://www.bilibili.com/video/${bvid ?? 'av$aid'}';
     return VideoInfo(
-      url: 'https://www.bilibili.com/video/${bvid ?? 'av$aid'}',
+      url: pageCount > 1 ? '$baseUrl?p=${pageIndex + 1}' : baseUrl,
       title: displayTitle,
       duration: duration,
       uploader: owner,
       thumbnail: pic,
       extractor: id,
-      videoId: bvid ?? 'av$aid',
+      videoId: pageCount > 1 ? '${bvid ?? 'av$aid'}_p${pageIndex + 1}' : (bvid ?? 'av$aid'),
       formats: formats,
       subtitleLangs: _subtitleLangs(playData),
+      playlistTitle: pageCount > 1 ? title : '',
       rawJson: data,
     );
   }

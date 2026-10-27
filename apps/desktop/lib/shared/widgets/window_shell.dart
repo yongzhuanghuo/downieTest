@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/platform/automation_queue.dart';
+import '../../core/platform/automation_request.dart';
 import '../../core/platform/tray_service.dart';
 import '../../core/server/browser_bridge.dart';
 import '../../core/sites/format_selector.dart';
@@ -43,11 +45,15 @@ class WindowShell extends ConsumerStatefulWidget {
 }
 
 class _WindowShellState extends ConsumerState<WindowShell> {
+  static const _linkChannel = MethodChannel('downie6/links');
+
   bool _dropHover = false;
 
   @override
   void initState() {
     super.initState();
+    _linkChannel.setMethodCallHandler(_onLinkCall);
+    unawaited(_linkChannel.invokeMethod<void>('ready'));
     unawaited(ref.read(trialProvider.notifier).ensureStarted());
     unawaited(_syncBrowserBridge());
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -67,6 +73,9 @@ class _WindowShellState extends ConsumerState<WindowShell> {
         quit: () => windowManager.close(),
         enabled: ref.read(settingsProvider).showInMenuBar,
       ));
+      for (final request in AutomationQueue.drain()) {
+        unawaited(_handleAutomation(request));
+      }
     });
     unawaited(() async {
       await Future<void>.delayed(const Duration(seconds: 3));
@@ -80,6 +89,33 @@ class _WindowShellState extends ConsumerState<WindowShell> {
         debugPrint('[更新] 版本检查失败（静默）: $e');
       }
     }());
+  }
+
+  @override
+  void dispose() {
+    _linkChannel.setMethodCallHandler(null);
+    super.dispose();
+  }
+
+  /// macOS AppDelegate 转发来的 `open -a` / `downie6://` 链接。
+  Future<dynamic> _onLinkCall(MethodCall call) async {
+    if (call.method != 'openUrl') return null;
+    final raw = call.arguments;
+    if (raw is! String) return null;
+    final request = parseAutomationRequest(raw);
+    if (request == null) {
+      debugPrint('[自动化] 忽略无法识别的链接: $raw');
+      return null;
+    }
+    await _handleAutomation(request);
+    return null;
+  }
+
+  Future<void> _handleAutomation(AutomationRequest request) async {
+    await windowManager.show();
+    await windowManager.focus();
+    if (!mounted) return;
+    await quickAddAutomation(context, ref, request);
   }
 
   /// 启动/停止浏览器接收端口；设置变化时由 ref.listen 重新调用。

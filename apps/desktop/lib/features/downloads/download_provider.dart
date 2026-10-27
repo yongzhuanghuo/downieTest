@@ -173,6 +173,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     int throttleKbps = 0,
     String? titleOverride,
     String? destinationDir,
+    PostprocessingMode? postprocessing,
   }) async {
     var taskDestination = destinationDir ?? '';
     // 显式传入目录（含空串）时跳过询问；普通添加才按偏好弹出目录选择器。
@@ -206,7 +207,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       throttleKbps: throttleKbps,
       destinationDir: taskDestination,
       playlistTitle: videoInfo.playlistTitle,
-      postprocessing: _defaultPostprocessing(),
+      postprocessing: postprocessing ?? _defaultPostprocessing(),
       createdAt: DateTime.now(),
     );
 

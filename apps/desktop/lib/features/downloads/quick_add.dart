@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/platform/automation_request.dart';
 import '../../core/sites/format_selector.dart';
+import '../../data/models/download_task.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../../shared/branding/app_brand.dart';
@@ -21,6 +23,19 @@ import 'unsupported_link_dialog.dart';
 import 'web_capture_dialog.dart';
 
 enum QuickAddResult { added, needsInput, failed, trialEnded }
+
+/// 自动化请求带来的覆盖项（标题/目录/后处理）。
+class QuickAddOptions {
+  final String? title;
+  final String? destinationDir;
+  final PostprocessingMode? postprocessing;
+
+  const QuickAddOptions({
+    this.title,
+    this.destinationDir,
+    this.postprocessing,
+  });
+}
 
 /// 当前正在后台解析的快速添加任务数（用于右上角「加载中…」胶囊）。
 final quickAddLoadingProvider = StateProvider<int>((ref) => 0);
@@ -39,12 +54,33 @@ Future<QuickAddResult> quickAddFromClipboard(
   return quickAddText(context, ref, text);
 }
 
+/// 处理 URL scheme / `open -a` 转发来的自动化请求。
+Future<QuickAddResult> quickAddAutomation(
+  BuildContext context,
+  WidgetRef ref,
+  AutomationRequest request,
+) async {
+  final options = QuickAddOptions(
+    title: request.title.isEmpty ? null : request.title,
+    // 空串表示「显式不询问保存位置」，用全局下载目录。
+    destinationDir: request.destination,
+    postprocessing: request.postprocessing,
+  );
+  if (request.openInUge) {
+    final media = await WebCaptureDialog.show(context, request.url);
+    if (media == null || !context.mounted) return QuickAddResult.failed;
+    return _enqueueCapturedMedia(context, ref, media, options: options);
+  }
+  return quickAddText(context, ref, request.url, options: options);
+}
+
 /// 解析一段文本里的第一个视频链接并直接入队。
 Future<QuickAddResult> quickAddText(
   BuildContext context,
   WidgetRef ref,
-  String text,
-) async {
+  String text, {
+  QuickAddOptions? options,
+}) async {
   final target = wholeHttpUrl(text) ?? firstVideoUrl(text);
   if (target == null) {
     if (context.mounted) {
@@ -74,7 +110,7 @@ Future<QuickAddResult> quickAddText(
       // 与 Downie 一样：不打开「添加链接」，直接给不支持的链接提示
       return _handleUnsupported(context, ref, target);
     }
-    return _enqueueInfo(context, ref, info);
+    return _enqueueInfo(context, ref, info, options: options);
   } catch (e) {
     finishLoading();
     if (context.mounted) {
@@ -139,8 +175,9 @@ Future<QuickAddResult> _handleUnsupported(
 Future<QuickAddResult> _enqueueCapturedMedia(
   BuildContext context,
   WidgetRef ref,
-  CapturedMedia media,
-) async {
+  CapturedMedia media, {
+  QuickAddOptions? options,
+}) async {
   final host = Uri.tryParse(media.pageUrl)?.host ?? '';
   final info = VideoInfo(
     url: media.pageUrl,
@@ -164,14 +201,15 @@ Future<QuickAddResult> _enqueueCapturedMedia(
       ),
     ],
   );
-  return _enqueueInfo(context, ref, info);
+  return _enqueueInfo(context, ref, info, options: options);
 }
 
 Future<QuickAddResult> _enqueueInfo(
   BuildContext context,
   WidgetRef ref,
-  VideoInfo info,
-) async {
+  VideoInfo info, {
+  QuickAddOptions? options,
+}) async {
   if (!ref.read(canDownloadProvider)) {
     await LicenseWindow.show(context);
     return QuickAddResult.trialEnded;
@@ -208,6 +246,9 @@ Future<QuickAddResult> _enqueueInfo(
         format: format,
         downloadSubtitles: settings.defaultDownloadSubtitles,
         downloadCover: settings.defaultDownloadCover,
+        titleOverride: options?.title,
+        destinationDir: options?.destinationDir,
+        postprocessing: options?.postprocessing,
       );
   if (!added) {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(

@@ -173,7 +173,7 @@ Downie 的关键长尾能力是 **Custom Integrations**（社区 JS 规则） + 
 | 19 | 自定义集成 | 注册表/提交/控制台/JS 执行 | 无 | P2 | S3 |
 | 20 | 多窗口 | 历史/调试/UGE/Quick Look 独立窗 | 单窗口浮层 | P2 | 用户已接受浮层，暂不做真多窗 |
 | 21 | 菜单/快捷键 | File/Edit/Browser/Window/Help + 快捷键 | 2.0.20 原生菜单栏（文件/窗口/帮助）+ 托盘菜单；2.0.21 浏览器菜单 | P1 | 编辑菜单、完整快捷键待做 |
-| 22 | 自动化/AppleScript | URL scheme、Services、Intents、自动化模式 | 无 | P2 | 后续 |
+| 22 | 自动化/AppleScript | URL scheme、Services、Intents、自动化模式 | 2.0.22 `downie6://`、open -a/命令行、自动化模式 | P2 | AppleScript/Services/Intents 待做 |
 | 23 | iCloud 历史 | 同步历史 | 无 | P3 | 不做（跨端复杂度高） |
 
 ---
