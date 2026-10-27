@@ -4,49 +4,50 @@ import 'package:downie_test/core/sites/site_coverage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  final data = SiteCoverageData.fromJson(
-    jsonDecode(jsonEncode({
-      'total': 3,
-      'counts': {
-        'native': 1,
-        'native_partial': 0,
-        'ytdlp': 1,
-        'generic': 1,
-        'drm': 0,
+  final raw = jsonEncode({
+    'total': 3,
+    'counts': {
+      'native': 1,
+      'native_partial': 0,
+      'ytdlp': 1,
+      'generic': 1,
+      'drm': 0,
+    },
+    'sites': [
+      {
+        'site': 'Douyin',
+        'className': 'DouyinDownloader',
+        'domains': ['https://www.douyin.com'],
+        'status': 'native',
+        'verified': true,
+        'priority': 'P0',
+        'ytdlpExtractors': ['Douyin'],
+        'notes': '',
       },
-      'sites': [
-        {
-          'site': 'Douyin',
-          'className': 'DouyinDownloader',
-          'domains': ['https://www.douyin.com'],
-          'status': 'native',
-          'verified': true,
-          'priority': 'P0',
-          'ytdlpExtractors': ['Douyin'],
-          'notes': '',
-        },
-        {
-          'site': 'YouTube',
-          'className': 'YouTubeDownloader',
-          'domains': ['https://www.youtube.com'],
-          'status': 'ytdlp',
-          'verified': false,
-          'priority': 'P0',
-          'ytdlpExtractors': ['youtube'],
-          'notes': '',
-        },
-        {
-          'site': 'UnknownSite',
-          'className': 'UnknownSiteDownloader',
-          'domains': [],
-          'status': 'generic',
-          'verified': false,
-          'priority': 'P1',
-          'ytdlpExtractors': [],
-          'notes': '未复刻',
-        },
-      ],
-    }) as Map<String, dynamic>),
+      {
+        'site': 'YouTube',
+        'className': 'YouTubeDownloader',
+        'domains': ['https://www.youtube.com'],
+        'status': 'ytdlp',
+        'verified': false,
+        'priority': 'P0',
+        'ytdlpExtractors': ['youtube'],
+        'notes': '',
+      },
+      {
+        'site': 'UnknownSite',
+        'className': 'UnknownSiteDownloader',
+        'domains': [],
+        'status': 'generic',
+        'verified': false,
+        'priority': 'P1',
+        'ytdlpExtractors': [],
+        'notes': '未复刻',
+      },
+    ],
+  });
+  final data = SiteCoverageData.fromJson(
+    jsonDecode(raw) as Map<String, dynamic>,
   );
 
   test('counts and status labels', () {

@@ -89,15 +89,13 @@ class SiteCoverageData {
 
   factory SiteCoverageData.fromJson(Map<String, dynamic> json) {
     final rawCounts = (json['counts'] as Map?) ?? const {};
+    String keyFor(SiteCoverageStatus status) =>
+        status == SiteCoverageStatus.nativePartial
+            ? 'native_partial'
+            : status.name;
     final counts = <SiteCoverageStatus, int>{
       for (final status in SiteCoverageStatus.values)
-        status: (rawCounts[
-                  status == SiteCoverageStatus.nativePartial
-                      ? 'native_partial'
-                      : status.name,
-                ] as num?)
-                ?.toInt() ??
-            0,
+        status: (rawCounts[keyFor(status)] as num?)?.toInt() ?? 0,
     };
     final sites = (json['sites'] as List? ?? const [])
         .whereType<Map>()
