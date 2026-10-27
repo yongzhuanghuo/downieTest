@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/download_task.dart';
 import '../../../data/models/format_option.dart';
@@ -311,6 +313,29 @@ class DownloadRow extends ConsumerWidget {
             case 'copy':
               await Clipboard.setData(ClipboardData(text: task.url));
               break;
+            case 'copy-download':
+              await Clipboard.setData(
+                ClipboardData(text: _downloadUrl(task)),
+              );
+              break;
+            case 'open-browser':
+              try {
+                await launchUrl(
+                  Uri.parse(task.url),
+                  mode: LaunchMode.externalApplication,
+                );
+              } catch (e) {
+                debugPrint('[下载行] 打开浏览器失败: $e');
+              }
+              break;
+            case 'preview':
+              if (task.outputPath != null) {
+                await _quickLook(task.outputPath!);
+              }
+              break;
+            case 'report':
+              await _reportLink(task);
+              break;
             case 'open':
               if (task.outputPath != null) {
                 await _openContainingFolder(task.outputPath!);
@@ -355,7 +380,15 @@ class DownloadRow extends ConsumerWidget {
           }
         },
         itemBuilder: (context) => [
-          const PopupMenuItem(value: 'copy', child: Text('复制链接')),
+          const PopupMenuItem(value: 'copy', child: Text('复制页面链接')),
+          const PopupMenuItem(
+            value: 'copy-download',
+            child: Text('复制下载链接'),
+          ),
+          const PopupMenuItem(
+            value: 'open-browser',
+            child: Text('在浏览器中打开'),
+          ),
           const PopupMenuItem(value: 'rename', child: Text('重命名')),
           if (task.status == DownloadStatus.pending) ...[
             for (final priority in DownloadPriority.values)
@@ -382,10 +415,18 @@ class DownloadRow extends ConsumerWidget {
           else if (task.isRunning)
             const PopupMenuItem(value: 'pause', child: Text('暂停下载')),
           if (task.status == DownloadStatus.completed &&
-              task.outputPath != null)
+              task.outputPath != null) ...[
+            if (Platform.isMacOS)
+              const PopupMenuItem(
+                value: 'preview',
+                child: Text('快速预览'),
+              ),
             const PopupMenuItem(value: 'open', child: Text('打开所在目录')),
-          if (task.isFailed || task.status == DownloadStatus.cancelled)
+          ],
+          if (task.isFailed || task.status == DownloadStatus.cancelled) ...[
             const PopupMenuItem(value: 'retry', child: Text('重试')),
+            const PopupMenuItem(value: 'report', child: Text('报告链接…')),
+          ],
           if (task.isRunning)
             const PopupMenuItem(value: 'cancel', child: Text('取消下载')),
           if (task.isFinished)
@@ -393,6 +434,53 @@ class DownloadRow extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _downloadUrl(DownloadTask task) {
+    final id = task.formatId.trim();
+    if (id.contains('\n')) return id.split('\n').first;
+    if (id.startsWith('{')) {
+      try {
+        final map = jsonDecode(id);
+        if (map is Map && map['url'] is String) {
+          return map['url'] as String;
+        }
+      } catch (_) {}
+    }
+    if (id.startsWith('http://') || id.startsWith('https://')) return id;
+    return task.url;
+  }
+
+  Future<void> _quickLook(String path) async {
+    if (!Platform.isMacOS) return;
+    try {
+      await Process.start(
+        'qlmanage',
+        ['-p', path],
+        mode: ProcessStartMode.detached,
+      );
+    } catch (e) {
+      debugPrint('[下载行] Quick Look 失败: $e');
+    }
+  }
+
+  Future<void> _reportLink(DownloadTask task) async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: AppBrand.supportEmail,
+      queryParameters: {
+        'subject': '下载失败：${task.title}',
+        'body': '链接：${task.url}\n'
+            '站点：${task.extractor}\n'
+            '错误：${task.error ?? '无'}\n'
+            '格式：${task.formatLabel}\n',
+      },
+    );
+    try {
+      await launchUrl(uri);
+    } catch (e) {
+      debugPrint('[下载行] 打开邮件失败: $e');
+    }
   }
 
   Future<void> _rename(

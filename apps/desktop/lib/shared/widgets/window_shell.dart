@@ -9,6 +9,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/server/browser_bridge.dart';
+import '../../core/sites/format_selector.dart';
 import '../../core/version/version_check.dart';
 import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
@@ -86,9 +87,13 @@ class _WindowShellState extends ConsumerState<WindowShell> {
       final info = parse.videoInfo;
       if (parse.isError || info == null) return false;
       if (!ref.read(canDownloadProvider)) return false;
-      final format = info.recommendedFormat;
-      if (format == null) return false;
       final settings = ref.read(settingsProvider);
+      final format = selectFormatForDownload(
+        info,
+        qualityPreference: settings.qualityPreference,
+        preferMp4: settings.preferMp4,
+      );
+      if (format == null) return false;
       await ref.read(downloadListProvider.notifier).startDownload(
             videoInfo: info,
             format: format,

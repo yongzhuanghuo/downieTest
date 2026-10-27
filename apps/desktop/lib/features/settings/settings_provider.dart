@@ -95,6 +95,36 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setQualityPreference(int value) async {
+    final next = state.copyWith(qualityPreference: value.clamp(0, 6));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setPreferMp4(bool value) async {
+    final next = state.copyWith(preferMp4: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setDuplicatePrompt(bool value) async {
+    final next = state.copyWith(duplicatePrompt: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setQueueSort(int value) async {
+    final next = state.copyWith(queueSort: value.clamp(0, 3));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setQueueSortDesc(bool value) async {
+    final next = state.copyWith(queueSortDesc: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setNotifyOnComplete(bool value) async {
     final next = state.copyWith(notifyOnComplete: value);
     await SettingsStorage.instance.save(next);

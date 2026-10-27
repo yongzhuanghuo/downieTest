@@ -74,11 +74,42 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
           leadingIcon: const Icon(Icons.list_alt, size: 14),
           menuChildren: [
             _item(
+              '暂停全部',
+              icon: Icons.pause_circle_outline,
+              onTap: () =>
+                  ref.read(downloadListProvider.notifier).pauseAll(),
+            ),
+            _item(
+              '继续全部',
+              icon: Icons.play_circle_outline,
+              onTap: () =>
+                  ref.read(downloadListProvider.notifier).resumeAll(),
+            ),
+            _item(
+              '重试全部',
+              icon: Icons.refresh,
+              onTap: () =>
+                  ref.read(downloadListProvider.notifier).retryAll(),
+            ),
+            const Divider(height: 8),
+            _item(
               '清空已完成',
               icon: Icons.cleaning_services_outlined,
               onTap: () => ref
                   .read(downloadListProvider.notifier)
                   .clearFinished(),
+            ),
+            _item(
+              '清空未激活',
+              icon: Icons.remove_circle_outline,
+              onTap: () => ref
+                  .read(downloadListProvider.notifier)
+                  .clearInactive(),
+            ),
+            _item(
+              '重置队列…',
+              icon: Icons.restart_alt,
+              onTap: _resetQueue,
             ),
           ],
           child: Text('队列', style: TextStyle(fontSize: 12, color: text)),
@@ -197,6 +228,29 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
             ),
       child: Text(label, style: TextStyle(fontSize: 12, color: text)),
     );
+  }
+
+  Future<void> _resetQueue() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重置队列'),
+        content: const Text('将停止并移除队列中的所有任务，已下载的文件不会被删除。确定继续吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('重置'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      await ref.read(downloadListProvider.notifier).resetQueue();
+    }
   }
 
   Future<void> _addFromClipboard() async {

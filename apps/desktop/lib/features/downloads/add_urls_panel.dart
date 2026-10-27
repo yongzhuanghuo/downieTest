@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/ytdlp_runner.dart';
+import '../../core/sites/format_selector.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
@@ -190,7 +191,12 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
   /// 把解析结果加入下载队列；成功返回 null，失败返回错误文案。
   Future<String?> _enqueueInfo(VideoInfo info) async {
     if (!ref.read(canDownloadProvider)) return _trialEnded;
-    final format = info.recommendedFormat;
+    final settings = ref.read(settingsProvider);
+    final format = selectFormatForDownload(
+      info,
+      qualityPreference: settings.qualityPreference,
+      preferMp4: settings.preferMp4,
+    );
     if (format == null) return '没有可用格式';
     await ref.read(downloadListProvider.notifier).startDownload(
           videoInfo: info,

@@ -45,7 +45,7 @@ class _QueueSearchPanelState extends ConsumerState<QueueSearchPanel> {
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(downloadSearchProvider);
-    final tasks = ref.watch(downloadListProvider);
+    final tasks = ref.watch(sortedDownloadsProvider);
     final q = query.trim().toLowerCase();
     final count = q.isEmpty
         ? tasks.length

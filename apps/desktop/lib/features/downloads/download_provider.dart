@@ -18,6 +18,7 @@ import '../../data/models/download_task.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../history/history_page.dart';
+import '../settings/settings_provider.dart';
 import 'site_login_prompt.dart';
 
 /// 失败自动重试最大次数
@@ -531,6 +532,63 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     _ref.invalidate(historyProvider);
   }
 
+  /// 暂停全部（运行中 + 等待中）
+  Future<void> pauseAll() async {
+    for (final task in List<DownloadTask>.of(state)) {
+      if (!task.isFinished && !task.isPaused) {
+        await pause(task.id);
+      }
+    }
+  }
+
+  /// 继续全部已暂停任务
+  Future<void> resumeAll() async {
+    for (final task in List<DownloadTask>.of(state)) {
+      if (task.isPaused) await resume(task.id);
+    }
+  }
+
+  /// 重试全部失败/取消任务
+  Future<void> retryAll() async {
+    for (final task in List<DownloadTask>.of(state)) {
+      if (task.isFailed || task.status == DownloadStatus.cancelled) {
+        await retry(task.id);
+      }
+    }
+  }
+
+  /// 清空未激活任务（等待中、暂停、已完成、失败、取消）。
+  /// 正在下载的任务保留。
+  Future<void> clearInactive() async {
+    final ids = state
+        .where((t) => !t.isRunning)
+        .map((t) => t.id)
+        .toSet();
+    if (ids.isEmpty) return;
+    for (final id in ids) {
+      _cancelled.add(id);
+      _paused.remove(id);
+      await _dao.deleteById(id);
+    }
+    state = state.where((t) => !ids.contains(t.id)).toList();
+    _ref.invalidate(historyProvider);
+  }
+
+  /// 重置队列：停止并删除所有任务（不删除已下载文件）。
+  Future<void> resetQueue() async {
+    if (state.isEmpty) return;
+    final tasks = List<DownloadTask>.of(state);
+    for (final task in tasks) {
+      _cancelled.add(task.id);
+      _paused.remove(task.id);
+    }
+    for (final task in tasks) {
+      await _dao.deleteById(task.id);
+    }
+    state = const [];
+    _ref.invalidate(historyProvider);
+  }
+
   // ==================== 内部工具方法 ====================
 
   /// 在文件管理器中显示文件（macOS=Finder, Windows=资源管理器）
@@ -675,3 +733,27 @@ final pendingCountProvider = Provider<int>((ref) {
 
 /// 主队列搜索关键词（空 = 显示全部）
 final downloadSearchProvider = StateProvider<String>((ref) => '');
+
+/// 按设置排序后的队列（只影响 UI，不改变调度器的优先级）。
+final sortedDownloadsProvider = Provider<List<DownloadTask>>((ref) {
+  final tasks = List<DownloadTask>.of(ref.watch(downloadListProvider));
+  final settings = ref.watch(settingsProvider);
+  int compare(DownloadTask a, DownloadTask b) {
+    switch (settings.queueSort) {
+      case 1:
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      case 2:
+        return a.extractor.toLowerCase().compareTo(b.extractor.toLowerCase());
+      case 3:
+        return b.priority.index.compareTo(a.priority.index);
+      default:
+        return a.createdAt.compareTo(b.createdAt);
+    }
+  }
+
+  tasks.sort((a, b) {
+    final result = compare(a, b);
+    return settings.queueSortDesc ? -result : result;
+  });
+  return List<DownloadTask>.unmodifiable(tasks);
+});

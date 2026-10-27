@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/sites/format_selector.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../../shared/branding/app_brand.dart';
@@ -14,6 +15,8 @@ import '../license/license_window.dart';
 import '../settings/settings_provider.dart';
 import 'add_urls_panel.dart';
 import 'download_provider.dart';
+import 'duplicate_prompt.dart';
+import 'quality_picker_dialog.dart';
 import 'unsupported_link_dialog.dart';
 import 'web_capture_dialog.dart';
 
@@ -173,14 +176,30 @@ Future<QuickAddResult> _enqueueInfo(
     await LicenseWindow.show(context);
     return QuickAddResult.trialEnded;
   }
-  final format = info.recommendedFormat;
+  final settings = ref.read(settingsProvider);
+  if (!await confirmDuplicateDownload(context, ref, info)) {
+    return QuickAddResult.failed;
+  }
+  if (!context.mounted) return QuickAddResult.failed;
+
+  FormatOption? format;
+  final videoFormats =
+      info.formats.where((f) => !f.audioOnly).toList(growable: false);
+  if (settings.qualityPreference == 1 && videoFormats.length > 1) {
+    format = await QualityPickerDialog.show(context, info);
+  } else {
+    format = selectFormatForDownload(
+      info,
+      qualityPreference: settings.qualityPreference,
+      preferMp4: settings.preferMp4,
+    );
+  }
   if (format == null) {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
       const SnackBar(content: Text('没有可用格式')),
     );
     return QuickAddResult.failed;
   }
-  final settings = ref.read(settingsProvider);
   await ref.read(downloadListProvider.notifier).startDownload(
         videoInfo: info,
         format: format,

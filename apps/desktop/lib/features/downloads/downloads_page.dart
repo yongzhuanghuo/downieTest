@@ -14,7 +14,7 @@ class DownloadsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final allTasks = ref.watch(downloadListProvider);
+    final allTasks = ref.watch(sortedDownloadsProvider);
     final query = ref.watch(downloadSearchProvider).trim().toLowerCase();
     final tasks = query.isEmpty
         ? allTasks

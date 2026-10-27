@@ -57,7 +57,7 @@ jobs:
       - name: 单元测试
         run: |
           set -o pipefail
-          flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart test/window_panel_test.dart test/url_extraction_test.dart test/search_engines_test.dart test/browser_bridge_test.dart test/playlist_test.dart test/site_cookies_test.dart test/file_naming_test.dart test/douyin_parser_test.dart test/site_coverage_test.dart 2>&1 | tee test_output.log
+          flutter test test/site_plugin_test.dart test/bilibili_wbi_test.dart test/generic_web_plugin_test.dart test/generic_html_extractor_test.dart test/download_task_test.dart test/trial_info_test.dart test/window_panel_test.dart test/url_extraction_test.dart test/search_engines_test.dart test/browser_bridge_test.dart test/playlist_test.dart test/site_cookies_test.dart test/file_naming_test.dart test/douyin_parser_test.dart test/site_coverage_test.dart test/format_selector_test.dart 2>&1 | tee test_output.log
 
       - name: 测试失败注解
         if: failure()

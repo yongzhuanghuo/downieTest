@@ -197,6 +197,48 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               label: '${settings.maxConcurrent}',
               onChanged: (v) => notifier.setMaxConcurrent(v.round()),
             ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              '有多种画质时',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            DropdownButtonFormField<int>(
+              initialValue: settings.qualityPreference,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('自动选择最佳画质')),
+                DropdownMenuItem(value: 1, child: Text('每次询问我')),
+                DropdownMenuItem(value: 2, child: Text('限制到 360p')),
+                DropdownMenuItem(value: 3, child: Text('限制到 480p')),
+                DropdownMenuItem(value: 4, child: Text('限制到 720p')),
+                DropdownMenuItem(value: 5, child: Text('限制到 1080p')),
+                DropdownMenuItem(value: 6, child: Text('限制到 4K')),
+              ],
+              onChanged: (value) =>
+                  notifier.setQualityPreference(value ?? 0),
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('同分辨率优先 MP4'),
+              subtitle: const Text('即使其他格式帧率/码率略高，也优先兼容性更好的 MP4'),
+              value: settings.preferMp4,
+              onChanged: notifier.setPreferMp4,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('重复链接时询问'),
+              subtitle: const Text('链接已在队列或下载过时，先确认再添加'),
+              value: settings.duplicatePrompt,
+              onChanged: notifier.setDuplicatePrompt,
+            ),
           ],
         );
       case 1:
@@ -217,6 +259,35 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               selected: {settings.themeMode},
               onSelectionChanged: (values) =>
                   notifier.setThemeMode(values.first),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              '队列排序',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            DropdownButtonFormField<int>(
+              initialValue: settings.queueSort,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('添加时间')),
+                DropdownMenuItem(value: 1, child: Text('名称')),
+                DropdownMenuItem(value: 2, child: Text('站点')),
+                DropdownMenuItem(value: 3, child: Text('优先级')),
+              ],
+              onChanged: (value) => notifier.setQueueSort(value ?? 0),
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('降序排列'),
+              value: settings.queueSortDesc,
+              onChanged: notifier.setQueueSortDesc,
             ),
           ],
         );

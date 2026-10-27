@@ -66,6 +66,21 @@ class AppSettings {
   /// 不支持的链接始终用「用户自定义视频提取」打开
   final bool autoUgeUnsupported;
 
+  /// 多画质选择：0=自动最佳, 1=每次询问, 2=360p, 3=480p, 4=720p, 5=1080p, 6=4K
+  final int qualityPreference;
+
+  /// 同分辨率时优先 MP4
+  final bool preferMp4;
+
+  /// 重复链接是否询问
+  final bool duplicatePrompt;
+
+  /// 队列排序：0=添加时间, 1=名称, 2=站点, 3=优先级
+  final int queueSort;
+
+  /// 队列排序降序
+  final bool queueSortDesc;
+
   const AppSettings({
     required this.downloadDir,
     required this.maxConcurrent,
@@ -86,6 +101,11 @@ class AppSettings {
     this.filenameTemplate = '{title}',
     this.subfolderBySite = false,
     this.autoUgeUnsupported = false,
+    this.qualityPreference = 0,
+    this.preferMp4 = true,
+    this.duplicatePrompt = true,
+    this.queueSort = 0,
+    this.queueSortDesc = false,
   });
 
   static const defaults = AppSettings(
@@ -108,6 +128,11 @@ class AppSettings {
     filenameTemplate: '{title}',
     subfolderBySite: false,
     autoUgeUnsupported: false,
+    qualityPreference: 0,
+    preferMp4: true,
+    duplicatePrompt: true,
+    queueSort: 0,
+    queueSortDesc: false,
   );
 
   AppSettings copyWith({
@@ -130,6 +155,11 @@ class AppSettings {
     String? filenameTemplate,
     bool? subfolderBySite,
     bool? autoUgeUnsupported,
+    int? qualityPreference,
+    bool? preferMp4,
+    bool? duplicatePrompt,
+    int? queueSort,
+    bool? queueSortDesc,
   }) {
     return AppSettings(
       downloadDir: downloadDir ?? this.downloadDir,
@@ -156,6 +186,12 @@ class AppSettings {
       subfolderBySite: subfolderBySite ?? this.subfolderBySite,
       autoUgeUnsupported:
           autoUgeUnsupported ?? this.autoUgeUnsupported,
+      qualityPreference:
+          qualityPreference ?? this.qualityPreference,
+      preferMp4: preferMp4 ?? this.preferMp4,
+      duplicatePrompt: duplicatePrompt ?? this.duplicatePrompt,
+      queueSort: queueSort ?? this.queueSort,
+      queueSortDesc: queueSortDesc ?? this.queueSortDesc,
     );
   }
 
@@ -236,6 +272,12 @@ class SettingsStorage {
         subfolderBySite: (raw['subfolderBySite'] as bool?) ?? false,
         autoUgeUnsupported:
             (raw['autoUgeUnsupported'] as bool?) ?? false,
+        qualityPreference:
+            (raw['qualityPreference'] as num?)?.toInt() ?? 0,
+        preferMp4: (raw['preferMp4'] as bool?) ?? true,
+        duplicatePrompt: (raw['duplicatePrompt'] as bool?) ?? true,
+        queueSort: (raw['queueSort'] as num?)?.toInt() ?? 0,
+        queueSortDesc: (raw['queueSortDesc'] as bool?) ?? false,
       );
     }
     debugPrint('[Settings] loaded: $_cache');
@@ -289,6 +331,11 @@ class SettingsStorage {
       'filenameTemplate': settings.filenameTemplate,
       'subfolderBySite': settings.subfolderBySite,
       'autoUgeUnsupported': settings.autoUgeUnsupported,
+      'qualityPreference': settings.qualityPreference,
+      'preferMp4': settings.preferMp4,
+      'duplicatePrompt': settings.duplicatePrompt,
+      'queueSort': settings.queueSort,
+      'queueSortDesc': settings.queueSortDesc,
     });
     debugPrint('[Settings] saved: $settings');
   }

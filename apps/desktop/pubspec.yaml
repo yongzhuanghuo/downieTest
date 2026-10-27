@@ -2,7 +2,7 @@ name: downie_test
 description: "4KDownle - 网页视频下载工具"
 publish_to: 'none'
 
-version: 2.0.18+19
+version: 2.0.19+20
 
 environment:
   sdk: ^3.13.0
