@@ -9,6 +9,7 @@ import '../../core/sites/generic_html_extractor.dart';
 import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../core/sites/site_plugin.dart';
+import '../../core/storage/adult_filter.dart';
 import '../../core/storage/settings_storage.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
@@ -53,6 +54,14 @@ class ParseNotifier extends StateNotifier<ParseState> {
     final target = wholeHttpUrl(trimmed) ??
         firstVideoUrl(trimmed) ??
         trimmed;
+    if (SettingsStorage.instance.current.blockAdultSites &&
+        isAdultUrl(target)) {
+      state = const ParseState(
+        status: ParseStatus.error,
+        error: '已按家长控制设置阻止该站点',
+      );
+      return;
+    }
     state = const ParseState(status: ParseStatus.loading);
 
     // 直接媒体地址：不抓页面，直接生成可下载格式

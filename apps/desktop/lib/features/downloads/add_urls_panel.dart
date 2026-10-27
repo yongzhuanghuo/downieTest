@@ -8,6 +8,7 @@ import '../../core/engine/ytdlp_runner.dart';
 import '../../core/sites/format_selector.dart';
 import '../../core/sites/plugins/bilibili_plugin.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
+import '../../core/storage/adult_filter.dart';
 import '../../core/storage/import_links.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
@@ -294,6 +295,10 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
       setState(() => _error = '请先输入一个网页链接');
+      return;
+    }
+    if (ref.read(settingsProvider).blockAdultSites && isAdultUrl(url)) {
+      setState(() => _error = '已按家长控制设置阻止该站点');
       return;
     }
 

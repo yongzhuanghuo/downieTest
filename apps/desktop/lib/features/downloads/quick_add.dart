@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/platform/automation_request.dart';
 import '../../core/sites/format_selector.dart';
+import '../../core/storage/adult_filter.dart';
 import '../../data/models/download_task.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
@@ -87,6 +88,12 @@ Future<QuickAddResult> quickAddText(
       await AddUrlsPanel.show(context, initialText: text);
     }
     return QuickAddResult.needsInput;
+  }
+  if (ref.read(settingsProvider).blockAdultSites && isAdultUrl(target)) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(content: Text('已按家长控制设置阻止该站点')),
+    );
+    return QuickAddResult.failed;
   }
 
   final loading = ref.read(quickAddLoadingProvider.notifier);

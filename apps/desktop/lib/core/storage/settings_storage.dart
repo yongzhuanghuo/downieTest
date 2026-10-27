@@ -159,6 +159,9 @@ class AppSettings {
   /// 自动化模式：抑制登录/画质/重复确认等阻塞对话框
   final bool automatedMode;
 
+  /// 家长控制：禁止下载成人站点
+  final bool blockAdultSites;
+
   /// 纯音频下载格式（yt-dlp 任务）：mp3/m4a/opus
   final String preferredAudioFormat;
 
@@ -213,6 +216,7 @@ class AppSettings {
     this.autoCheckUpdates = true,
     this.disableLoginDialogs = false,
     this.automatedMode = false,
+    this.blockAdultSites = false,
     this.preferredAudioFormat = 'mp3',
   });
 
@@ -267,6 +271,7 @@ class AppSettings {
     autoCheckUpdates: true,
     disableLoginDialogs: false,
     automatedMode: false,
+    blockAdultSites: false,
     preferredAudioFormat: 'mp3',
   );
 
@@ -321,6 +326,7 @@ class AppSettings {
     bool? autoCheckUpdates,
     bool? disableLoginDialogs,
     bool? automatedMode,
+    bool? blockAdultSites,
     String? preferredAudioFormat,
   }) {
     return AppSettings(
@@ -391,6 +397,7 @@ class AppSettings {
       disableLoginDialogs:
           disableLoginDialogs ?? this.disableLoginDialogs,
       automatedMode: automatedMode ?? this.automatedMode,
+      blockAdultSites: blockAdultSites ?? this.blockAdultSites,
       preferredAudioFormat:
           preferredAudioFormat ?? this.preferredAudioFormat,
     );
@@ -516,6 +523,7 @@ class SettingsStorage {
         disableLoginDialogs:
             (raw['disableLoginDialogs'] as bool?) ?? false,
         automatedMode: (raw['automatedMode'] as bool?) ?? false,
+        blockAdultSites: (raw['blockAdultSites'] as bool?) ?? false,
         preferredAudioFormat:
             (raw['preferredAudioFormat'] as String?) ?? 'mp3',
       );
@@ -603,6 +611,7 @@ class SettingsStorage {
       'autoCheckUpdates': settings.autoCheckUpdates,
       'disableLoginDialogs': settings.disableLoginDialogs,
       'automatedMode': settings.automatedMode,
+      'blockAdultSites': settings.blockAdultSites,
       'preferredAudioFormat': settings.preferredAudioFormat,
     });
     debugPrint('[Settings] saved: $settings');

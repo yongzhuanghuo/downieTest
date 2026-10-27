@@ -936,6 +936,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
+              title: const Text('禁止下载成人站点'),
+              subtitle: const Text('按域名列表拦截；只能识别常见站点，不是完整过滤'),
+              value: settings.blockAdultSites,
+              onChanged: notifier.setBlockAdultSites,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
               title: const Text('禁用登录对话框'),
               subtitle: const Text('需要登录的链接直接失败，不弹内置浏览器；仍可从菜单手动登录'),
               value: settings.disableLoginDialogs,
