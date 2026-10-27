@@ -14,7 +14,16 @@ class SystemNotifications {
 
   static DateTime? _lastShown;
 
-  static Future<void> downloadComplete(String title) async {
+  static Future<void> downloadComplete(String title) =>
+      _downloadFinished(title, failed: false);
+
+  static Future<void> downloadFailed(String title) =>
+      _downloadFinished(title, failed: true);
+
+  static Future<void> _downloadFinished(
+    String title, {
+    required bool failed,
+  }) async {
     if (!SettingsStorage.instance.current.notifyOnComplete) return;
     // 播放列表/并发下载完成时间很近，节流避免刷屏
     final now = DateTime.now();
@@ -23,7 +32,11 @@ class SystemNotifications {
       return;
     }
     _lastShown = now;
-    final body = _clean(title.isEmpty ? '下载完成' : title);
+    final body = _clean(
+      title.isEmpty
+          ? (failed ? '下载失败' : '下载完成')
+          : (failed ? '下载失败：$title' : title),
+    );
     try {
       if (Platform.isMacOS) {
         final script = 'display notification "${_appleScript(body)}" '

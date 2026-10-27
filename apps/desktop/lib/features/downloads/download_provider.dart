@@ -538,6 +538,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
               finishedStatus == DownloadStatus.failed)) {
         unawaited(SystemSound.play(SystemSoundType.alert));
       }
+      if (finishedStatus == DownloadStatus.failed) {
+        unawaited(SystemNotifications.downloadFailed(task.title));
+      }
       // 调度器继续填坑
       unawaited(_scheduler());
       _maybeQuitWhenDone();
