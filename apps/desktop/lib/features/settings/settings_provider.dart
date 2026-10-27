@@ -63,6 +63,18 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setAddToAppleMedia(bool value) async {
+    final next = state.copyWith(addToAppleMedia: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setAppleMediaKind(int value) async {
+    final next = state.copyWith(appleMediaKind: value.clamp(0, 2));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setDefaultDownloadSubtitles(bool value) async {
     final next = state.copyWith(defaultDownloadSubtitles: value);
     await SettingsStorage.instance.save(next);

@@ -408,6 +408,10 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                 ),
               ));
           unawaited(SystemNotifications.downloadComplete(current.title));
+          if (Platform.isMacOS &&
+              SettingsStorage.instance.current.addToAppleMedia) {
+            unawaited(_addToAppleMedia(resultPath, current));
+          }
           if (settings.saveMetadataJson && plugin != null) {
             unawaited(_writeMetadataSidecar(current, resultPath));
           }
@@ -545,6 +549,30 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       // 调度器继续填坑
       unawaited(_scheduler());
       _maybeQuitWhenDone();
+    }
+  }
+
+  /// macOS：把完成文件导入 Music / TV。失败只记录日志，不影响下载结果。
+  Future<void> _addToAppleMedia(String path, DownloadTask task) async {
+    final settings = SettingsStorage.instance.current;
+    final isAudio = task.audioOnly ||
+        const {'mp3', 'm4a', 'opus', 'flac', 'wav', 'aac'}
+            .contains(_extensionOf(path));
+    final kind = settings.appleMediaKind == 0
+        ? (isAudio ? 1 : 2)
+        : settings.appleMediaKind;
+    final app = kind == 1 ? 'Music' : 'TV';
+    final escaped = path.replaceAll('\\', r'\\').replaceAll('"', r'\"');
+    try {
+      final result = await Process.run(
+        'osascript',
+        ['-e', 'tell application "$app" to add POSIX file "$escaped"'],
+      );
+      if (result.exitCode != 0) {
+        debugPrint('[AppleMedia] 导入 $app 失败: ${result.stderr}');
+      }
+    } catch (e) {
+      debugPrint('[AppleMedia] 导入 $app 异常: $e');
     }
   }
 

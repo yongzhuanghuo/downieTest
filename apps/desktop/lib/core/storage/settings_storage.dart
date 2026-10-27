@@ -123,6 +123,12 @@ class AppSettings {
   /// 自定义后处理脚本路径（PostprocessingMode.custom）
   final String postprocessingScript;
 
+  /// 下载完成后添加到 macOS Music/TV
+  final bool addToAppleMedia;
+
+  /// 媒体类型：0=自动, 1=Music, 2=TV
+  final int appleMediaKind;
+
   /// 下载自动生成的字幕
   final bool includeAutoSubtitles;
 
@@ -195,6 +201,8 @@ class AppSettings {
     this.clearMissingHistory = false,
     this.deleteOriginalAfterConversion = false,
     this.postprocessingScript = '',
+    this.addToAppleMedia = false,
+    this.appleMediaKind = 0,
     this.includeAutoSubtitles = true,
     this.subtitleMode = 0,
     this.keepSubtitleFormat = false,
@@ -247,6 +255,8 @@ class AppSettings {
     clearMissingHistory: false,
     deleteOriginalAfterConversion: false,
     postprocessingScript: '',
+    addToAppleMedia: false,
+    appleMediaKind: 0,
     includeAutoSubtitles: true,
     subtitleMode: 0,
     keepSubtitleFormat: false,
@@ -299,6 +309,8 @@ class AppSettings {
     bool? clearMissingHistory,
     bool? deleteOriginalAfterConversion,
     String? postprocessingScript,
+    bool? addToAppleMedia,
+    int? appleMediaKind,
     bool? includeAutoSubtitles,
     int? subtitleMode,
     bool? keepSubtitleFormat,
@@ -363,6 +375,8 @@ class AppSettings {
           deleteOriginalAfterConversion ?? this.deleteOriginalAfterConversion,
       postprocessingScript:
           postprocessingScript ?? this.postprocessingScript,
+      addToAppleMedia: addToAppleMedia ?? this.addToAppleMedia,
+      appleMediaKind: appleMediaKind ?? this.appleMediaKind,
       includeAutoSubtitles:
           includeAutoSubtitles ?? this.includeAutoSubtitles,
       subtitleMode: subtitleMode ?? this.subtitleMode,
@@ -486,6 +500,8 @@ class SettingsStorage {
             (raw['deleteOriginalAfterConversion'] as bool?) ?? false,
         postprocessingScript:
             (raw['postprocessingScript'] as String?) ?? '',
+        addToAppleMedia: (raw['addToAppleMedia'] as bool?) ?? false,
+        appleMediaKind: (raw['appleMediaKind'] as num?)?.toInt() ?? 0,
         includeAutoSubtitles:
             (raw['includeAutoSubtitles'] as bool?) ?? true,
         subtitleMode: (raw['subtitleMode'] as num?)?.toInt() ?? 0,
@@ -575,6 +591,8 @@ class SettingsStorage {
       'deleteOriginalAfterConversion':
           settings.deleteOriginalAfterConversion,
       'postprocessingScript': settings.postprocessingScript,
+      'addToAppleMedia': settings.addToAppleMedia,
+      'appleMediaKind': settings.appleMediaKind,
       'includeAutoSubtitles': settings.includeAutoSubtitles,
       'subtitleMode': settings.subtitleMode,
       'keepSubtitleFormat': settings.keepSubtitleFormat,

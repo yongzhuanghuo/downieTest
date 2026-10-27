@@ -721,6 +721,34 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
               value: settings.deleteOriginalAfterConversion,
               onChanged: notifier.setDeleteOriginalAfterConversion,
             ),
+            if (Platform.isMacOS) ...[
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('下载完成后添加到 Music / TV'),
+                subtitle: const Text('使用 AppleScript 导入；首次使用需要在系统弹窗中允许'),
+                value: settings.addToAppleMedia,
+                onChanged: notifier.setAddToAppleMedia,
+              ),
+              if (settings.addToAppleMedia)
+                DropdownButtonFormField<int>(
+                  initialValue: settings.appleMediaKind,
+                  decoration: const InputDecoration(
+                    labelText: '媒体类型',
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.sm,
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 0, child: Text('自动（音频→Music，视频→TV）')),
+                    DropdownMenuItem(value: 1, child: Text('Music')),
+                    DropdownMenuItem(value: 2, child: Text('TV')),
+                  ],
+                  onChanged: (value) =>
+                      notifier.setAppleMediaKind(value ?? 0),
+                ),
+            ],
           ],
         );
       case 6:
