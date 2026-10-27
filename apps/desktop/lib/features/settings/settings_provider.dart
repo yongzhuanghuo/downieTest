@@ -161,6 +161,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = next;
   }
 
+  Future<void> setChunkSizeMb(int value) async {
+    final next = state.copyWith(chunkSizeMb: value.clamp(0, 32));
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
   Future<void> setThrottleKbps(int value) async {
     final next = state.copyWith(throttleKbps: value.clamp(0, 1000000));
     await SettingsStorage.instance.save(next);
@@ -247,6 +253,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> setDisableLoginDialogs(bool value) async {
     final next = state.copyWith(disableLoginDialogs: value);
+    await SettingsStorage.instance.save(next);
+    state = next;
+  }
+
+  Future<void> setAutomatedMode(bool value) async {
+    final next = state.copyWith(automatedMode: value);
     await SettingsStorage.instance.save(next);
     state = next;
   }

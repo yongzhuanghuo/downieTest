@@ -185,7 +185,9 @@ Future<QuickAddResult> _enqueueInfo(
   FormatOption? format;
   final videoFormats =
       info.formats.where((f) => !f.audioOnly).toList(growable: false);
-  if (settings.qualityPreference == 1 && videoFormats.length > 1) {
+  if (!settings.automatedMode &&
+      settings.qualityPreference == 1 &&
+      videoFormats.length > 1) {
     format = await QualityPickerDialog.show(context, info);
   } else {
     format = selectFormatForDownload(

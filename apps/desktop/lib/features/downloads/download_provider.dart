@@ -177,7 +177,8 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     var taskDestination = destinationDir ?? '';
     // 显式传入目录（含空串）时跳过询问；普通添加才按偏好弹出目录选择器。
     if (destinationDir == null &&
-        SettingsStorage.instance.current.askForDestination) {
+        SettingsStorage.instance.current.askForDestination &&
+        !SettingsStorage.instance.current.automatedMode) {
       final picked = await FilePicker.platform.getDirectoryPath(
         dialogTitle: '选择保存位置',
       );
@@ -428,7 +429,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   retryCount: attempt,
                   speed: 0,
                 ));
-            if (!SettingsStorage.instance.current.disableLoginDialogs) {
+            final dialogSettings = SettingsStorage.instance.current;
+            if (!dialogSettings.disableLoginDialogs &&
+                !dialogSettings.automatedMode) {
               final loggedIn = await promptSiteLogin(task.url);
               if (loggedIn) await retry(task.id);
             }
@@ -481,7 +484,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
                   retryCount: attempt,
                   speed: 0,
                 ));
-            if (!SettingsStorage.instance.current.disableLoginDialogs) {
+            final dialogSettings = SettingsStorage.instance.current;
+            if (!dialogSettings.disableLoginDialogs &&
+                !dialogSettings.automatedMode) {
               final loggedIn = await promptSiteLogin(task.url);
               if (loggedIn) await retry(task.id);
             }

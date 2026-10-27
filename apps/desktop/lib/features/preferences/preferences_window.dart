@@ -1423,6 +1423,27 @@ class _AdvancedPaneState extends ConsumerState<_AdvancedPane> {
           label: '${settings.connectionsPerDownload}',
           onChanged: (v) => notifier.setConnectionsPerDownload(v.round()),
         ),
+        Text(
+          'HTTP 分块大小（仅 yt-dlp 任务）',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        DropdownButtonFormField<int>(
+          initialValue: settings.chunkSizeMb,
+          decoration: const InputDecoration(
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
+          ),
+          items: const [
+            DropdownMenuItem(value: 0, child: Text('不分块（默认）')),
+            DropdownMenuItem(value: 1, child: Text('1 MB')),
+            DropdownMenuItem(value: 5, child: Text('5 MB')),
+            DropdownMenuItem(value: 10, child: Text('10 MB')),
+          ],
+          onChanged: (value) => notifier.setChunkSizeMb(value ?? 0),
+        ),
         const SizedBox(height: AppSpacing.sm),
         Text(
           '全局限速（kB/s，0 表示不限）',
@@ -1465,6 +1486,14 @@ class _AdvancedPaneState extends ConsumerState<_AdvancedPane> {
           title: const Text('下载完成/失败播放提示音'),
           value: settings.playSounds,
           onChanged: notifier.setPlaySounds,
+        ),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('自动化模式'),
+          subtitle: const Text('不弹登录、画质、重复确认等阻塞对话框；需要登录的下载会直接失败'),
+          value: settings.automatedMode,
+          onChanged: notifier.setAutomatedMode,
         ),
         SwitchListTile(
           dense: true,

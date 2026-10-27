@@ -13,7 +13,7 @@ Future<bool> confirmDuplicateDownload(
   VideoInfo info,
 ) async {
   final settings = ref.read(settingsProvider);
-  if (!settings.duplicatePrompt) return true;
+  if (!settings.duplicatePrompt || settings.automatedMode) return true;
 
   final existing = ref
       .read(downloadListProvider)

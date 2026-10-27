@@ -96,6 +96,9 @@ class AppSettings {
   /// yt-dlp 每个下载的分片并发数（1-16）
   final int connectionsPerDownload;
 
+  /// HTTP 分块大小（MB，0=不分块）
+  final int chunkSizeMb;
+
   /// yt-dlp 全局限速（kB/s，0=不限）
   final int throttleKbps;
 
@@ -144,6 +147,9 @@ class AppSettings {
   /// 禁用站点登录对话框（解析失败时直接报错）
   final bool disableLoginDialogs;
 
+  /// 自动化模式：抑制登录/画质/重复确认等阻塞对话框
+  final bool automatedMode;
+
   /// 纯音频下载格式（yt-dlp 任务）：mp3/m4a/opus
   final String preferredAudioFormat;
 
@@ -177,6 +183,7 @@ class AppSettings {
     this.queueSortDesc = false,
     this.quitWhenDone = false,
     this.connectionsPerDownload = 4,
+    this.chunkSizeMb = 0,
     this.throttleKbps = 0,
     this.saveMetadataJson = false,
     this.playSounds = false,
@@ -193,6 +200,7 @@ class AppSettings {
     this.showInMenuBar = true,
     this.autoCheckUpdates = true,
     this.disableLoginDialogs = false,
+    this.automatedMode = false,
     this.preferredAudioFormat = 'mp3',
   });
 
@@ -226,6 +234,7 @@ class AppSettings {
     queueSortDesc: false,
     quitWhenDone: false,
     connectionsPerDownload: 4,
+    chunkSizeMb: 0,
     throttleKbps: 0,
     saveMetadataJson: false,
     playSounds: false,
@@ -242,6 +251,7 @@ class AppSettings {
     showInMenuBar: true,
     autoCheckUpdates: true,
     disableLoginDialogs: false,
+    automatedMode: false,
     preferredAudioFormat: 'mp3',
   );
 
@@ -275,6 +285,7 @@ class AppSettings {
     bool? queueSortDesc,
     bool? quitWhenDone,
     int? connectionsPerDownload,
+    int? chunkSizeMb,
     int? throttleKbps,
     bool? saveMetadataJson,
     bool? playSounds,
@@ -291,6 +302,7 @@ class AppSettings {
     bool? showInMenuBar,
     bool? autoCheckUpdates,
     bool? disableLoginDialogs,
+    bool? automatedMode,
     String? preferredAudioFormat,
   }) {
     return AppSettings(
@@ -332,6 +344,7 @@ class AppSettings {
       quitWhenDone: quitWhenDone ?? this.quitWhenDone,
       connectionsPerDownload:
           connectionsPerDownload ?? this.connectionsPerDownload,
+      chunkSizeMb: chunkSizeMb ?? this.chunkSizeMb,
       throttleKbps: throttleKbps ?? this.throttleKbps,
       saveMetadataJson: saveMetadataJson ?? this.saveMetadataJson,
       playSounds: playSounds ?? this.playSounds,
@@ -355,6 +368,7 @@ class AppSettings {
       autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
       disableLoginDialogs:
           disableLoginDialogs ?? this.disableLoginDialogs,
+      automatedMode: automatedMode ?? this.automatedMode,
       preferredAudioFormat:
           preferredAudioFormat ?? this.preferredAudioFormat,
     );
@@ -451,6 +465,7 @@ class SettingsStorage {
         quitWhenDone: (raw['quitWhenDone'] as bool?) ?? false,
         connectionsPerDownload:
             (raw['connectionsPerDownload'] as num?)?.toInt() ?? 4,
+        chunkSizeMb: (raw['chunkSizeMb'] as num?)?.toInt() ?? 0,
         throttleKbps: (raw['throttleKbps'] as num?)?.toInt() ?? 0,
         saveMetadataJson: (raw['saveMetadataJson'] as bool?) ?? false,
         playSounds: (raw['playSounds'] as bool?) ?? false,
@@ -474,6 +489,7 @@ class SettingsStorage {
         autoCheckUpdates: (raw['autoCheckUpdates'] as bool?) ?? true,
         disableLoginDialogs:
             (raw['disableLoginDialogs'] as bool?) ?? false,
+        automatedMode: (raw['automatedMode'] as bool?) ?? false,
         preferredAudioFormat:
             (raw['preferredAudioFormat'] as String?) ?? 'mp3',
       );
@@ -539,6 +555,7 @@ class SettingsStorage {
       'queueSortDesc': settings.queueSortDesc,
       'quitWhenDone': settings.quitWhenDone,
       'connectionsPerDownload': settings.connectionsPerDownload,
+      'chunkSizeMb': settings.chunkSizeMb,
       'throttleKbps': settings.throttleKbps,
       'saveMetadataJson': settings.saveMetadataJson,
       'playSounds': settings.playSounds,
@@ -556,6 +573,7 @@ class SettingsStorage {
       'showInMenuBar': settings.showInMenuBar,
       'autoCheckUpdates': settings.autoCheckUpdates,
       'disableLoginDialogs': settings.disableLoginDialogs,
+      'automatedMode': settings.automatedMode,
       'preferredAudioFormat': settings.preferredAudioFormat,
     });
     debugPrint('[Settings] saved: $settings');

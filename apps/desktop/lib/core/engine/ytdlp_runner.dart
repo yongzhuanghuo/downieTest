@@ -329,6 +329,8 @@ class YtDlpRunner {
       '--ffmpeg-location', actualFfmpegPath,
       if (effectiveConnections > 1)
         ...['--concurrent-fragments', '$effectiveConnections'],
+      if (settings.chunkSizeMb > 0)
+        ...['--http-chunk-size', '${settings.chunkSizeMb}M'],
       if ((throttleKbps > 0 ? throttleKbps : settings.throttleKbps) > 0)
         ...[
           '--limit-rate',

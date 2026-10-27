@@ -114,7 +114,8 @@ class ParseNotifier extends StateNotifier<ParseState> {
           );
           if (e.requiresLogin &&
               autoLogin &&
-              !SettingsStorage.instance.current.disableLoginDialogs) {
+              !SettingsStorage.instance.current.disableLoginDialogs &&
+              !SettingsStorage.instance.current.automatedMode) {
             final loggedIn = await promptSiteLogin(target);
             if (loggedIn) {
               await _doParse(url, autoLogin: false);
@@ -153,7 +154,8 @@ class ParseNotifier extends StateNotifier<ParseState> {
       );
       if (needLogin &&
           autoLogin &&
-          !SettingsStorage.instance.current.disableLoginDialogs) {
+          !SettingsStorage.instance.current.disableLoginDialogs &&
+          !SettingsStorage.instance.current.automatedMode) {
         final loggedIn = await promptSiteLogin(target);
         if (loggedIn) {
           // 登录成功，自动重新解析一次（不再自动弹登录，避免死循环）
