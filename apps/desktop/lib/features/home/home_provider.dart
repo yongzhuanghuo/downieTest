@@ -49,7 +49,7 @@ class ParseNotifier extends StateNotifier<ParseState> {
     }
     // 从分享文本里提取真正的 URL（抖音/B站等复制的链接常带标题等文字）
     final target = wholeHttpUrl(trimmed) ??
-        extractFirstUrl(trimmed) ??
+        firstVideoUrl(trimmed) ??
         trimmed;
     state = const ParseState(status: ParseStatus.loading);
 
@@ -217,6 +217,55 @@ List<String> extractUrls(String text) {
 String? extractFirstUrl(String text) {
   final urls = extractUrls(text);
   return urls.isEmpty ? null : urls.first;
+}
+
+/// 分享文案里常见的无协议短链（`v.douyin.com/xxx`、`b23.tv/xxx` 等）。
+final _bareVideoPattern = RegExp(
+  '(?<![\\w.])((?:v\\.douyin\\.com|www\\.douyin\\.com/video|'
+  'www\\.iesdouyin\\.com/share/video|b23\\.tv|v\\.kuaishou\\.com|'
+  'xhslink\\.com|www\\.xiaohongshu\\.com/explore|weibo\\.com/tv|'
+  'm\\.weibo\\.cn/detail)/'
+  '[^\\s\\u3000-\\u303f\\u4e00-\\u9fff\\uff00-\\uffef]*)',
+  caseSensitive: false,
+);
+
+/// 从分享文案里提取普通 URL + 无协议短链，按出现顺序去重。
+List<String> extractVideoUrls(String text) {
+  final result = <String>[...extractUrls(text)];
+  final seen = result.toSet();
+  for (final match in _bareVideoPattern.allMatches(text)) {
+    var url = match.group(1)!;
+    while (url.isNotEmpty &&
+        _trailingPunctuation.contains(url[url.length - 1])) {
+      url = url.substring(0, url.length - 1);
+    }
+    if (url.isEmpty) continue;
+    final full = 'https://$url';
+    if (seen.add(full)) result.add(full);
+  }
+  return result;
+}
+
+bool _looksLikeVideoHost(String url) {
+  final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+  return host.endsWith('douyin.com') ||
+      host.endsWith('iesdouyin.com') ||
+      host == 'b23.tv' ||
+      host.endsWith('kuaishou.com') ||
+      host.endsWith('xiaohongshu.com') ||
+      host == 'xhslink.com' ||
+      host.endsWith('weibo.com') ||
+      host.endsWith('weibo.cn');
+}
+
+/// 分享文案里优先取视频站点链接，其次取第一个 URL。
+String? firstVideoUrl(String text) {
+  final urls = extractVideoUrls(text);
+  if (urls.isEmpty) return null;
+  for (final url in urls) {
+    if (_looksLikeVideoHost(url)) return url;
+  }
+  return urls.first;
 }
 
 /// 把 yt-dlp 的技术错误转成用户能看懂的提示

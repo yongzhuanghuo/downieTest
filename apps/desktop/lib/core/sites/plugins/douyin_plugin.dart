@@ -28,7 +28,17 @@ class DouyinPlugin extends SitePlugin {
     try {
       return await DouyinParser.parse(url);
     } on DouyinParseException catch (e) {
-      throw SitePluginException(e.message, retryable: false);
+      // 抖音无数据/风控通常是因为没登录或需要过验证码；
+      // 与 Downie 一样直接弹登录浏览器，登录后用 cookie 重试。
+      final needsLogin = RegExp(
+        r'无数据|验证|登录|status_code|captcha|forbidden|403|verify',
+        caseSensitive: false,
+      ).hasMatch(e.message);
+      throw SitePluginException(
+        e.message,
+        retryable: !needsLogin,
+        requiresLogin: needsLogin,
+      );
     }
   }
 

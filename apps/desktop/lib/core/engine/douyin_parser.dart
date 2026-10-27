@@ -9,6 +9,7 @@ import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../platform/binary_initializer.dart';
 import '../platform/binary_locator.dart';
+import '../storage/site_cookies.dart';
 
 /// 抖音解析异常
 class DouyinParseException implements Exception {
@@ -40,11 +41,22 @@ class DouyinParser {
     debugPrint('[抖音] aweme_id=$awemeId');
 
     final ttwid = await _getTtwid();
-    final msToken = _getMsToken();
+    // 登录浏览器保存下来的 cookie（可能包含 sessionid / msToken）
+    final savedCookie = await SiteCookies.loadCookieHeader('douyin');
+    final savedMs = RegExp(r'(?:^|;\s*)msToken=([^;]+)')
+        .firstMatch(savedCookie)
+        ?.group(1);
+    final msToken = savedMs ?? _getMsToken();
     final aBogus = await _generateABogus(awemeId, msToken);
-    debugPrint('[抖音] a_bogus 长度=${aBogus.length}');
+    debugPrint('[抖音] a_bogus 长度=${aBogus.length}，savedCookie=${savedCookie.isNotEmpty}');
 
-    final detail = await _fetchAwemeDetail(awemeId, msToken, aBogus, ttwid);
+    final detail = await _fetchAwemeDetail(
+      awemeId,
+      msToken,
+      aBogus,
+      ttwid,
+      savedCookie,
+    );
     return _parseAweme(awemeId, detail);
   }
 
@@ -134,9 +146,15 @@ class DouyinParser {
     String msToken,
     String aBogus,
     String ttwid,
+    String savedCookie,
   ) async {
     final client = http.Client();
     try {
+      final hasSavedTtwid =
+          RegExp(r'(?:^|;\s*)ttwid=').hasMatch(savedCookie);
+      final cookie = hasSavedTtwid
+          ? savedCookie
+          : ['ttwid=$ttwid', if (savedCookie.isNotEmpty) savedCookie].join('; ');
       final uri = Uri.parse('https://www.douyin.com/aweme/v1/web/aweme/detail/')
           .replace(queryParameters: {
         'device_platform': 'webapp',
@@ -149,7 +167,9 @@ class DouyinParser {
       final resp = await client.get(uri, headers: {
         'User-Agent': ua,
         'Referer': 'https://www.douyin.com/video/$awemeId',
-        'Cookie': 'ttwid=$ttwid',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Cookie': cookie,
       });
       final body = jsonDecode(resp.body) as Map<String, dynamic>;
       final aweme = body['aweme_detail'] as Map<String, dynamic>?;

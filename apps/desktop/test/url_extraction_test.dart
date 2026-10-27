@@ -31,6 +31,25 @@ void main() {
       );
     });
 
+    test('extracts scheme-less douyin/bilibili share links', () {
+      const text = '4.64 复制打开抖音，看看这个视频 v.douyin.com/iAbCdEf/ '
+          '复制此链接';
+      expect(
+        extractVideoUrls(text),
+        ['https://v.douyin.com/iAbCdEf/'],
+      );
+      expect(firstVideoUrl(text), 'https://v.douyin.com/iAbCdEf/');
+
+      expect(
+        extractVideoUrls('B站视频 b23.tv/abc123 好看'),
+        ['https://b23.tv/abc123'],
+      );
+      expect(
+        extractVideoUrls('www.douyin.com/video/7300000000000000000'),
+        ['https://www.douyin.com/video/7300000000000000000'],
+      );
+    });
+
     test('wholeHttpUrl keeps Chinese characters in the path', () {
       const url = 'https://example.com/视频/第一集';
       expect(wholeHttpUrl(url), url);

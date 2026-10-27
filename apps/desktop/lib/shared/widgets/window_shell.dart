@@ -13,6 +13,7 @@ import '../../core/version/version_check.dart';
 import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/downloads/queue_search_panel.dart';
+import '../../features/downloads/quick_add.dart';
 import '../../features/history/history_window.dart';
 import '../../features/home/home_provider.dart';
 import '../../features/license/license_provider.dart';
@@ -104,6 +105,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
   @override
   Widget build(BuildContext context) {
     ref.listen(settingsProvider, (_, __) => unawaited(_syncBrowserBridge()));
+    final quickLoading = ref.watch(quickAddLoadingProvider) > 0;
     final isMac = Platform.isMacOS;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return DropRegion(
@@ -174,6 +176,40 @@ class _WindowShellState extends ConsumerState<WindowShell> {
                 child: _dropOverlay(dark),
               ),
             ),
+          if (quickLoading)
+            Positioned(
+              top: 4,
+              right: 8,
+              child: IgnorePointer(child: _loadingPill()),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadingPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTokens.accent,
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.6,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(width: 7),
+          Text(
+            '加载中...',
+            style: TextStyle(fontSize: 12, color: Colors.white),
+          ),
         ],
       ),
     );

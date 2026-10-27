@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -10,6 +9,7 @@ import '../../core/storage/site_registry.dart';
 import '../../core/version/version_check.dart';
 import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
+import '../../features/downloads/quick_add.dart';
 import '../../features/downloads/site_login_dialog.dart';
 import '../../features/help/help_window.dart';
 import '../../features/help/support_dialog.dart';
@@ -200,9 +200,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
   }
 
   Future<void> _addFromClipboard() async {
-    final data = await Clipboard.getData('text/plain');
-    if (!mounted) return;
-    await AddUrlsPanel.show(context, initialText: data?.text);
+    await quickAddFromClipboard(context, ref);
   }
 
   Future<void> _importFromFile() async {

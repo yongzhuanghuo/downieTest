@@ -8,6 +8,7 @@ import '../../core/version/version_check.dart';
 import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/downloads/queue_search_panel.dart';
+import '../../features/downloads/quick_add.dart';
 import '../../features/help/help_window.dart';
 import '../../features/history/history_window.dart';
 import '../../features/preferences/preferences_window.dart';
@@ -85,9 +86,9 @@ class WindowStatusBar extends ConsumerWidget {
                 const SizedBox(width: 8),
                 _StatusIcon(
                   icon: Icons.add,
-                  tooltip: '添加链接',
+                  tooltip: '从剪贴板添加',
                   color: accent,
-                  onTap: () => AddUrlsPanel.show(context),
+                  onTap: () => quickAddFromClipboard(context, ref),
                 ),
                 _StatusIcon(
                   icon: Icons.travel_explore,

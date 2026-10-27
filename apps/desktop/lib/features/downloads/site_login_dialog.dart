@@ -9,6 +9,7 @@ import '../../core/platform/webview2.dart';
 import '../../core/storage/settings_storage.dart';
 import '../../core/storage/site_cookies.dart';
 import '../../core/storage/site_registry.dart';
+import '../../shared/theme/design_tokens.dart';
 
 /// 站点登录弹窗（通用）
 ///
@@ -40,6 +41,7 @@ class SiteLoginDialog extends StatefulWidget {
     final ok = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.transparent,
       builder: (_) => SiteLoginDialog(site: site, environment: env),
     );
     return ok ?? false;
@@ -296,103 +298,212 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final toolbar = dark ? AppTokens.titleBar : AppTokens.titleBarLight;
+    final divider = dark ? AppTokens.divider : AppTokens.dividerLight;
+    final foreground =
+        dark ? AppTokens.textPrimary : AppTokens.textPrimaryLight;
+    final secondary =
+        dark ? AppTokens.textSecondary : AppTokens.textSecondaryLight;
+    final host = Uri.tryParse(widget.site.loginUrl)?.host ?? widget.site.name;
+    final canFinish = !_saving && !_webView2Missing && _loginDetected;
+    final screen = MediaQuery.sizeOf(context);
+    final width = (screen.width - 24).clamp(560.0, 1120.0).toDouble();
+    final height = (screen.height - 24).clamp(420.0, 700.0).toDouble();
+
     return Dialog(
-      child: SizedBox(
-        width: 900,
-        height: 650,
+      insetPadding: const EdgeInsets.all(AppSpacing.md),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: dark ? AppTokens.window : AppTokens.panelLight,
+          borderRadius: BorderRadius.circular(AppRadius.window),
+          border: Border.all(color: divider),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 32,
+              offset: Offset(0, 14),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: theme.dividerColor)),
-              ),
+              height: 46,
+              color: toolbar,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: Row(
                 children: [
-                  const Icon(Icons.login, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '登录 ${widget.site.name}',
-                      style: theme.textTheme.titleMedium,
+                  if (Platform.isMacOS) ...[
+                    _TrafficLights(
+                      onClose: () => Navigator.of(context).pop(false),
+                    ),
+                    const SizedBox(width: AppSpacing.lg),
+                  ] else ...[
+                    const SizedBox(width: AppSpacing.xs),
+                  ],
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            '登录到 $host',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: foreground,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Tooltip(
+                          message: '在页面里完成登录后，点右上角 ✓ 保存登录状态',
+                          child: Icon(
+                            Icons.info_outline,
+                            size: 14,
+                            color: secondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    tooltip: '取消',
-                    onPressed: () => Navigator.of(context).pop(false),
+                  const Spacer(),
+                  _LoginCheckButton(
+                    enabled: canFinish,
+                    saving: _saving,
+                    onTap: _finish,
                   ),
+                  if (!Platform.isMacOS) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      tooltip: '关闭',
+                      icon: Icon(Icons.close, size: 16, color: secondary),
+                    ),
+                  ],
                 ],
               ),
             ),
+            Divider(height: 1, color: divider),
             Expanded(
-              child: _webView2Missing
-                  ? _buildWebView2Missing(theme)
-                  : InAppWebView(
-                      webViewEnvironment: widget.environment,
-                      initialUrlRequest:
-                          URLRequest(url: WebUri(widget.site.loginUrl)),
-                      initialSettings:
-                          InAppWebViewSettings(javaScriptEnabled: true),
-                      onWebViewCreated: (controller) {
-                        _controller = controller;
-                        debugPrint('[登录] webview 已创建');
-                      },
-                      onLoadStart: (controller, url) {
-                        debugPrint('[登录] 开始加载: $url');
-                      },
-                      onLoadStop: (controller, url) {
-                        debugPrint('[登录] 加载完成: $url');
-                        _detectLogin();
-                      },
-                      onReceivedError: (controller, request, error) {
-                        debugPrint('[登录] 加载错误: ${error.description}');
-                      },
-                    ),
-            ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: theme.dividerColor)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '先在页面里登录账号（扫码/短信），登录成功后点「完成登录」',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+              child: ColoredBox(
+                color: dark ? AppTokens.window : Colors.white,
+                child: _webView2Missing
+                    ? _buildWebView2Missing(theme)
+                    : InAppWebView(
+                        webViewEnvironment: widget.environment,
+                        initialUrlRequest:
+                            URLRequest(url: WebUri(widget.site.loginUrl)),
+                        initialSettings:
+                            InAppWebViewSettings(javaScriptEnabled: true),
+                        onWebViewCreated: (controller) {
+                          _controller = controller;
+                          debugPrint('[登录] webview 已创建');
+                        },
+                        onLoadStart: (controller, url) {
+                          debugPrint('[登录] 开始加载: $url');
+                        },
+                        onLoadStop: (controller, url) {
+                          debugPrint('[登录] 加载完成: $url');
+                          _detectLogin();
+                        },
+                        onReceivedError: (controller, request, error) {
+                          debugPrint('[登录] 加载错误: ${error.description}');
+                        },
                       ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('取消'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: (_saving || _webView2Missing || !_loginDetected)
-                        ? null
-                        : _finish,
-                    icon: (_saving || !_loginDetected)
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check),
-                    label: Text(
-                      _saving
-                          ? '保存中...'
-                          : _loginDetected
-                              ? '完成登录'
-                              : '等待登录...',
-                    ),
-                  ),
-                ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrafficLights extends StatelessWidget {
+  final VoidCallback onClose;
+
+  const _TrafficLights({required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _dot(const Color(0xFFFF5F57), onTap: onClose),
+        const SizedBox(width: 8),
+        _dot(const Color(0xFFFEBC2E)),
+        const SizedBox(width: 8),
+        _dot(const Color(0xFF28C840)),
+      ],
+    );
+  }
+
+  Widget _dot(Color color, {VoidCallback? onTap}) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        width: 12,
+        height: 12,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginCheckButton extends StatelessWidget {
+  final bool enabled;
+  final bool saving;
+  final VoidCallback onTap;
+
+  const _LoginCheckButton({
+    required this.enabled,
+    required this.saving,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = enabled
+        ? AppTokens.accent
+        : (dark ? const Color(0xFF3A3A3A) : const Color(0xFFE3E3E5));
+    final color = enabled
+        ? Colors.white
+        : (dark ? AppTokens.textTertiary : AppTokens.textTertiaryLight);
+    return Tooltip(
+      message: enabled ? '完成登录' : '登录成功后可用',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? onTap : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 78,
+          height: 30,
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          alignment: Alignment.center,
+          child: saving
+              ? SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: color),
+                )
+              : Icon(Icons.check, size: 18, color: color),
         ),
       ),
     );
