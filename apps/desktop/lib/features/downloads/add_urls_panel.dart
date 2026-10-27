@@ -18,6 +18,7 @@ import '../license/license_provider.dart';
 import '../license/license_window.dart';
 import '../settings/settings_provider.dart';
 import 'download_provider.dart';
+import 'duplicate_prompt.dart';
 import 'web_capture_dialog.dart';
 
 /// Downie 风格「添加链接」浮层：粘贴/用户自定义视频提取 → 解析 → 直接入队。
@@ -258,6 +259,9 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
     String? destinationDir,
   }) async {
     if (!ref.read(canDownloadProvider)) return _trialEnded;
+    if (!await confirmDuplicateDownload(context, ref, info)) {
+      return '已跳过重复链接';
+    }
     final settings = ref.read(settingsProvider);
     final format = selectFormatForDownload(
       info,

@@ -52,8 +52,12 @@ class _WindowShellState extends ConsumerState<WindowShell> {
   @override
   void initState() {
     super.initState();
-    _linkChannel.setMethodCallHandler(_onLinkCall);
-    unawaited(_linkChannel.invokeMethod<void>('ready'));
+    if (Platform.isMacOS) {
+      _linkChannel.setMethodCallHandler(_onLinkCall);
+      unawaited(
+        _linkChannel.invokeMethod<void>('ready').catchError((_) {}),
+      );
+    }
     unawaited(ref.read(trialProvider.notifier).ensureStarted());
     unawaited(_syncBrowserBridge());
     WidgetsBinding.instance.addPostFrameCallback((_) {
