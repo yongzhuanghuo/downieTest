@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../data/models/download_progress.dart';
+import '../ffmpeg/ffmpeg_runner.dart';
 import '../storage/site_cookies.dart';
 
 /// 抖音直链下载异常
@@ -44,7 +45,7 @@ class DouyinDownloader {
       req.headers['Referer'] = 'https://www.douyin.com/';
       if (cookie.isNotEmpty) req.headers['Cookie'] = cookie;
       final resp = await client.send(req);
-      if (resp.statusCode != 200) {
+      if (resp.statusCode != 200 && resp.statusCode != 206) {
         throw DouyinDownloadException('下载失败 HTTP ${resp.statusCode}');
       }
       final total = resp.contentLength;
@@ -79,6 +80,78 @@ class DouyinDownloader {
       return outputPath;
     } finally {
       client.close();
+    }
+  }
+
+  /// 兜底下载：登录浏览器只拿到了 DASH 的 video/audio 分轨时，
+  /// 分别下载后用 ffmpeg 合并成完整 MP4。
+  static Future<String> downloadMultipart({
+    required String videoUrl,
+    required String audioUrl,
+    required String outputPath,
+    required void Function(DownloadProgress) onProgress,
+    bool Function()? shouldCancel,
+  }) async {
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final videoTmp = '$outputPath.$stamp.video.mp4';
+    final audioTmp = '$outputPath.$stamp.audio.mp4';
+    try {
+      await download(
+        url: videoUrl,
+        outputPath: videoTmp,
+        shouldCancel: shouldCancel,
+        onProgress: (p) => onProgress(DownloadProgress(
+          downloadedBytes: p.downloadedBytes,
+          totalBytes: p.totalBytes,
+          speed: p.speed,
+          percent: p.percent == null ? null : p.percent! * 0.6,
+          stage: DownloadStage.downloadingVideo,
+        )),
+      );
+      if (shouldCancel?.call() == true) {
+        throw const DouyinDownloadException('已取消');
+      }
+      await download(
+        url: audioUrl,
+        outputPath: audioTmp,
+        shouldCancel: shouldCancel,
+        onProgress: (p) => onProgress(DownloadProgress(
+          downloadedBytes: p.downloadedBytes,
+          totalBytes: p.totalBytes,
+          speed: p.speed,
+          percent: p.percent == null ? null : 0.6 + p.percent! * 0.2,
+          stage: DownloadStage.downloadingAudio,
+        )),
+      );
+      if (shouldCancel?.call() == true) {
+        throw const DouyinDownloadException('已取消');
+      }
+      onProgress(const DownloadProgress(
+        downloadedBytes: 0,
+        speed: 0,
+        percent: 0.8,
+        stage: DownloadStage.merging,
+        detail: '合并音视频',
+      ));
+      return await FFmpegRunner.mergeVideoAudio(
+        videoPath: videoTmp,
+        audioPath: audioTmp,
+        outputPath: outputPath,
+        onProgress: (value) => onProgress(DownloadProgress(
+          downloadedBytes: 0,
+          speed: 0,
+          percent: 0.8 + value * 0.2,
+          stage: DownloadStage.merging,
+          detail: '合并音视频',
+        )),
+      );
+    } finally {
+      for (final path in [videoTmp, audioTmp]) {
+        try {
+          final file = File(path);
+          if (await file.exists()) await file.delete();
+        } catch (_) {}
+      }
     }
   }
 }

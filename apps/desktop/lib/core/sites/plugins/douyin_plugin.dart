@@ -51,8 +51,22 @@ class DouyinPlugin extends SitePlugin {
   @override
   Future<String> download(PluginDownloadRequest request) async {
     try {
+      final formatId = request.task.formatId;
+      // 媒体分轨兜底格式：videoUrl\naudioUrl
+      if (formatId.contains('\n')) {
+        final parts = formatId.split('\n');
+        if (parts.length >= 2 && parts[1].isNotEmpty) {
+          return await DouyinDownloader.downloadMultipart(
+            videoUrl: parts[0],
+            audioUrl: parts[1],
+            outputPath: request.outputPath,
+            onProgress: request.onProgress,
+            shouldCancel: request.shouldCancel,
+          );
+        }
+      }
       return await DouyinDownloader.download(
-        url: request.task.formatId,
+        url: formatId,
         outputPath: request.outputPath,
         onProgress: request.onProgress,
         shouldCancel: request.shouldCancel,

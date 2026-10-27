@@ -83,8 +83,16 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   bool _pageLoading = true;
   InAppWebViewController? _controller;
   Timer? _pollTimer;
-  Timer? _captureTimer;
-  int _captureTries = 0;
+  Timer? _douyinProbeTimer;
+  bool _probingDouyin = false;
+  bool _douyinReady = false;
+  bool _finishPending = false;
+  int _douyinProbes = 0;
+  String? _douyinStatus;
+  String _douyinVideoUrl = '';
+  String _douyinAudioUrl = '';
+  int _douyinVideoHeight = 0;
+  String _currentPageTitle = '';
   bool _reloadedAfterLogin = false;
   String _currentPageUrl = '';
 
@@ -103,21 +111,39 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
 (function () {
   if (window.__downie6AwemeHook) return;
   window.__downie6AwemeHook = true;
+  function isAweme(url) {
+    var u = String(url || '');
+    return u.indexOf('aweme/detail') >= 0 ||
+           u.indexOf('aweme/post') >= 0 ||
+           u.indexOf('replay_list') >= 0;
+  }
   function put(url, text) {
     try {
-      if (url && String(url).indexOf('aweme/detail') >= 0 && text) {
+      if (isAweme(url) && text) {
         window.__downie6_aweme = text;
+        window.__downie6_awemeUrl = String(url);
+        window.__downie6_awemeAt = Date.now();
       }
     } catch (e) {}
+  }
+  function xhrBody(xhr) {
+    try {
+      var rt = xhr.responseType;
+      if (!rt || rt === 'text') return xhr.responseText;
+      if (rt === 'json') return JSON.stringify(xhr.response);
+    } catch (e) {}
+    return '';
   }
   var of = window.fetch;
   if (of) {
     window.fetch = function () {
       var args = arguments;
+      var u = (typeof args[0] === 'string') ? args[0] : (args[0] && args[0].url);
       return of.apply(this, args).then(function (resp) {
         try {
-          var u = (typeof args[0] === 'string') ? args[0] : (args[0] && args[0].url);
-          resp.clone().text().then(function (t) { put(u, t); });
+          if (isAweme(u)) {
+            resp.clone().text().then(function (t) { put(u, t); }).catch(function(){});
+          }
         } catch (e) {}
         return resp;
       });
@@ -125,14 +151,23 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   }
   var oo = XMLHttpRequest.prototype.open;
   var os = XMLHttpRequest.prototype.send;
+  var osh = XMLHttpRequest.prototype.setRequestHeader;
   XMLHttpRequest.prototype.open = function (m, u) {
     this.__downie6Url = u;
     return oo.apply(this, arguments);
   };
+  XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+    try {
+      if (String(name).toLowerCase() === 'uifid') {
+        window.__downie6_uifid = String(value);
+      }
+    } catch (e) {}
+    return osh.apply(this, arguments);
+  };
   XMLHttpRequest.prototype.send = function () {
     var self = this;
     this.addEventListener('load', function () {
-      put(self.__downie6Url, self.responseText);
+      put(self.__downie6Url, xhrBody(self));
     });
     return os.apply(this, arguments);
   };
@@ -155,7 +190,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _captureTimer?.cancel();
+    _douyinProbeTimer?.cancel();
     super.dispose();
   }
 
@@ -163,14 +198,33 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     setState(() => _saving = true);
     try {
       if (widget.site.id == 'douyin') {
-        // 给视频页一点时间发起 aweme/detail；用户可能登录后立刻点 ✓
-        for (var i = 0; i < 12; i++) {
-          await _captureDouyin();
-          if (DouyinParser.cachedVideo(_loginUrl) != null) break;
-          await Future<void>.delayed(const Duration(milliseconds: 400));
+        // Downie 的登录浏览器会一直监听 aweme/detail / 媒体资源，等页面真正
+        // 拿到视频数据才结束。WKWebView 里这个请求可能要 30 秒左右才发出，
+        // 用户登录后立刻点 ✓ 也必须继续等，不能只等几秒就放弃。
+        if (mounted) {
+          setState(() => _douyinStatus = '正在获取视频信息…');
         }
-        debugPrint(
-            '[登录] 抖音缓存状态: ${DouyinParser.cachedVideo(_loginUrl) != null}');
+        await _waitForDouyin();
+        if (!mounted) return;
+        final ready = _hasCachedDouyin;
+        if (!ready && _cacheDouyinMediaFallback()) {
+          debugPrint('[登录] 抖音使用媒体资源兜底（视频+音频分轨）');
+        }
+        if (!_hasCachedDouyin) {
+          _finishPending = true;
+          if (mounted) {
+            setState(() {
+              _saving = false;
+              _douyinStatus = '仍在获取视频信息…拿到后会自动继续';
+            });
+          }
+          debugPrint('[登录] 抖音仍未拿到视频数据，保持登录窗口继续监听');
+          return;
+        }
+        debugPrint('[登录] 抖音缓存状态: true');
+        if (mounted) {
+          setState(() => _douyinStatus = '正在保存登录状态…');
+        }
       }
       // Windows 上必须传 webViewEnvironment，否则 CookieManager 报 Cannot obtain the WebViewEnvironment
       final allCookies = await CookieManager.instance(
@@ -183,6 +237,12 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
           '[登录] ${widget.site.name} 抓到 ${allCookies.length} 条（过滤后 ${cookies.length} 条）');
       for (final c in cookies) {
         debugPrint('[登录]   cookie: ${c.name} @ ${c.domain}');
+      }
+      if (widget.site.id == 'douyin') {
+        final hasUifid = cookies.any(
+          (c) => c.name.toUpperCase() == 'UIFID',
+        );
+        debugPrint('[登录] 抖音 UIFID cookie: ${hasUifid ? '✓' : '×（等待页面安全 SDK 写入）'}');
       }
       if (cookies.isEmpty) {
         debugPrint('[登录] ⚠️ 抓到 0 条 cookie —— 很可能没在页面里真正登录！');
@@ -269,8 +329,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         debugPrint('[登录] ✅ 检测到登录态，解锁「完成登录」');
         setState(() => _loginDetected = true);
         _pollTimer?.cancel();
-        _captureTries = 0;
-        unawaited(_captureDouyin());
+        _startDouyinCapture();
         _maybeReloadAfterLogin();
       }
     } catch (e) {
@@ -388,23 +447,106 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     ));
   }
 
+  /// 页面加载后持续轮询。抖音的 aweme/detail 可能比页面 onLoadStop 晚
+  /// 30 秒左右才发出（要先过验证、加载播放器 bundle），所以不能只探测几次。
+  void _startDouyinCapture() {
+    if (widget.site.id != 'douyin' || _douyinReady) return;
+    _douyinProbeTimer?.cancel();
+    unawaited(_probeDouyin());
+    _douyinProbeTimer = Timer.periodic(
+      const Duration(milliseconds: 1200),
+      (_) {
+        if (!mounted || _douyinReady) {
+          _douyinProbeTimer?.cancel();
+          return;
+        }
+        unawaited(_probeDouyin());
+      },
+    );
+  }
+
+  bool get _hasCachedDouyin {
+    if (DouyinParser.cachedVideo(_loginUrl) != null) return true;
+    final initial = widget.initialUrl;
+    if (initial != null && DouyinParser.cachedVideo(initial) != null) {
+      return true;
+    }
+    return _currentPageUrl.isNotEmpty &&
+        DouyinParser.cachedVideo(_currentPageUrl) != null;
+  }
+
+  /// 等待 aweme/detail 响应；用户点 ✓ 后最多等 75 秒，超时后保持窗口
+  /// 继续监听，一旦拿到数据会自动再次执行完成流程。
+  Future<void> _waitForDouyin() async {
+    _startDouyinCapture();
+    final deadline = DateTime.now().add(const Duration(seconds: 75));
+    var lastStatus = DateTime.now();
+    while (mounted && DateTime.now().isBefore(deadline)) {
+      if (_hasCachedDouyin) return;
+      await _probeDouyin(verbose: false);
+      if (_hasCachedDouyin) return;
+      if (DateTime.now().difference(lastStatus).inSeconds >= 10) {
+        lastStatus = DateTime.now();
+        if (mounted) {
+          setState(() => _douyinStatus = '正在获取视频信息…页面首次加载可能需要 30 秒');
+        }
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
   /// 读取登录 WebView 截获的 aweme/detail，写入解析缓存。
-  Future<void> _captureDouyin() async {
+  Future<void> _probeDouyin({bool verbose = false}) async {
     if (widget.site.id != 'douyin') return;
     final c = _controller;
-    if (c == null) return;
+    if (c == null || _probingDouyin) return;
+    _probingDouyin = true;
     try {
-      final raw = (await c.evaluateJavascript(
-        source: 'JSON.stringify({href: location.href, '
-            'data: window.__downie6_aweme || ""})',
-      ))
-          ?.toString() ??
+      final raw = (await c.evaluateJavascript(source: r'''
+        JSON.stringify((() => {
+          const out = {
+            href: location.href,
+            data: window.__downie6_aweme || '',
+            hook: !!window.__downie6AwemeHook,
+            title: document.title || '',
+            height: 0,
+            detail: '',
+            media: []
+          };
+          try {
+            const entries = performance.getEntriesByType('resource')
+              .map(e => e.name);
+            const details = entries.filter(
+              u => /aweme\/(detail|post)|replay_list/.test(u));
+            if (details.length) out.detail = details[details.length - 1];
+            out.media = entries.filter(
+              u => /\/media-(video|audio)-/.test(u)).slice(-8);
+          } catch (e) {}
+          try {
+            const v = document.querySelector('video');
+            if (v) {
+              out.height = v.videoHeight || 0;
+              if (v.paused) v.play().catch(function(){});
+            }
+          } catch (e) {}
+          return out;
+        })())
+      ''')).toString() ??
           '';
       final map = jsonDecode(_unwrap(raw)) as Map<String, dynamic>;
+      _douyinProbes++;
       final data = (map['data'] as String?) ?? '';
       final href = (map['href'] as String?) ?? '';
-      debugPrint(
-          '[登录] 抖音探测 #${_captureTries + 1}: href=$href data=${data.length}');
+      final title = (map['title'] as String?) ?? '';
+      final detail = (map['detail'] as String?) ?? '';
+      final height = (map['height'] as num?)?.toInt() ?? 0;
+      final media = (map['media'] as List?)?.cast<String>() ?? const <String>[];
+      if (title.isNotEmpty) _currentPageTitle = title;
+      if (height > 0) _douyinVideoHeight = height;
+      for (final u in media) {
+        if (u.contains('/media-video-')) _douyinVideoUrl = u;
+        if (u.contains('/media-audio-')) _douyinAudioUrl = u;
+      }
       if (data.isNotEmpty) {
         var cached = DouyinParser.cacheCaptured(_loginUrl, data);
         if (widget.initialUrl != null) {
@@ -414,21 +556,75 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
           cached = DouyinParser.cacheCaptured(href, data) || cached;
         }
         if (cached) {
-          _captureTimer?.cancel();
+          _douyinReady = true;
+          _douyinProbeTimer?.cancel();
+          debugPrint('[登录] ✅ 抖音数据已捕获（${data.length} 字符）');
+          if (mounted) setState(() => _douyinStatus = null);
+          if (_finishPending && mounted && !_saving) {
+            _finishPending = false;
+            unawaited(_finish());
+          }
           return;
         }
+        debugPrint('[登录] 抖音数据解析失败（${data.length} 字符）');
+      }
+      if (_finishPending && _cacheDouyinMediaFallback()) {
+        _finishPending = false;
+        _douyinReady = true;
+        _douyinProbeTimer?.cancel();
+        debugPrint('[登录] 抖音用媒体分轨兜底完成');
+        if (mounted) setState(() => _douyinStatus = null);
+        if (mounted && !_saving) unawaited(_finish());
+        return;
+      }
+      if (verbose || _douyinProbes % 5 == 0) {
+        debugPrint('[登录] 抖音等待 #$_douyinProbes: href=$href '
+            'data=${data.length} hook=${map['hook']} '
+            '${detail.isNotEmpty ? 'detail=✓' : 'detail=×'} '
+            'media=${media.length} title=$title');
+      }
+      // 如果注入的 hook 没生效，补一次，后续请求仍能抓到。
+      if (map['hook'] != true) {
+        unawaited(c.evaluateJavascript(source: _douyinHook));
       }
     } catch (e) {
       debugPrint('[登录] 读取抖音数据失败: $e');
+    } finally {
+      _probingDouyin = false;
     }
+  }
 
-    if (_captureTries < 8) {
-      _captureTries++;
-      _captureTimer?.cancel();
-      _captureTimer = Timer(const Duration(milliseconds: 1200), () {
-        if (mounted) _captureDouyin();
-      });
+  /// 兜底：aweme/detail 响应始终没拿到，但播放器已经发出了视频/音频分轨
+  /// （Douyin 的 media-video / media-audio），用它们下载后交给 ffmpeg 合并。
+  bool _cacheDouyinMediaFallback() {
+    if (_douyinVideoUrl.isEmpty || _douyinAudioUrl.isEmpty) return false;
+    var ok = DouyinParser.cacheMedia(
+      _currentPageUrl.isNotEmpty ? _currentPageUrl : _loginUrl,
+      videoUrl: _douyinVideoUrl,
+      audioUrl: _douyinAudioUrl,
+      title: _currentPageTitle,
+      height: _douyinVideoHeight,
+    );
+    ok = DouyinParser.cacheMedia(
+          _loginUrl,
+          videoUrl: _douyinVideoUrl,
+          audioUrl: _douyinAudioUrl,
+          title: _currentPageTitle,
+          height: _douyinVideoHeight,
+        ) ||
+        ok;
+    final initial = widget.initialUrl;
+    if (initial != null) {
+      ok = DouyinParser.cacheMedia(
+            initial,
+            videoUrl: _douyinVideoUrl,
+            audioUrl: _douyinAudioUrl,
+            title: _currentPageTitle,
+            height: _douyinVideoHeight,
+          ) ||
+          ok;
     }
+    return ok;
   }
 
   String _unwrap(String raw) {
@@ -625,6 +821,18 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                     ),
                   ),
                   const Spacer(),
+                  if (_douyinStatus != null) ...[
+                    Flexible(
+                      child: Text(
+                        _douyinStatus!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(fontSize: 11, color: secondary),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                  ],
                   if (_pageLoading) ...[
                     const SizedBox(
                       width: 14,
@@ -693,8 +901,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                           }
                           _detectLogin();
                           _maybeReloadAfterLogin();
-                          _captureTries = 0;
-                          unawaited(_captureDouyin());
+                          _startDouyinCapture();
                         },
                         onReceivedError: (controller, request, error) {
                           debugPrint('[登录] 加载错误: ${error.description}');

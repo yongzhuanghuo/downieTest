@@ -1,5 +1,17 @@
 # 更新日志
 
+## 2.0.17（2026-10-27）
+
+### 抖音登录下载修复（对照 Downie 的 captureResource 行为）
+
+- 登录浏览器改为持续监听 aweme/detail（WKWebView 首次加载约 30 秒才发出），不再探测 8 次就放弃
+- 点 ✓ 后最多等待 75 秒；超时后窗口保持打开，数据到达会自动完成并开始下载
+- 登录窗口右上角显示「正在获取视频信息…」状态，避免看起来卡死
+- JS hook 兼容 responseType=json、aweme/post、replay_list，并记录 UIFID 请求头
+- 兜底：没截到 aweme/detail 时，使用播放器的 video/audio DASH 分轨下载后 ffmpeg 合并
+- 画质列表显示真实分辨率，支持 H.265 标记，按清晰度排序
+- 保存登录 cookie 时记录 UIFID 是否写入
+
 ## 2.0.16（2026-10-27）
 
 ### 抖音登录与解析
