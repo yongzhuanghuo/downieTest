@@ -329,6 +329,7 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
           if (error == null) added = true;
           return error;
         },
+        onQueuePage: _queuePageFromUge,
       );
       if (!mounted) return;
       if (added) {
@@ -341,6 +342,35 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
         setState(() {
           _busy = false;
           _error = '用户自定义视频提取失败：$e';
+        });
+      }
+    }
+  }
+
+  Future<void> _queuePageFromUge(String url) async {
+    if (!mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(parseProvider.notifier).parse(url);
+      if (!mounted) return;
+      final parse = ref.read(parseProvider);
+      final info = parse.videoInfo;
+      if (parse.isError || info == null) {
+        setState(() {
+          _busy = false;
+          _error = parse.error ?? '解析失败';
+        });
+        return;
+      }
+      await _startInfo(info);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = '解析失败：$e';
         });
       }
     }

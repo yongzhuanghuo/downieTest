@@ -403,6 +403,8 @@ class TrialNotifier extends StateNotifier<AsyncValue<TrialInfo?>> {
   Future<void> ensureStarted() async {
     if (_started) return;
     _started = true;
+    // 调用方在 initState 里触发，先让出当前帧，避免构建期修改 provider。
+    await Future<void>.delayed(Duration.zero);
     final cached = LicenseStorage.instance.cachedTrial;
     if (cached != null) state = AsyncValue.data(cached);
     try {

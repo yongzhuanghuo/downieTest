@@ -82,6 +82,9 @@ Future<QuickAddResult> quickAddAutomation(
         if (error == null) added = true;
         return error;
       },
+      onQueuePage: (url) async {
+        await quickAddText(context, ref, url, options: options);
+      },
     );
     return added ? QuickAddResult.added : QuickAddResult.failed;
   }
@@ -179,6 +182,9 @@ Future<QuickAddResult> _handleUnsupported(
           );
           if (error == null) added = true;
           return error;
+        },
+        onQueuePage: (url) async {
+          await quickAddText(context, ref, url);
         },
       );
       return added ? QuickAddResult.added : QuickAddResult.failed;

@@ -267,6 +267,9 @@ class AppMenuBar extends ConsumerWidget {
       ctx,
       '',
       onAdd: (media) => enqueueCapturedMediaFromUge(ctx, ref, media),
+      onQueuePage: (url) async {
+        await quickAddText(ctx, ref, url);
+      },
     );
   }
 

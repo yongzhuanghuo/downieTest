@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform/webview2.dart';
+import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../core/sites/search_engines.dart';
 import '../../core/storage/settings_storage.dart';
@@ -97,6 +98,9 @@ class WebCaptureDialog extends ConsumerStatefulWidget {
   /// 行内添加时直接入队；为空则关闭窗口后把已选列表返回给调用方。
   final UgeEnqueue? onAdd;
 
+  /// 「直接支持此链接」横幅的「添加到队列」回调。
+  final Future<void> Function(String url)? onQueuePage;
+
   final WebViewEnvironment? environment;
 
   const WebCaptureDialog({
@@ -105,6 +109,7 @@ class WebCaptureDialog extends ConsumerStatefulWidget {
     this.environment,
     this.auto = false,
     this.onAdd,
+    this.onQueuePage,
   });
 
   /// 打开完整 UGE 窗口；返回关闭时已选择但未直接入队的媒体。
@@ -113,6 +118,7 @@ class WebCaptureDialog extends ConsumerStatefulWidget {
     String url, {
     bool auto = false,
     UgeEnqueue? onAdd,
+    Future<void> Function(String url)? onQueuePage,
   }) async {
     WebViewEnvironment? env;
     if (Platform.isWindows) {
@@ -139,6 +145,7 @@ class WebCaptureDialog extends ConsumerStatefulWidget {
           environment: env,
           auto: auto,
           onAdd: onAdd,
+          onQueuePage: onQueuePage,
         ),
       ),
     );
@@ -185,9 +192,6 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
   String _uaMode = 'chrome';
   String _pageUrl = '';
   String _title = '';
-  Size? _savedSize;
-  Offset? _savedPosition;
-  bool _savedMaximized = false;
   bool _disposed = false;
 
   _SidebarMode _mode = _SidebarMode.links;
@@ -198,6 +202,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
   final Set<String> _adding = <String>{};
   final List<CapturedMedia> _pending = <CapturedMedia>[];
   final List<_Bookmark> _bookmarks = <_Bookmark>[];
+  final Set<String> _dismissedBanners = <String>{};
   OverlayEntry? _popover;
   bool _addingAll = false;
 
@@ -356,6 +361,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     _addressController.text = widget.url;
     _webView2Missing = !isWebView2Available();
     _searchController.addListener(_onSearchChanged);
+    _addressController.addListener(_onAddressChanged);
     if (!_webView2Missing && widget.url.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _addressFocus.requestFocus();
@@ -378,6 +384,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     _autoTimer?.cancel();
     _closePopover();
     _searchController.removeListener(_onSearchChanged);
+    _addressController.removeListener(_onAddressChanged);
     _addressController.dispose();
     _addressFocus.dispose();
     _searchController.dispose();
@@ -389,15 +396,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
   Future<void> _configureWindow() async {
     try {
       windowManager.addListener(this);
-      _savedMaximized = await windowManager.isMaximized();
-      _savedSize = await windowManager.getSize();
-      _savedPosition = await windowManager.getPosition();
-      if (_disposed) return;
-      if (_savedMaximized) await windowManager.unmaximize();
-      if (_disposed) return;
       await windowManager.setMinimumSize(const Size(1010, 500));
-      await windowManager.setSize(const Size(1100, 620));
-      await windowManager.center();
       await windowManager.setTitle('用户自定义视频提取');
       await windowManager.setPreventClose(true);
       if (_disposed) {
@@ -413,16 +412,6 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
       await windowManager.setPreventClose(false);
       await windowManager.setMinimumSize(const Size(800, 600));
       await windowManager.setTitle(AppBrand.name);
-      if (_savedSize != null || _savedPosition != null || _savedMaximized) {
-        if (_savedMaximized) {
-          await windowManager.maximize();
-        } else {
-          if (_savedSize != null) await windowManager.setSize(_savedSize!);
-          if (_savedPosition != null) {
-            await windowManager.setPosition(_savedPosition!);
-          }
-        }
-      }
     } catch (e) {
       debugPrint('[UGE] 恢复窗口失败: $e');
     }
@@ -439,8 +428,8 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     if (_closing || !mounted) return;
     _closing = true;
     _closePopover();
-    await windowManager.setPreventClose(false).catchError((_) {});
-    if (!mounted) return;
+    // 先关闭 UGE 路由，dispose 里再解除 preventClose；
+    // 否则正在处理的窗口关闭事件会把整个主窗口关掉。
     Navigator.of(context).pop<List<CapturedMedia>>(
       List<CapturedMedia>.of(_pending),
     );
@@ -459,6 +448,10 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
   }
 
   void _onSearchChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onAddressChanged() {
     if (mounted) setState(() {});
   }
 
@@ -501,8 +494,10 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     final engine = ref.read(settingsProvider).searchEngine;
     final target = resolveAddressInput(value, engineId: engine);
     if (target.isEmpty) return;
+    debugPrint('[UGE] navigate -> $target (controller=${_webController != null})');
     _addressFocus.unfocus();
     _addressController.text = target;
+    if (mounted) setState(() {});
     await _webController?.loadUrl(
       urlRequest: URLRequest(url: WebUri(target)),
     );
@@ -513,6 +508,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     _pageUrl = url;
     if (!_addressFocus.hasFocus) {
       _addressController.text = url;
+      if (mounted) setState(() {});
     }
   }
 
@@ -723,6 +719,84 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     );
   }
 
+  void _showItemDetails(_CapturedItem item, BuildContext anchor) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final fg = dark ? AppTokens.textPrimary : AppTokens.textPrimaryLight;
+    final secondary =
+        dark ? AppTokens.textSecondary : const Color(0xFF8E8E93);
+
+    Widget row(String label, String value) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 52,
+              child: Text(label,
+                  style: TextStyle(fontSize: 11, color: secondary)),
+            ),
+            Expanded(
+              child: Text(value,
+                  style: TextStyle(fontSize: 11.5, color: fg)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    _showPopover(
+      anchor,
+      380,
+      Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(item.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: fg)),
+            const SizedBox(height: 6),
+            row('类型', item.kind.toUpperCase()),
+            if (item.bytes != null) row('大小', _formatBytes(item.bytes!)),
+            row('站点', item.host.isEmpty ? '-' : item.host),
+            const SizedBox(height: 4),
+            SelectableText(
+              item.url,
+              maxLines: 4,
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1.3,
+                color: secondary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: item.url));
+                    _closePopover();
+                    _toast('链接已复制');
+                  },
+                  icon: const Icon(Icons.copy, size: 13),
+                  label: const Text('复制链接',
+                      style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      maxHeight: 360,
+    );
+  }
+
   Future<void> _addItem(_CapturedItem item) async {
     if (_added.contains(item.url) || _adding.contains(item.url)) return;
     if (item.kind == 'image' || item.kind == 'subtitle') {
@@ -908,7 +982,15 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
               Expanded(
                 child: Row(
                   children: [
-                    Expanded(child: _buildWebView(web)),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          if (_showSupportBanner)
+                            _buildSupportBanner(context),
+                          Expanded(child: _buildWebView(web)),
+                        ],
+                      ),
+                    ),
                     if (_sidebarVisible) ...[
                       Container(
                         width: 1,
@@ -984,29 +1066,24 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
         color: chrome,
         border: Border(bottom: BorderSide(color: divider)),
       ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanStart: (_) => windowManager.startDragging(),
-        onDoubleTap: _toggleMaximize,
-        child: Row(
-          children: [
-            SizedBox(width: Platform.isMacOS ? 92 : 12),
-            _buildNavCluster(dark),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
-                  child: _buildAddressBar(dark),
-                ),
+      child: Row(
+        children: [
+          SizedBox(width: Platform.isMacOS ? 92 : 12),
+          _buildNavCluster(dark),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: _buildAddressBar(dark),
               ),
             ),
-            const SizedBox(width: 8),
-            _buildActions(dark),
-            const SizedBox(width: 10),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          _buildActions(dark),
+          const SizedBox(width: 10),
+        ],
       ),
     );
   }
@@ -1085,8 +1162,10 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
                 Row(
                   children: [
                     const SizedBox(width: 8),
-                    Icon(Icons.search, size: 13, color: secondary),
-                    const SizedBox(width: 5),
+                    if (_addressController.text.isEmpty) ...[
+                      Icon(Icons.search, size: 13, color: secondary),
+                      const SizedBox(width: 5),
+                    ],
                     Expanded(
                       child: TextField(
                         controller: _addressController,
@@ -1095,6 +1174,9 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
                         decoration: InputDecoration(
                           isDense: true,
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
                           contentPadding:
                               const EdgeInsets.symmetric(vertical: 7),
                           hintText: '键入地址于此以开始',
@@ -1107,15 +1189,12 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
                       ),
                     ),
                     if (_loading)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 8),
-                        child: SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.6,
-                            color: _ugeAccent,
-                          ),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _webController?.stopLoading(),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 7),
+                          child: Icon(Icons.close, size: 13, color: secondary),
                         ),
                       ),
                   ],
@@ -1178,7 +1257,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
         _ActionButton(
           icon: Icons.photo_library_outlined,
           tooltip: '图片',
-          color: _mode == _SidebarMode.images ? _ugeAccent : fg,
+          color: fg,
           badge: _images.isNotEmpty ? _images.length : null,
           onTap: () => _setMode(_SidebarMode.images),
         ),
@@ -1186,25 +1265,15 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
         _ActionButton(
           icon: Icons.subtitles_outlined,
           tooltip: '字幕',
-          color: _mode == _SidebarMode.subtitles ? _ugeAccent : fg,
+          color: fg,
           badge: _subtitles.isNotEmpty ? _subtitles.length : null,
           onTap: () => _setMode(_SidebarMode.subtitles),
         ),
-        if (_links.isNotEmpty) ...[
-          const SizedBox(width: 2),
-          _ActionButton(
-            icon: Icons.download_outlined,
-            tooltip: '下载',
-            color: _mode == _SidebarMode.links ? _ugeAccent : fg,
-            badge: _links.length,
-            onTap: () => _setMode(_SidebarMode.links),
-          ),
-        ],
         const SizedBox(width: 2),
         _ActionButton(
           icon: Icons.view_sidebar,
           tooltip: _sidebarVisible ? '隐藏边栏' : '显示边栏',
-          color: _sidebarVisible ? _ugeAccent : fg,
+          color: fg,
           onTap: () => setState(() => _sidebarVisible = !_sidebarVisible),
         ),
       ],
@@ -1236,6 +1305,120 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     ];
   }
 
+  bool get _showSupportBanner =>
+      _pageUrl.isNotEmpty &&
+      _pageUrl != 'about:blank' &&
+      !_dismissedBanners.contains(_pageUrl) &&
+      _isSupportedPage(_pageUrl);
+
+  bool _isSupportedPage(String url) {
+    if (PluginRegistry.instance.find(url) != null) return true;
+    final host = Uri.tryParse(url)?.host ?? '';
+    const domains = <String>[
+      'youtube.com',
+      'youtu.be',
+      'vimeo.com',
+      'twitch.tv',
+      'instagram.com',
+      'facebook.com',
+      'twitter.com',
+      'x.com',
+      'tiktok.com',
+      'bilibili.com',
+      'bilibili.tv',
+      'douyin.com',
+      'kuaishou.com',
+      'weibo.com',
+      'weibo.cn',
+      'xiaohongshu.com',
+      'dailymotion.com',
+      'soundcloud.com',
+    ];
+    return domains.any((d) => host == d || host.endsWith('.$d'));
+  }
+
+  Widget _buildSupportBanner(BuildContext context) {
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF7C5CFF), Color(0xFF6A4BF0)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              size: 18, color: Colors.white),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Downie6 直接支持此链接。您应该将此链接直接添加到队列中，'
+              '让 Downie6 自行处理，而不是使用「用户自定义提取」。',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.25,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          if (widget.onQueuePage != null) ...[
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: _queueCurrentPage,
+              child: Container(
+                height: 24,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: const Text('添加到队列',
+                    style: TextStyle(fontSize: 11.5, color: Colors.white)),
+              ),
+            ),
+          ],
+          const SizedBox(width: 6),
+          Builder(
+            builder: (ctx) => GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _showOptions(ctx),
+              child: const Padding(
+                padding: EdgeInsets.all(4),
+                child: Icon(Icons.settings, size: 14, color: Colors.white),
+              ),
+            ),
+          ),
+          const SizedBox(width: 2),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              final url = _pageUrl;
+              setState(() => _dismissedBanners.add(url));
+            },
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.close, size: 15, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _queueCurrentPage() async {
+    final cb = widget.onQueuePage;
+    final url = _pageUrl;
+    if (cb == null || url.isEmpty || url == 'about:blank') return;
+    await _close();
+    await cb(url);
+  }
+
   Widget _buildWebView(Color background) {
     if (_webView2Missing) return _buildWebView2Missing(background);
     return InAppWebView(
@@ -1258,6 +1441,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
         ),
       ]),
       onWebViewCreated: (controller) {
+        debugPrint('[UGE] WebView created');
         _webController = controller;
         controller.addJavaScriptHandler(
           handlerName: 'media',
@@ -1283,6 +1467,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
         return false;
       },
       onLoadStart: (controller, url) {
+        debugPrint('[UGE] loadStart ${url?.toString()}');
         if (url != null) _syncAddress(url.toString());
         if (mounted) {
           setState(() {
@@ -1392,6 +1577,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           adding: _adding.contains(item.url),
           showAdd: _mode == _SidebarMode.links,
           onAdd: () => _addItem(item),
+          onInfo: () => _showItemDetails(item, context),
           subtitle: _rowSubtitle(item),
         );
       },
@@ -1439,7 +1625,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           parts.add('DASH');
           break;
         default:
-          parts.add('Direct Downloader');
+          parts.add('直接下载器');
       }
       if (item.bytes != null) parts.add(_formatBytes(item.bytes!));
       if (ext.isNotEmpty) parts.add(ext.toUpperCase());
@@ -1489,6 +1675,9 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
                       decoration: InputDecoration(
                         isDense: true,
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
                         contentPadding:
                             const EdgeInsets.symmetric(vertical: 4),
                         hintText: '搜索',
@@ -1977,7 +2166,7 @@ class _ActionButtonState extends State<_ActionButton> {
                           const BoxConstraints(minWidth: 12, minHeight: 12),
                       padding: const EdgeInsets.symmetric(horizontal: 3),
                       decoration: BoxDecoration(
-                        color: _ugeAccent,
+                        color: const Color(0xFFFF3B30),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       alignment: Alignment.center,
@@ -2115,6 +2304,7 @@ class _UgeRow extends StatefulWidget {
   final bool showAdd;
   final String subtitle;
   final VoidCallback onAdd;
+  final VoidCallback onInfo;
 
   const _UgeRow({
     super.key,
@@ -2125,6 +2315,7 @@ class _UgeRow extends StatefulWidget {
     required this.showAdd,
     required this.subtitle,
     required this.onAdd,
+    required this.onInfo,
   });
 
   @override
@@ -2169,56 +2360,73 @@ class _UgeRowState extends State<_UgeRow> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12.5,
+                        height: 1.1,
                         fontWeight: FontWeight.w500,
                         color: widget.added ? tertiary : fg,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       widget.subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10.5, color: secondary),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        height: 1.1,
+                        color: secondary,
+                      ),
                     ),
                     const SizedBox(height: 1),
                     Text(
                       widget.item.host,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, color: tertiary),
+                      style: TextStyle(
+                        fontSize: 10,
+                        height: 1.1,
+                        color: tertiary,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            if (widget.showAdd)
-              SizedBox(
-                width: 27,
-                child: Center(
-                  child: widget.adding
-                      ? const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: _ugeAccent,
+            SizedBox(
+              width: 32,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: widget.onInfo,
+                    child: Icon(Icons.info_outline, size: 14, color: tertiary),
+                  ),
+                  if (widget.showAdd) ...[
+                    const SizedBox(height: 3),
+                    widget.adding
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: _ugeAccent,
+                            ),
+                          )
+                        : GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: widget.added ? null : widget.onAdd,
+                            child: Icon(
+                              widget.added
+                                  ? Icons.check_circle
+                                  : Icons.add_circle_outline,
+                              size: 15,
+                              color: widget.added ? tertiary : _ugeAccent,
+                            ),
                           ),
-                        )
-                      : GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: widget.added ? null : widget.onAdd,
-                          child: Icon(
-                            widget.added
-                                ? Icons.check_circle
-                                : Icons.add_circle_outline,
-                            size: 16,
-                            color: widget.added ? tertiary : _ugeAccent,
-                          ),
-                        ),
-                ),
-              )
-            else
-              const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),

@@ -99,6 +99,9 @@ class WindowStatusBar extends ConsumerWidget {
                     '',
                     onAdd: (media) =>
                         enqueueCapturedMediaFromUge(context, ref, media),
+                    onQueuePage: (url) async {
+                      await quickAddText(context, ref, url);
+                    },
                   ),
                 ),
                 _StatusIcon(

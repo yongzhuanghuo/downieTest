@@ -269,6 +269,9 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
       context,
       '',
       onAdd: (media) => enqueueCapturedMediaFromUge(context, ref, media),
+      onQueuePage: (url) async {
+        await quickAddText(context, ref, url);
+      },
     );
   }
 
