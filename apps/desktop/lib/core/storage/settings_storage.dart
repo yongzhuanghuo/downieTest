@@ -165,6 +165,9 @@ class AppSettings {
   /// 失败后保留未完成文件（.part/.ytdl）
   final bool keepFailedFiles;
 
+  /// 在授权窗口隐藏授权码（Downie 的 CMHideLicenseCodeFromUI）
+  final bool hideLicenseCode;
+
   /// 纯音频下载格式（yt-dlp 任务）：mp3/m4a/opus
   final String preferredAudioFormat;
 
@@ -221,6 +224,7 @@ class AppSettings {
     this.automatedMode = false,
     this.blockAdultSites = false,
     this.keepFailedFiles = true,
+    this.hideLicenseCode = false,
     this.preferredAudioFormat = 'mp3',
   });
 
@@ -277,6 +281,7 @@ class AppSettings {
     automatedMode: false,
     blockAdultSites: false,
     keepFailedFiles: true,
+    hideLicenseCode: false,
     preferredAudioFormat: 'mp3',
   );
 
@@ -333,6 +338,7 @@ class AppSettings {
     bool? automatedMode,
     bool? blockAdultSites,
     bool? keepFailedFiles,
+    bool? hideLicenseCode,
     String? preferredAudioFormat,
   }) {
     return AppSettings(
@@ -405,6 +411,7 @@ class AppSettings {
       automatedMode: automatedMode ?? this.automatedMode,
       blockAdultSites: blockAdultSites ?? this.blockAdultSites,
       keepFailedFiles: keepFailedFiles ?? this.keepFailedFiles,
+      hideLicenseCode: hideLicenseCode ?? this.hideLicenseCode,
       preferredAudioFormat:
           preferredAudioFormat ?? this.preferredAudioFormat,
     );
@@ -532,6 +539,7 @@ class SettingsStorage {
         automatedMode: (raw['automatedMode'] as bool?) ?? false,
         blockAdultSites: (raw['blockAdultSites'] as bool?) ?? false,
         keepFailedFiles: (raw['keepFailedFiles'] as bool?) ?? true,
+        hideLicenseCode: (raw['hideLicenseCode'] as bool?) ?? false,
         preferredAudioFormat:
             (raw['preferredAudioFormat'] as String?) ?? 'mp3',
       );
@@ -621,6 +629,7 @@ class SettingsStorage {
       'automatedMode': settings.automatedMode,
       'blockAdultSites': settings.blockAdultSites,
       'keepFailedFiles': settings.keepFailedFiles,
+      'hideLicenseCode': settings.hideLicenseCode,
       'preferredAudioFormat': settings.preferredAudioFormat,
     });
     debugPrint('[Settings] saved: $settings');

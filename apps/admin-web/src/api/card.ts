@@ -22,6 +22,12 @@ export const getCardDetail = (code: string) => {
   return http.request<Result>("get", `/card/${code}`);
 };
 
+export const bindCardEmail = (code: string, email: string) => {
+  return http.request<Result>("post", `/card/${code}/email`, {
+    data: { email }
+  });
+};
+
 export const revokeCard = (code: string) => {
   return http.request<Result>("post", `/card/${code}/revoke`);
 };

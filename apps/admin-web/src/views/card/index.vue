@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
+  bindCardEmail,
   exportCards,
   generateCards,
   getCardDetail,
@@ -22,7 +23,13 @@ const loading = ref(false);
 const query = reactive({ search: "", status: "", type: "", page: 1, pageSize: 20 });
 
 const genVisible = ref(false);
-const gen = reactive({ type: "perpetual", count: 10, devices: 4, expire_days: 0 });
+const gen = reactive({
+  type: "perpetual",
+  count: 10,
+  devices: 4,
+  expire_days: 0,
+  email: ""
+});
 const genLoading = ref(false);
 
 const resultVisible = ref(false);
@@ -38,6 +45,7 @@ const statCards = computed(() => [
   { label: "已吊销", value: stats.value.revoked ?? "-" },
   { label: "免费版", value: stats.value.free ?? "-" },
   { label: "永久版", value: stats.value.perpetual ?? "-" },
+  { label: "已绑定邮箱", value: stats.value.with_email ?? "-" },
   { label: "已绑定设备", value: stats.value.bound_devices ?? "-" }
 ]);
 
@@ -101,6 +109,24 @@ async function onRestore(row: any) {
   loadStats();
 }
 
+async function onBindEmail(lic: any) {
+  const result = await ElMessageBox.prompt(
+    "留空表示解除绑定；绑定后激活必须使用同一邮箱",
+    "绑定邮箱",
+    {
+      inputValue: lic.email || "",
+      inputPlaceholder: "buyer@example.com",
+      inputValidator: value =>
+        !value || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) || "邮箱格式不正确"
+    }
+  );
+  const res: any = await bindCardEmail(lic.code, (result.value || "").trim());
+  lic.email = res.data.email || "";
+  ElMessage.success(lic.email ? "邮箱已绑定" : "邮箱已解除绑定");
+  load();
+  loadStats();
+}
+
 async function onExport(scope: string) {
   const params: Record<string, any> = {};
   if (scope === "filter") {
@@ -136,7 +162,7 @@ onMounted(() => {
     </el-row>
 
     <div class="mb-4 flex flex-wrap gap-3">
-      <el-input v-model="query.search" placeholder="搜索激活码" clearable class="w-56" @input="query.page = 1; load()" />
+      <el-input v-model="query.search" placeholder="搜索激活码/邮箱" clearable class="w-56" @input="query.page = 1; load()" />
       <el-select v-model="query.status" placeholder="状态" clearable class="w-36" @change="query.page = 1; load()">
         <el-option label="未激活" value="unused" />
         <el-option label="已激活" value="activated" />
@@ -161,6 +187,7 @@ onMounted(() => {
 
     <el-table v-loading="loading" :data="list" border>
       <el-table-column prop="formatted" label="激活码" width="220" />
+      <el-table-column prop="email" label="绑定邮箱" width="200" show-overflow-tooltip />
       <el-table-column label="类型" width="90">
         <template #default="{ row }">{{ typeMap[row.type] }}</template>
       </el-table-column>
@@ -201,6 +228,9 @@ onMounted(() => {
         <el-form-item label="数量"><el-input-number v-model="gen.count" :min="1" :max="1000" /></el-form-item>
         <el-form-item label="设备数"><el-input-number v-model="gen.devices" :min="1" :max="100" /></el-form-item>
         <el-form-item label="过期天数"><el-input-number v-model="gen.expire_days" :min="0" :max="3650" /></el-form-item>
+        <el-form-item label="绑定邮箱">
+          <el-input v-model="gen.email" placeholder="可选；填写后激活必须使用该邮箱" clearable />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="genVisible = false">取消</el-button>
@@ -222,6 +252,12 @@ onMounted(() => {
         <el-descriptions-item label="类型">{{ typeMap[detail.license.type] }}</el-descriptions-item>
         <el-descriptions-item label="设备数">{{ detail.license.max_devices }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ statusMap[detail.license.status] }}</el-descriptions-item>
+        <el-descriptions-item label="绑定邮箱">
+          <span>{{ detail.license.email || "未绑定" }}</span>
+          <el-button link type="primary" class="ml-2" @click="onBindEmail(detail.license)">
+            修改
+          </el-button>
+        </el-descriptions-item>
       </el-descriptions>
       <h4 class="mt-4 mb-2">绑定设备</h4>
       <el-table :data="detail.devices" size="small" border>

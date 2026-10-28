@@ -945,6 +945,14 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
+              title: const Text('隐藏授权码'),
+              subtitle: const Text('授权窗口不显示授权码；授权码仍保存在本机'),
+              value: settings.hideLicenseCode,
+              onChanged: notifier.setHideLicenseCode,
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
               title: const Text('禁用登录对话框'),
               subtitle: const Text('需要登录的链接直接失败，不弹内置浏览器；仍可从菜单手动登录'),
               value: settings.disableLoginDialogs,

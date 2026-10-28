@@ -169,11 +169,11 @@ Downie 的关键长尾能力是 **Custom Integrations**（社区 JS 规则） + 
 | 15 | 目的地 | 确认每次、JSON 元数据、缩略图 JPEG、原文件名、按站点/播放列表分文件夹 | 目录/模板/分站点/缩略图/元数据 JSON；2.0.20 询问保存位置与 `{original}`；2.0.21 按播放列表分文件夹（DB v8） | P1 | 已完成 |
 | 16 | 高级 | 连接数、分块、原生 HLS、强制重编码、保留失败文件、代理 WebView | 2.0.19 连接数/限速/原生 HLS/强制重编码/自检；2.0.21 分块；2.0.26 失败文件清理 | P1 | 已完成（WebView 代理与 Downie 一样不生效） |
 | 17 | 浏览器扩展 | 安装向导/多浏览器/关闭标签页 | 导出扩展/书签/token/cookie；2.0.21 向导；2.0.27 Firefox；2.0.28 关闭标签页 | P2 | Safari 原生扩展待做 |
-| 18 | 授权 | 14 天试用、邮箱、4 设备、签名令牌、心跳、Keychain | 14 天试用、设备/反激活；明文 Hive/HTTP | P1 | v2 见 rea 文档第 5 节 |
+| 18 | 授权 | 14 天试用、邮箱、4 设备、签名令牌、心跳、Keychain | 14 天试用/设备/反激活/隐藏码/启动校验/心跳/离线试用缓存；仍为明文 Hive/HTTP | P1 | 签名令牌、HTTPS、Keychain/DPAPI 待做 |
 | 19 | 自定义集成 | 注册表/提交/控制台/JS 执行 | 无 | P2 | S3 |
 | 20 | 多窗口 | 历史/调试/UGE/Quick Look 独立窗 | 单窗口浮层 | P2 | 用户已接受浮层，暂不做真多窗 |
 | 21 | 菜单/快捷键 | File/Edit/Browser/Window/Help + 快捷键 | 2.0.20 原生菜单；2.0.21 浏览器菜单；2.0.29 编辑菜单（剪切/复制/粘贴/全选） | P1 | 菜单快捷键未重复绑定（沿用 Flutter 文本框快捷键） |
-| 22 | 自动化/AppleScript | URL scheme、Services、Intents、自动化模式 | 2.0.22 `downie6://`、open -a/命令行、自动化模式 | P2 | AppleScript/Services/Intents 待做 |
+| 22 | 自动化/AppleScript | URL scheme、Services、Intents、自动化模式 | 2.0.22 下载 `downie6://`、open -a/命令行；2.0.30 授权 `downie-license://` 激活/反激活；自动化模式 | P2 | AppleScript/Services/Intents 待做 |
 | 23 | iCloud 历史 | 同步历史 | 无 | P3 | 不做（跨端复杂度高） |
 
 真正还未完成、且会影响使用体验的只剩：授权 v2（安全加固，不是下载功能）、自定义集成（JS 沙箱）、Top Downloads（需要服务端）、编辑菜单/完整快捷键、多浏览器扩展、AppleScript Services/Intents。多窗口、iCloud、Permute、签名/公证已明确不做。下载、队列、画质、后处理、字幕/音轨、目的地、调试、自动化主链路均已落地。

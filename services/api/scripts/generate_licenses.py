@@ -9,6 +9,7 @@
   -d, --devices  最大设备数          (默认 free=1 perpetual=4)
   -e, --expire   过期天数            (默认 0=永不过期)
   -c, --count    生成数量            (默认 1)
+  -m, --email    绑定邮箱（可选）    (默认不绑定，首次激活时绑定)
   -o, --output   CSV 输出文件        (默认 stdout)
 """
 import argparse
@@ -24,16 +25,20 @@ async def _run(opts):
     max_devices = opts.devices if opts.devices is not None else (4 if type_ == "perpetual" else 1)
     expire_at = None if opts.expire <= 0 else int(time.time() * 1000) + opts.expire * 86400 * 1000
 
+    email = (opts.email or "").strip() or None
     raws = []
     async with SessionLocal() as session:
         for _ in range(opts.count):
-            raw = await _insert_one(session, type_, max_devices, expire_at)
+            raw = await _insert_one(session, type_, max_devices, expire_at, email)
             raws.append(raw)
         await session.commit()
 
-    lines = ["activation_code,type,max_devices,expire_at_ts,expire_days"]
+    lines = ["activation_code,type,max_devices,email,expire_at_ts,expire_days"]
     for raw in raws:
-        lines.append(f"{codes.format_code(raw)},{type_},{max_devices},{expire_at or 0},{opts.expire}")
+        lines.append(
+            f"{codes.format_code(raw)},{type_},{max_devices},{email or ''},"
+            f"{expire_at or 0},{opts.expire}"
+        )
     out = "\n".join(lines) + "\n"
 
     if opts.output:
@@ -44,11 +49,19 @@ async def _run(opts):
         print(out, end="")
 
 
-async def _insert_one(session, type_, max_devices, expire_at) -> str:
+async def _insert_one(session, type_, max_devices, expire_at, email=None) -> str:
     for _ in range(3):
         raw = codes.generate_code()
         try:
-            session.add(models.License(code=raw, type=type_, max_devices=max_devices, expire_at=expire_at))
+            session.add(
+                models.License(
+                    code=raw,
+                    type=type_,
+                    max_devices=max_devices,
+                    expire_at=expire_at,
+                    email=email,
+                )
+            )
             await session.flush()
             return raw
         except Exception as e:  # noqa: BLE001 撞码重试
@@ -66,6 +79,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--devices", type=int, default=None)
     parser.add_argument("-e", "--expire", type=int, default=0)
     parser.add_argument("-c", "--count", type=int, default=1)
+    parser.add_argument("-m", "--email", default=None)
     parser.add_argument("-o", "--output", default=None)
     args = parser.parse_args()
     try:

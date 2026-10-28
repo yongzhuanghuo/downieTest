@@ -43,6 +43,13 @@ Root: HKLM; Subkey: "Software\Classes\downie6"; ValueType: string; ValueName: ""
 Root: HKLM; Subkey: "Software\Classes\downie6"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKLM; Subkey: "Software\Classes\downie6\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
 Root: HKLM; Subkey: "Software\Classes\downie6\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+; 授权自动化：同时接受 Downie 原生 downie-license 和 downie6-license
+Root: HKLM; Subkey: "Software\Classes\downie6-license"; ValueType: string; ValueName: ""; ValueData: "URL:Downie6 License Protocol"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Classes\downie6-license"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKLM; Subkey: "Software\Classes\downie6-license\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKLM; Subkey: "Software\Classes\downie-license"; ValueType: string; ValueName: ""; ValueData: "URL:Downie License Protocol"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Classes\downie-license"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKLM; Subkey: "Software\Classes\downie-license\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Run]
 ; 没装 WebView2 就静默安装（/norestart 避免强制重启）

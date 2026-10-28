@@ -30,6 +30,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>downie6</string>
+				<string>downie6-license</string>
 			</array>
 		</dict>
 	</array>

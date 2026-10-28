@@ -98,6 +98,34 @@ class UnbindResult {
   }
 }
 
+/// /api/license/verify 结果
+class VerifyResult {
+  final bool ok;
+  final bool valid;
+  final String? reason;
+  final bool isPro;
+  final bool deviceActive;
+
+  const VerifyResult({
+    required this.ok,
+    required this.valid,
+    this.reason,
+    this.isPro = false,
+    this.deviceActive = false,
+  });
+
+  factory VerifyResult.fromJson(Map<String, dynamic> raw) {
+    final j = flattenLicenseError(raw);
+    return VerifyResult(
+      ok: j['ok'] == true,
+      valid: j['valid'] == true,
+      reason: j['reason'] as String?,
+      isPro: j['is_pro'] == true,
+      deviceActive: j['device_active'] == true,
+    );
+  }
+}
+
 /// 许可证信息
 class LicenseInfo {
   final String type;
@@ -326,6 +354,24 @@ class LicenseClient {
       }
       return null;
     } catch (e) {
+      return null;
+    }
+  }
+
+  /// 校验当前授权码/设备是否仍有效。
+  /// 返回 null 表示网络失败（离线时不要清本地授权）。
+  Future<VerifyResult?> verify({
+    required String code,
+    required String deviceFp,
+  }) async {
+    try {
+      final resp = await _post('/api/license/verify', {
+        'code': code,
+        'device_fp': deviceFp,
+      });
+      final j = jsonDecode(resp.body) as Map<String, dynamic>;
+      return VerifyResult.fromJson(j);
+    } catch (_) {
       return null;
     }
   }

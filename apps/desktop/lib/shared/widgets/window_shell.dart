@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform/automation_queue.dart';
 import '../../core/platform/automation_request.dart';
+import '../../core/platform/license_automation.dart';
 import '../../core/platform/single_instance.dart';
 import '../../core/platform/tray_service.dart';
 import '../../core/server/browser_bridge.dart';
@@ -63,12 +64,16 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     if (Platform.isWindows) {
       _instanceSub = SingleInstance.incoming.listen((args) {
         AutomationQueue.seed(args);
+        for (final licenseRequest in AutomationQueue.drainLicenses()) {
+          unawaited(_handleLicenseAutomation(licenseRequest));
+        }
         for (final request in AutomationQueue.drain()) {
           unawaited(_handleAutomation(request));
         }
       });
     }
     unawaited(ref.read(trialProvider.notifier).ensureStarted());
+    unawaited(ref.read(licenseNotifierProvider.notifier).verifyCurrentDevice());
     unawaited(_syncBrowserBridge());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -87,6 +92,9 @@ class _WindowShellState extends ConsumerState<WindowShell> {
         quit: () => windowManager.close(),
         enabled: ref.read(settingsProvider).showInMenuBar,
       ));
+      for (final licenseRequest in AutomationQueue.drainLicenses()) {
+        unawaited(_handleLicenseAutomation(licenseRequest));
+      }
       for (final request in AutomationQueue.drain()) {
         unawaited(_handleAutomation(request));
       }
@@ -117,6 +125,11 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     if (call.method != 'openUrl') return null;
     final raw = call.arguments;
     if (raw is! String) return null;
+    final licenseRequest = parseLicenseAutomation(raw);
+    if (licenseRequest != null) {
+      await _handleLicenseAutomation(licenseRequest);
+      return null;
+    }
     final request = parseAutomationRequest(raw);
     if (request == null) {
       debugPrint('[自动化] 忽略无法识别的链接: $raw');
@@ -124,6 +137,28 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     }
     await _handleAutomation(request);
     return null;
+  }
+
+  Future<void> _handleLicenseAutomation(
+    LicenseAutomationRequest request,
+  ) async {
+    await windowManager.show();
+    await windowManager.focus();
+    if (!mounted) return;
+    final notifier = ref.read(licenseNotifierProvider.notifier);
+    final (ok, message) = request.activate
+        ? await notifier.activate(request.code, email: request.email)
+        : await notifier.deactivateWithCode(
+            request.code,
+            email: request.email,
+          );
+    if (request.activate && ok && request.hide) {
+      await ref.read(settingsProvider.notifier).setHideLicenseCode(true);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   Future<void> _handleAutomation(AutomationRequest request) async {

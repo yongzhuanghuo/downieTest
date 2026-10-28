@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS licenses (
   email       VARCHAR(255) NULL,
   expire_at   BIGINT       NULL,
   status      ENUM('unused','activated','revoked') NOT NULL DEFAULT 'unused',
-  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_licenses_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS device_bindings (

@@ -1,10 +1,13 @@
 """卡密管理（Pure-Admin 信封，数据来自授权 licenses 表）。"""
+import csv
+import io
+import re
 import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
-from sqlalchemy import case, func, select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -32,6 +35,28 @@ class CardGenerate(BaseModel):
     count: int = 10
     devices: Optional[int] = None
     expire_days: int = 0
+    email: Optional[str] = None
+
+
+class CardEmail(BaseModel):
+    email: Optional[str] = None
+
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _clean_email(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    email = value.strip()
+    if not email:
+        return None
+    if len(email) > 255 or not _EMAIL_RE.match(email):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": 400, "message": "邮箱格式不正确"},
+        )
+    return email
 
 
 def _fmt(v) -> str:
@@ -50,6 +75,7 @@ def _license_dict(lic: License, bound_count: int = 0) -> dict:
         "formatted": format_code(lic.code),
         "type": lic.type,
         "max_devices": lic.max_devices,
+        "email": lic.email or "",
         "expire_at": lic.expire_at,
         "status": lic.status,
         "created_at": _fmt(lic.created_at),
@@ -57,11 +83,25 @@ def _license_dict(lic: License, bound_count: int = 0) -> dict:
     }
 
 
-async def _insert_one(session: AsyncSession, type_: str, max_devices: int, expire_at: Optional[int]) -> str:
+async def _insert_one(
+    session: AsyncSession,
+    type_: str,
+    max_devices: int,
+    expire_at: Optional[int],
+    email: Optional[str] = None,
+) -> str:
     for _ in range(3):
         raw = generate_code()
         try:
-            session.add(License(code=raw, type=type_, max_devices=max_devices, expire_at=expire_at))
+            session.add(
+                License(
+                    code=raw,
+                    type=type_,
+                    max_devices=max_devices,
+                    expire_at=expire_at,
+                    email=email,
+                )
+            )
             await session.flush()
             return raw
         except Exception as e:  # noqa: BLE001
@@ -84,6 +124,15 @@ async def card_stats(session: AsyncSession = Depends(get_session)):
                 func.sum(case((License.status == "revoked", 1), else_=0)).label("revoked"),
                 func.sum(case((License.type == "free", 1), else_=0)).label("free"),
                 func.sum(case((License.type == "perpetual", 1), else_=0)).label("perpetual"),
+                func.sum(
+                    case(
+                        (
+                            License.email.isnot(None) & (License.email != ""),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("with_email"),
             )
         )
     ).one()
@@ -96,6 +145,7 @@ async def card_stats(session: AsyncSession = Depends(get_session)):
             "revoked": row.revoked or 0,
             "free": row.free or 0,
             "perpetual": row.perpetual or 0,
+            "with_email": row.with_email or 0,
             "bound_devices": dev or 0,
         }
     )
@@ -105,7 +155,13 @@ async def card_stats(session: AsyncSession = Depends(get_session)):
 async def card_list(q: CardQuery, session: AsyncSession = Depends(get_session)):
     conds = []
     if q.search:
-        conds.append(License.code.like(f"%{q.search.strip().upper()}%"))
+        term = q.search.strip()
+        conds.append(
+            or_(
+                License.code.like(f"%{term.upper()}%"),
+                License.email.like(f"%{term}%"),
+            )
+        )
     if q.status in ("unused", "activated", "revoked"):
         conds.append(License.status == q.status)
     if q.type in ("free", "perpetual"):
@@ -142,12 +198,21 @@ async def card_generate(body: CardGenerate, session: AsyncSession = Depends(get_
     max_devices = body.devices if body.devices is not None else (4 if t == "perpetual" else 1)
     expire_at = None if body.expire_days <= 0 else int(time.time() * 1000) + body.expire_days * 86400 * 1000
     n = min(1000, max(1, body.count))
+    email = _clean_email(body.email)
 
     raws = []
     for _ in range(n):
-        raws.append(await _insert_one(session, t, max_devices, expire_at))
+        raws.append(await _insert_one(session, t, max_devices, expire_at, email))
     await session.commit()
-    return ok({"count": len(raws), "type": t, "max_devices": max_devices, "codes": [format_code(r) for r in raws]})
+    return ok(
+        {
+            "count": len(raws),
+            "type": t,
+            "max_devices": max_devices,
+            "email": email or "",
+            "codes": [format_code(r) for r in raws],
+        }
+    )
 
 
 @router.get("/card/export", dependencies=[Depends(get_current_user)])
@@ -161,7 +226,13 @@ async def card_export(
 ):
     conds = []
     if search:
-        conds.append(License.code.like(f"%{search.strip().upper()}%"))
+        term = search.strip()
+        conds.append(
+            or_(
+                License.code.like(f"%{term.upper()}%"),
+                License.email.like(f"%{term}%"),
+            )
+        )
     if status in ("unused", "activated", "revoked"):
         conds.append(License.status == status)
     if type in ("free", "perpetual"):
@@ -172,15 +243,24 @@ async def card_export(
         stmt = stmt.offset((page - 1) * pageSize).limit(pageSize)
     rows = list((await session.scalars(stmt)).all())
 
-    lines = ["激活码,类型,设备数,状态,过期时间,创建时间"]
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["激活码", "类型", "设备数", "状态", "邮箱", "过期时间", "创建时间"])
     for r in rows:
         expire = _fmt(r.expire_at) if r.expire_at else "永久"
-        lines.append(
-            f"{format_code(r.code)},{_TYPE_MAP.get(r.type, r.type)},{r.max_devices},"
-            f"{_STATUS_MAP.get(r.status, r.status)},{expire},{_fmt(r.created_at)}"
+        writer.writerow(
+            [
+                format_code(r.code),
+                _TYPE_MAP.get(r.type, r.type),
+                r.max_devices,
+                _STATUS_MAP.get(r.status, r.status),
+                r.email or "",
+                expire,
+                _fmt(r.created_at),
+            ]
         )
     return Response(
-        content="﻿" + "\n".join(lines) + "\n",
+        content="﻿" + buffer.getvalue(),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=licenses.csv"},
     )
@@ -203,6 +283,20 @@ async def card_detail(code: str, session: AsyncSession = Depends(get_session)):
             ],
         }
     )
+
+
+@router.post("/card/{code}/email", dependencies=[Depends(get_current_user)])
+async def card_bind_email(
+    code: str,
+    body: CardEmail,
+    session: AsyncSession = Depends(get_session),
+):
+    lic = await session.scalar(select(License).where(License.code == code))
+    if not lic:
+        raise HTTPException(status_code=404, detail={"code": 404, "message": "卡密不存在"})
+    lic.email = _clean_email(body.email)
+    await session.commit()
+    return ok({"email": lic.email or ""})
 
 
 @router.post("/card/{code}/revoke", dependencies=[Depends(get_current_user)])

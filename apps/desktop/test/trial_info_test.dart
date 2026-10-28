@@ -45,6 +45,26 @@ void main() {
     expect(result.boundDevices!.single.deviceName, 'Mac');
   });
 
+  test('verify result parses valid/revoked states', () {
+    final valid = VerifyResult.fromJson({
+      'ok': true,
+      'valid': true,
+      'is_pro': true,
+      'device_active': true,
+    });
+    expect(valid.valid, isTrue);
+    expect(valid.isPro, isTrue);
+
+    final revoked = VerifyResult.fromJson({
+      'ok': true,
+      'valid': false,
+      'reason': 'DEVICE_NOT_BOUND',
+      'is_pro': true,
+    });
+    expect(revoked.valid, isFalse);
+    expect(revoked.reason, 'DEVICE_NOT_BOUND');
+  });
+
   test('unbind errors unwrap FastAPI detail payloads', () {
     final result = UnbindResult.fromJson({
       'detail': {'ok': false, 'error': 'NOT_FOUND', 'message': '设备不存在'},

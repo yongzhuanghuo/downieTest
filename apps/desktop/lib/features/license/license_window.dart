@@ -6,6 +6,7 @@ import '../../core/license/license_client.dart';
 import '../../shared/branding/app_brand.dart';
 import '../../shared/theme/design_tokens.dart';
 import '../../shared/widgets/window_panel.dart';
+import '../settings/settings_provider.dart';
 import 'license_provider.dart';
 
 /// Downie 式授权/试用窗口：14 天试用进度 + 授权码激活。
@@ -71,6 +72,7 @@ class _LicenseWindowState extends ConsumerState<LicenseWindow> {
     final trial = trialAsync.asData?.value;
     final isPro = ref.watch(isProProvider);
     final license = ref.watch(activatedLicenseProvider);
+    final settings = ref.watch(settingsProvider);
     final days = trial?.daysRemaining ?? 0;
     final progress = (days / 14).clamp(0.0, 1.0);
     final dark = theme.brightness == Brightness.dark;
@@ -96,7 +98,7 @@ class _LicenseWindowState extends ConsumerState<LicenseWindow> {
             const SizedBox(height: AppSpacing.md),
             if (license != null)
               SelectableText(
-                license.code,
+                settings.hideLicenseCode ? '授权码已隐藏' : license.code,
                 style: TextStyle(fontSize: 12, color: secondary),
               ),
             const SizedBox(height: AppSpacing.sm),

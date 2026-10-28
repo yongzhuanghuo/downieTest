@@ -64,12 +64,14 @@ class ActivatedLicense {
   final LicensePayload payload;
   final List<String> boundDevices; // 设备指纹列表
   final int activatedAt; // 激活时间
+  final String email; // 激活时填写的邮箱（可空）
 
   const ActivatedLicense({
     required this.code,
     required this.payload,
     required this.boundDevices,
     required this.activatedAt,
+    this.email = '',
   });
 
   LicenseType get type => payload.type;
@@ -87,12 +89,14 @@ class ActivatedLicense {
 
   ActivatedLicense copyWith({
     List<String>? boundDevices,
+    String? email,
   }) {
     return ActivatedLicense(
       code: code,
       payload: payload,
       boundDevices: boundDevices ?? this.boundDevices,
       activatedAt: activatedAt,
+      email: email ?? this.email,
     );
   }
 
@@ -104,6 +108,7 @@ class ActivatedLicense {
       'expireAt': payload.expireAt,
       'boundDevices': boundDevices,
       'activatedAt': activatedAt,
+      'email': email,
     };
   }
 
@@ -117,6 +122,7 @@ class ActivatedLicense {
       ),
       boundDevices: List<String>.from(m['boundDevices'] as List? ?? const []),
       activatedAt: (m['activatedAt'] as num?)?.toInt() ?? 0,
+      email: (m['email'] as String?) ?? '',
     );
   }
 }

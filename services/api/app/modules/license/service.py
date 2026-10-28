@@ -6,6 +6,7 @@
   - ON DUPLICATE KEY UPDATE 复用解绑后的旧行，避免唯一键冲突
 """
 import math
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -144,13 +145,27 @@ async def activate(
         if lic.status == "revoked":
             raise LicenseError(403, "LICENSE_REVOKED", "该激活码已被吊销")
 
+        provided_email = (email or "").strip()
+        if provided_email and (
+            len(provided_email) > 255
+            or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", provided_email)
+        ):
+            raise LicenseError(400, "INVALID_EMAIL", "邮箱格式不正确")
+        bound_email = (lic.email or "").strip()
+        if bound_email:
+            # 2.0.0–2.0.9 客户端激活时不带 email，不能因此拒绝激活（授权契约兼容）。
+            # 带了邮箱就必须与绑定一致。
+            if provided_email and provided_email.lower() != bound_email.lower():
+                raise LicenseError(403, "EMAIL_MISMATCH", "邮箱与激活码不匹配")
+        elif provided_email:
+            # 未预绑邮箱的卡密：首次激活时绑定，之后携带邮箱的激活必须一致。
+            lic.email = provided_email
+
         bound = (
             await session.scalars(
                 select(DeviceBinding).where(DeviceBinding.code == normalized, DeviceBinding.status == "active")
             )
         ).all()
-        if email:
-            lic.email = email.strip()
         payload = _license_payload(lic)
 
         # 幂等：本设备已绑定，直接返回成功

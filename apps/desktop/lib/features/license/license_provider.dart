@@ -19,6 +19,8 @@ class LicenseStorage {
 
   static const _boxName = 'downlo_license';
   static const _keyLicense = 'license';
+  static const _keyTrial = 'trial';
+  static const _keyHeartbeat = 'lastHeartbeat';
 
   Box? _box;
   ActivatedLicense? _cached;
@@ -62,6 +64,38 @@ class LicenseStorage {
     await _box?.delete(_keyLicense);
   }
 
+  /// 本地缓存的试用状态；断网时按 trial_end 判断，避免无限期放行。
+  TrialInfo? get cachedTrial {
+    final raw = _box?.get(_keyTrial);
+    if (raw is! Map) return null;
+    final map = Map<String, dynamic>.from(raw);
+    final end = (map['trial_end'] as num?)?.toInt() ?? 0;
+    final expired = end > 0 && DateTime.now().millisecondsSinceEpoch >= end;
+    return TrialInfo(
+      status: expired ? 'expired' : ((map['status'] as String?) ?? 'expired'),
+      trialEnd: end,
+      daysRemaining:
+          expired ? 0 : ((map['days_remaining'] as num?)?.toInt() ?? 0),
+      canDownload: !expired && map['can_download'] == true,
+    );
+  }
+
+  Future<void> saveTrial(TrialInfo info) async {
+    await _box?.put(_keyTrial, {
+      'status': info.status,
+      'trial_end': info.trialEnd,
+      'days_remaining': info.daysRemaining,
+      'can_download': info.canDownload,
+      'checked_at': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  int? get lastHeartbeatAt =>
+      (_box?.get(_keyHeartbeat) as num?)?.toInt();
+
+  Future<void> saveHeartbeat(int value) async {
+    await _box?.put(_keyHeartbeat, value);
+  }
 }
 
 /// ===================================================================
@@ -161,6 +195,9 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
         payload: payload,
         boundDevices: boundDevices,
         activatedAt: DateTime.now().millisecondsSinceEpoch,
+        email: (email?.trim().isNotEmpty ?? false)
+            ? email!.trim()
+            : (existing?.email ?? ''),
       );
       await storage.save(next);
       // 使用 StateProvider.state = 直接更新，避免 invalidate 导致的依赖冲突
@@ -189,6 +226,53 @@ class LicenseNotifier extends StateNotifier<AsyncValue<ActivatedLicense?>> {
     final (ok, message) = await unbindDevice(fp);
     if (ok) return (true, '当前设备已反激活');
     return (false, message);
+  }
+
+  /// 命令行/URL scheme 反激活：Downie 要求授权码和邮箱匹配当前激活信息。
+  Future<(bool success, String message)> deactivateWithCode(
+    String code, {
+    String email = '',
+  }) async {
+    final current = LicenseStorage.instance.current;
+    if (current == null) return (false, '当前设备未激活');
+    if (_normalizeCode(current.code) != _normalizeCode(code)) {
+      return (false, '授权码与当前激活信息不匹配');
+    }
+    if (current.email.isNotEmpty &&
+        email.isNotEmpty &&
+        current.email.toLowerCase() != email.trim().toLowerCase()) {
+      return (false, '邮箱与当前激活信息不匹配');
+    }
+    return deactivateCurrentDevice();
+  }
+
+  /// 启动校验：撤销/远程解绑会清除本地 PRO；网络失败保持离线授权。
+  Future<void> verifyCurrentDevice() async {
+    final storage = LicenseStorage.instance;
+    final current = storage.current;
+    if (current == null) return;
+    final fp = await DeviceFingerprint.get();
+    final result = await LicenseClient.instance.verify(
+      code: current.code,
+      deviceFp: fp,
+    );
+    if (result == null) return;
+    if (!result.valid) {
+      await storage.clear();
+      ref.read(activatedLicenseProvider.notifier).state = null;
+      state = const AsyncValue.data(null);
+      debugPrint('[License] 启动校验失败: ${result.reason ?? 'invalid'}');
+      return;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final last = storage.lastHeartbeatAt ?? 0;
+    if (now - last > const Duration(hours: 24).inMilliseconds) {
+      final ok = await LicenseClient.instance.heartbeat(
+        code: current.code,
+        deviceFp: fp,
+      );
+      if (ok) await storage.saveHeartbeat(now);
+    }
   }
 
   /// 解绑设备（远程解绑 + 本地更新）
@@ -313,16 +397,24 @@ class TrialNotifier extends StateNotifier<AsyncValue<TrialInfo?>> {
   Future<void> ensureStarted() async {
     if (_started) return;
     _started = true;
+    final cached = LicenseStorage.instance.cachedTrial;
+    if (cached != null) state = AsyncValue.data(cached);
     try {
       final deviceFp = await DeviceFingerprint.get();
       final info = await LicenseClient.instance.startTrial(
         deviceFp: deviceFp,
         platform: Platform.isMacOS ? 'macos' : 'windows',
       );
-      state = AsyncValue.data(info);
-      if (info == null) _started = false;
+      if (info != null) {
+        await LicenseStorage.instance.saveTrial(info);
+        state = AsyncValue.data(info);
+      } else if (cached == null) {
+        state = const AsyncValue.data(null);
+        _started = false;
+      }
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      // 有本地缓存时继续按缓存判断（到期会被 canDownload 拦截）。
+      if (cached == null) state = AsyncValue.error(e, st);
       _started = false;
     }
   }
@@ -348,3 +440,6 @@ final licenseNotifierProvider =
     StateNotifierProvider<LicenseNotifier, AsyncValue<ActivatedLicense?>>(
       (ref) => LicenseNotifier(ref),
     );
+
+String _normalizeCode(String value) =>
+    value.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
