@@ -7,10 +7,10 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/storage/site_registry.dart';
 import '../../core/version/version_check.dart';
-import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/downloads/quick_add.dart';
 import '../../features/downloads/site_login_dialog.dart';
+import '../../features/downloads/web_capture_dialog.dart';
 import '../../features/help/help_window.dart';
 import '../../features/help/support_dialog.dart';
 import '../../features/history/history_window.dart';
@@ -125,7 +125,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
           '用户自定义视频提取…',
           icon: Icons.travel_explore,
           shortcut: _shortcut('E'),
-          onTap: () => AddUrlsPanel.show(context),
+          onTap: _openGuidedExtraction,
         ),
         _item(
           '打开登录浏览器…',
@@ -261,6 +261,14 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
 
   Future<void> _addFromClipboard() async {
     await quickAddFromClipboard(context, ref);
+  }
+
+  Future<void> _openGuidedExtraction() async {
+    await WebCaptureDialog.show(
+      context,
+      '',
+      onAdd: (media) => enqueueCapturedMediaFromUge(context, ref, media),
+    );
   }
 
   Future<void> _importFromFile() async {

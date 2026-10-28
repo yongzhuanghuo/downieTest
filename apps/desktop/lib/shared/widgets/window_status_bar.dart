@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/version/version_check.dart';
-import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/downloads/queue_search_panel.dart';
 import '../../features/downloads/quick_add.dart';
+import '../../features/downloads/web_capture_dialog.dart';
 import '../../features/help/help_window.dart';
 import '../../features/history/history_window.dart';
 import '../../features/preferences/preferences_window.dart';
@@ -94,7 +94,12 @@ class WindowStatusBar extends ConsumerWidget {
                   icon: Icons.travel_explore,
                   tooltip: '用户自定义视频提取',
                   color: accent,
-                  onTap: () => AddUrlsPanel.show(context),
+                  onTap: () => WebCaptureDialog.show(
+                    context,
+                    '',
+                    onAdd: (media) =>
+                        enqueueCapturedMediaFromUge(context, ref, media),
+                  ),
                 ),
                 _StatusIcon(
                   icon: Icons.folder_open,

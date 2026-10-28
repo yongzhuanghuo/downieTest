@@ -11,6 +11,7 @@ import '../../core/storage/site_registry.dart';
 import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/downloads/quick_add.dart';
+import '../../features/downloads/web_capture_dialog.dart';
 import '../../features/downloads/site_login_dialog.dart';
 import '../../features/help/help_window.dart';
 import '../../features/help/support_dialog.dart';
@@ -136,7 +137,7 @@ class AppMenuBar extends ConsumerWidget {
           ),
           PlatformMenuItem(
             label: '用户自定义视频提取…',
-            onSelected: _openGuidedExtraction,
+            onSelected: () => _openGuidedExtraction(ref),
           ),
         ],
       ),
@@ -259,16 +260,14 @@ class AppMenuBar extends ConsumerWidget {
     await SiteLoginDialog.show(ctx, site);
   }
 
-  Future<void> _openGuidedExtraction() async {
+  Future<void> _openGuidedExtraction(WidgetRef ref) async {
     final ctx = _ctx;
     if (ctx == null) return;
-    String? text;
-    try {
-      final data = await Clipboard.getData('text/plain');
-      text = data?.text;
-    } catch (_) {}
-    if (!ctx.mounted) return;
-    await AddUrlsPanel.show(ctx, initialText: text);
+    await WebCaptureDialog.show(
+      ctx,
+      '',
+      onAdd: (media) => enqueueCapturedMediaFromUge(ctx, ref, media),
+    );
   }
 
   Future<void> _addFromClipboard(WidgetRef ref) async {

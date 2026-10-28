@@ -68,9 +68,22 @@ Future<QuickAddResult> quickAddAutomation(
     postprocessing: request.openInUge ? null : request.postprocessing,
   );
   if (request.openInUge) {
-    final media = await WebCaptureDialog.show(context, request.url);
-    if (media == null || !context.mounted) return QuickAddResult.failed;
-    return _enqueueCapturedMedia(context, ref, media, options: options);
+    var added = false;
+    await WebCaptureDialog.show(
+      context,
+      request.url,
+      onAdd: (media) async {
+        final error = await enqueueCapturedMediaFromUge(
+          context,
+          ref,
+          media,
+          options: options,
+        );
+        if (error == null) added = true;
+        return error;
+      },
+    );
+    return added ? QuickAddResult.added : QuickAddResult.failed;
   }
   return quickAddText(context, ref, request.url, options: options);
 }
@@ -153,13 +166,22 @@ Future<QuickAddResult> _handleUnsupported(
 
   switch (result.action) {
     case UnsupportedAction.extract:
-      final media = await WebCaptureDialog.show(
+      var added = false;
+      await WebCaptureDialog.show(
         context,
         target,
         auto: settings.autoUgeUnsupported,
+        onAdd: (media) async {
+          final error = await enqueueCapturedMediaFromUge(
+            context,
+            ref,
+            media,
+          );
+          if (error == null) added = true;
+          return error;
+        },
       );
-      if (media == null || !context.mounted) return QuickAddResult.failed;
-      return _enqueueCapturedMedia(context, ref, media);
+      return added ? QuickAddResult.added : QuickAddResult.failed;
     case UnsupportedAction.support:
       final uri = Uri(
         scheme: 'mailto',
@@ -179,7 +201,33 @@ Future<QuickAddResult> _handleUnsupported(
   return QuickAddResult.failed;
 }
 
-Future<QuickAddResult> _enqueueCapturedMedia(
+/// UGE 行内「+」入队：成功返回 null，失败返回给用户看的错误。
+Future<String?> enqueueCapturedMediaFromUge(
+  BuildContext context,
+  WidgetRef ref,
+  CapturedMedia media, {
+  QuickAddOptions? options,
+}) async {
+  final result = await enqueueCapturedMedia(
+    context,
+    ref,
+    media,
+    options: options,
+  );
+  switch (result) {
+    case QuickAddResult.added:
+      return null;
+    case QuickAddResult.trialEnded:
+      return '14 天试用已结束';
+    case QuickAddResult.needsInput:
+      return '需要先输入链接';
+    case QuickAddResult.failed:
+      return '未能加入下载队列';
+  }
+  return '未能加入下载队列';
+}
+
+Future<QuickAddResult> enqueueCapturedMedia(
   BuildContext context,
   WidgetRef ref,
   CapturedMedia media, {

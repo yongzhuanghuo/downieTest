@@ -308,9 +308,8 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
     });
     try {
       final directKind = detectMediaKind(url);
-      CapturedMedia? media;
       if (directKind != null) {
-        media = CapturedMedia(
+        final media = CapturedMedia(
           url: url,
           kind: directKind,
           pageUrl: url,
@@ -318,37 +317,25 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
           referer: url,
           cookie: '',
         );
-      } else {
-        media = await WebCaptureDialog.show(context, url);
-      }
-      if (media == null) {
-        if (mounted) setState(() => _busy = false);
+        await _startInfo(_infoFor(media));
         return;
       }
-      final host = Uri.tryParse(media.pageUrl)?.host ?? '';
-      final info = VideoInfo(
-        url: media.pageUrl,
-        title: media.title.isEmpty ? host : media.title,
-        duration: 0,
-        uploader: host,
-        thumbnail: '',
-        extractor: 'GenericWeb',
-        videoId: media.url.hashCode.abs().toString(),
-        formats: [
-          FormatOption(
-            formatId: jsonEncode({
-              'url': media.url,
-              'kind': media.kind,
-              'referer': media.referer,
-              'cookie': media.cookie,
-            }),
-            label: '用户自定义视频提取 ${media.kind.toUpperCase()}',
-            height: 0,
-            ext: 'mp4',
-          ),
-        ],
+      var added = false;
+      await WebCaptureDialog.show(
+        context,
+        url,
+        onAdd: (media) async {
+          final error = await _enqueueInfo(_infoFor(media));
+          if (error == null) added = true;
+          return error;
+        },
       );
-      await _startInfo(info);
+      if (!mounted) return;
+      if (added) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+      setState(() => _busy = false);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -357,6 +344,32 @@ class _AddUrlsPanelState extends ConsumerState<AddUrlsPanel> {
         });
       }
     }
+  }
+
+  VideoInfo _infoFor(CapturedMedia media) {
+    final host = Uri.tryParse(media.pageUrl)?.host ?? '';
+    return VideoInfo(
+      url: media.pageUrl,
+      title: media.title.isEmpty ? host : media.title,
+      duration: 0,
+      uploader: host,
+      thumbnail: '',
+      extractor: 'GenericWeb',
+      videoId: media.url.hashCode.abs().toString(),
+      formats: [
+        FormatOption(
+          formatId: jsonEncode({
+            'url': media.url,
+            'kind': media.kind,
+            'referer': media.referer,
+            'cookie': media.cookie,
+          }),
+          label: '用户自定义视频提取 ${media.kind.toUpperCase()}',
+          height: 0,
+          ext: 'mp4',
+        ),
+      ],
+    );
   }
 
   Future<void> _startInfo(VideoInfo info) async {
