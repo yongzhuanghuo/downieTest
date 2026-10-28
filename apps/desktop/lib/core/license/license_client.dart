@@ -22,6 +22,14 @@ const String _kApiBase = String.fromEnvironment(
   defaultValue: 'http://127.0.0.1:3000',
 );
 
+/// FastAPI 的 HTTPException 会把错误体包在 `detail` 里；
+/// 客户端契约是顶层 `ok/error/message`，这里统一拍平。
+Map<String, dynamic> flattenLicenseError(Map<String, dynamic> raw) {
+  final detail = raw['detail'];
+  if (detail is Map) return Map<String, dynamic>.from(detail);
+  return raw;
+}
+
 /// 激活结果
 class ActivateResult {
   final bool ok;
@@ -44,9 +52,10 @@ class ActivateResult {
     this.boundDevices,
   });
 
-  factory ActivateResult.fromJson(Map<String, dynamic> j) {
+  factory ActivateResult.fromJson(Map<String, dynamic> raw) {
+    final j = flattenLicenseError(raw);
     return ActivateResult(
-      ok: j['ok'] as bool,
+      ok: j['ok'] == true,
       error: j['error'] as String?,
       message: j['message'] as String?,
       license: j['license'] != null
@@ -55,8 +64,8 @@ class ActivateResult {
       device: j['device'] != null
           ? DeviceInfo.fromJson(j['device'] as Map<String, dynamic>)
           : null,
-      boundCount: j['bound_count'] as int?,
-      remainingSlots: j['remaining_slots'] as int?,
+      boundCount: (j['bound_count'] as num?)?.toInt(),
+      remainingSlots: (j['remaining_slots'] as num?)?.toInt(),
       boundDevices: (j['bound_devices'] as List?)
           ?.map((d) => DeviceInfo.fromJson(d as Map<String, dynamic>))
           .toList(),
@@ -78,12 +87,13 @@ class UnbindResult {
     this.remainingSlots,
   });
 
-  factory UnbindResult.fromJson(Map<String, dynamic> j) {
+  factory UnbindResult.fromJson(Map<String, dynamic> raw) {
+    final j = flattenLicenseError(raw);
     return UnbindResult(
-      ok: j['ok'] as bool,
+      ok: j['ok'] == true,
       error: j['error'] as String?,
       message: j['message'] as String?,
-      remainingSlots: j['remaining_slots'] as int?,
+      remainingSlots: (j['remaining_slots'] as num?)?.toInt(),
     );
   }
 }
@@ -153,16 +163,17 @@ class StatusResult {
     required this.remainingSlots,
   });
 
-  factory StatusResult.fromJson(Map<String, dynamic> j) {
+  factory StatusResult.fromJson(Map<String, dynamic> raw) {
+    final j = flattenLicenseError(raw);
     return StatusResult(
-      ok: j['ok'] as bool,
+      ok: j['ok'] == true,
       license: j['license'] != null
           ? LicenseInfo.fromJson(j['license'] as Map<String, dynamic>)
           : null,
       boundDevices: (j['bound_devices'] as List? ?? [])
           .map((d) => DeviceInfo.fromJson(d as Map<String, dynamic>))
           .toList(),
-      remainingSlots: j['remaining_slots'] as int? ?? 0,
+      remainingSlots: (j['remaining_slots'] as num?)?.toInt() ?? 0,
     );
   }
 }

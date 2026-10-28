@@ -5,7 +5,7 @@
 #define MyAppName "Downie6"
 ; 安装目录使用 Downie6；旧版 4KDownle 的目录不会被自动迁移
 #define MyAppDirName "Downie6"
-#define MyAppVersion "2.0.29"
+#define MyAppVersion "2.0.30"
 #define MyAppExeName "Downie6.exe"
 
 [Setup]
