@@ -57,7 +57,7 @@ export default defineComponent({
   },
   beforeCreate() {
     const { version, name: title } = __APP_INFO__.pkg;
-    const { VITE_PUBLIC_PATH, MODE } = import.meta.env;
+    const { BASE_URL, MODE } = import.meta.env;
     // https://github.com/guMcrey/version-rocket/blob/main/README.zh-CN.md#api
     if (MODE === "production") {
       // 版本实时更新检测，只作用于线上环境
@@ -67,7 +67,8 @@ export default defineComponent({
           // 5分钟检测一次版本
           pollingTime: 300000,
           localPackageVersion: version,
-          originVersionFileUrl: `${location.origin}${VITE_PUBLIC_PATH}version.json`
+          // 构建 base 是 /admin/，不能用 VITE_PUBLIC_PATH（生产为 /）
+          originVersionFileUrl: `${location.origin}${BASE_URL}version.json`
         },
         // options
         {
