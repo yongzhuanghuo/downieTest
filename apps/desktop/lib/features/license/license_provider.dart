@@ -68,16 +68,7 @@ class LicenseStorage {
   TrialInfo? get cachedTrial {
     final raw = _box?.get(_keyTrial);
     if (raw is! Map) return null;
-    final map = Map<String, dynamic>.from(raw);
-    final end = (map['trial_end'] as num?)?.toInt() ?? 0;
-    final expired = end > 0 && DateTime.now().millisecondsSinceEpoch >= end;
-    return TrialInfo(
-      status: expired ? 'expired' : ((map['status'] as String?) ?? 'expired'),
-      trialEnd: end,
-      daysRemaining:
-          expired ? 0 : ((map['days_remaining'] as num?)?.toInt() ?? 0),
-      canDownload: !expired && map['can_download'] == true,
-    );
+    return trialInfoFromCache(Map<String, dynamic>.from(raw));
   }
 
   Future<void> saveTrial(TrialInfo info) async {
@@ -96,6 +87,21 @@ class LicenseStorage {
   Future<void> saveHeartbeat(int value) async {
     await _box?.put(_keyHeartbeat, value);
   }
+}
+
+/// 从本地缓存解析试用状态（纯函数，便于单测）。
+/// 缺少 trial_end 或已到期时一律按过期处理，防止篡改缓存后无限试用。
+TrialInfo trialInfoFromCache(Map<String, dynamic> raw, {DateTime? now}) {
+  final end = (raw['trial_end'] as num?)?.toInt() ?? 0;
+  final current = (now ?? DateTime.now()).millisecondsSinceEpoch;
+  final expired = end <= 0 || current >= end;
+  return TrialInfo(
+    status: expired ? 'expired' : ((raw['status'] as String?) ?? 'expired'),
+    trialEnd: end,
+    daysRemaining:
+        expired ? 0 : ((raw['days_remaining'] as num?)?.toInt() ?? 0),
+    canDownload: !expired && raw['can_download'] == true,
+  );
 }
 
 /// ===================================================================

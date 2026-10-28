@@ -1,4 +1,5 @@
 import 'package:downie_test/core/license/license_client.dart';
+import 'package:downie_test/features/license/license_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -84,5 +85,43 @@ void main() {
       false,
     );
     expect(info.isActive, isFalse);
+  });
+
+  test('offline trial cache honors trial_end', () {
+    final now = DateTime.fromMillisecondsSinceEpoch(2000);
+    final active = trialInfoFromCache(
+      {
+        'status': 'active',
+        'trial_end': 3000,
+        'days_remaining': 2,
+        'can_download': true,
+      },
+      now: now,
+    );
+    expect(active.canDownload, isTrue);
+    expect(active.daysRemaining, 2);
+
+    final expired = trialInfoFromCache(
+      {
+        'status': 'active',
+        'trial_end': 1000,
+        'days_remaining': 2,
+        'can_download': true,
+      },
+      now: now,
+    );
+    expect(expired.canDownload, isFalse);
+    expect(expired.status, 'expired');
+    expect(expired.daysRemaining, 0);
+  });
+
+  test('cache without trial_end is treated as expired', () {
+    final info = trialInfoFromCache({
+      'status': 'active',
+      'days_remaining': 14,
+      'can_download': true,
+    });
+    expect(info.canDownload, isFalse);
+    expect(info.status, 'expired');
   });
 }
