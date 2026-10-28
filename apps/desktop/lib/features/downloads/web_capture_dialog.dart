@@ -618,6 +618,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
   }
 
   void _onAsset(String raw) {
+    if (!mounted) return;
     Map<String, dynamic> data;
     try {
       final decoded = jsonDecode(raw);
@@ -1143,6 +1144,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           active: _muted,
           onTap: _toggleMute,
         ),
+        const SizedBox(width: 2),
         Builder(
           builder: (ctx) => _ActionButton(
             icon: Icons.settings_outlined,
@@ -1151,6 +1153,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
             onTap: () => _showOptions(ctx),
           ),
         ),
+        const SizedBox(width: 2),
         _ActionButton(
           icon: Icons.photo_library_outlined,
           tooltip: '图片',
@@ -1158,6 +1161,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           badge: _images.isNotEmpty ? _images.length : null,
           onTap: () => _setMode(_SidebarMode.images),
         ),
+        const SizedBox(width: 2),
         _ActionButton(
           icon: Icons.subtitles_outlined,
           tooltip: '字幕',
@@ -1165,6 +1169,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           badge: _subtitles.isNotEmpty ? _subtitles.length : null,
           onTap: () => _setMode(_SidebarMode.subtitles),
         ),
+        const SizedBox(width: 2),
         _ActionButton(
           icon: Icons.download_outlined,
           tooltip: '下载',
@@ -1172,6 +1177,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           badge: _links.isNotEmpty ? _links.length : null,
           onTap: () => _setMode(_SidebarMode.links),
         ),
+        const SizedBox(width: 2),
         _ActionButton(
           icon: Icons.view_sidebar,
           tooltip: _sidebarVisible ? '隐藏边栏' : '显示边栏',
@@ -2056,6 +2062,7 @@ class _SidebarButtonState extends State<_SidebarButton> {
         onExit: (_) => setState(() => _hover = false),
         child: Container(
           height: 22,
+          constraints: const BoxConstraints(minWidth: 52),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           alignment: Alignment.center,
           decoration: BoxDecoration(
