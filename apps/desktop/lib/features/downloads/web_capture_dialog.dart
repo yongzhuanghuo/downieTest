@@ -18,6 +18,8 @@ import '../../features/settings/settings_provider.dart';
 import '../../shared/branding/app_brand.dart';
 import '../../shared/theme/design_tokens.dart';
 
+const Color _ugeAccent = Color(0xFF0A84FF);
+
 /// 用户自定义视频提取抓到的媒体地址
 @immutable
 class CapturedMedia {
@@ -148,7 +150,6 @@ class WebCaptureDialog extends ConsumerStatefulWidget {
 
 class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     with WindowListener {
-  static const Color _accent = Color(0xFF0A84FF);
   static const String _uaDesktop =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
       'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -671,7 +672,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
       }
       final resp = await req.close().timeout(const Duration(seconds: 8));
       final length = resp.contentLength;
-      await resp.drain<void>();
+      await resp.drain();
       if (length > 0 && mounted) {
         final map = _mapFor(item.kind);
         if (map != null && map.containsKey(item.url)) {
@@ -969,7 +970,15 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
             ],
             _buildNavCluster(dark),
             const SizedBox(width: 10),
-            Expanded(child: _buildAddressBar(dark)),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: _buildAddressBar(dark),
+                ),
+              ),
+            ),
             const SizedBox(width: 8),
             _buildActions(dark),
             if (!Platform.isMacOS) ..._windowsCaptions(dark),
@@ -1083,7 +1092,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
                           height: 12,
                           child: CircularProgressIndicator(
                             strokeWidth: 1.6,
-                            color: _accent,
+                            color: _ugeAccent,
                           ),
                         ),
                       ),
@@ -1102,7 +1111,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
                         value: _progress,
                         minHeight: 2,
                         backgroundColor: Colors.transparent,
-                        color: _accent,
+                        color: _ugeAccent,
                       ),
                     ),
                   ),
@@ -1145,28 +1154,28 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
         _ActionButton(
           icon: Icons.photo_library_outlined,
           tooltip: '图片',
-          color: _mode == _SidebarMode.images ? _accent : fg,
+          color: _mode == _SidebarMode.images ? _ugeAccent : fg,
           badge: _images.isNotEmpty ? _images.length : null,
           onTap: () => _setMode(_SidebarMode.images),
         ),
         _ActionButton(
           icon: Icons.subtitles_outlined,
           tooltip: '字幕',
-          color: _mode == _SidebarMode.subtitles ? _accent : fg,
+          color: _mode == _SidebarMode.subtitles ? _ugeAccent : fg,
           badge: _subtitles.isNotEmpty ? _subtitles.length : null,
           onTap: () => _setMode(_SidebarMode.subtitles),
         ),
         _ActionButton(
           icon: Icons.download_outlined,
           tooltip: '下载',
-          color: _mode == _SidebarMode.links ? _accent : fg,
+          color: _mode == _SidebarMode.links ? _ugeAccent : fg,
           badge: _links.isNotEmpty ? _links.length : null,
           onTap: () => _setMode(_SidebarMode.links),
         ),
         _ActionButton(
           icon: Icons.view_sidebar,
           tooltip: _sidebarVisible ? '隐藏边栏' : '显示边栏',
-          color: _sidebarVisible ? _accent : fg,
+          color: _sidebarVisible ? _ugeAccent : fg,
           onTap: () => setState(() => _sidebarVisible = !_sidebarVisible),
         ),
       ],
@@ -1742,11 +1751,11 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
           color: selected
-              ? _accent.withValues(alpha: dark ? 0.28 : 0.12)
+              ? _ugeAccent.withValues(alpha: dark ? 0.28 : 0.12)
               : (dark ? const Color(0xFF3A3A3A) : const Color(0xFFF0F0F0)),
           borderRadius: BorderRadius.circular(5),
           border: Border.all(
-            color: selected ? _accent : Colors.transparent,
+            color: selected ? _ugeAccent : Colors.transparent,
           ),
         ),
         child: Text(
@@ -1754,7 +1763,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           style: TextStyle(
             fontSize: 11,
             color: selected
-                ? _accent
+                ? _ugeAccent
                 : (dark ? AppTokens.textSecondary : const Color(0xFF3A3A3C)),
           ),
         ),
@@ -1911,11 +1920,11 @@ class _ActionButtonState extends State<_ActionButton> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
           child: Container(
-            width: 32,
+            width: 36,
             height: 28,
             decoration: BoxDecoration(
               color: widget.active
-                  ? _accent.withValues(alpha: dark ? 0.22 : 0.10)
+                  ? _ugeAccent.withValues(alpha: dark ? 0.22 : 0.10)
                   : (_hover
                       ? (dark
                           ? AppTokens.hover
@@ -1937,7 +1946,7 @@ class _ActionButtonState extends State<_ActionButton> {
                           const BoxConstraints(minWidth: 12, minHeight: 12),
                       padding: const EdgeInsets.symmetric(horizontal: 3),
                       decoration: BoxDecoration(
-                        color: _accent,
+                        color: _ugeAccent,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       alignment: Alignment.center,
@@ -2158,7 +2167,7 @@ class _UgeRowState extends State<_UgeRow> {
                           height: 12,
                           child: CircularProgressIndicator(
                             strokeWidth: 1.5,
-                            color: _accent,
+                            color: _ugeAccent,
                           ),
                         )
                       : GestureDetector(
@@ -2169,7 +2178,7 @@ class _UgeRowState extends State<_UgeRow> {
                                 ? Icons.check_circle
                                 : Icons.add_circle_outline,
                             size: 16,
-                            color: widget.added ? tertiary : _accent,
+                            color: widget.added ? tertiary : _ugeAccent,
                           ),
                         ),
                 ),
@@ -2210,7 +2219,7 @@ class _ImageTileState extends State<_ImageTile> {
           borderRadius: BorderRadius.circular(5),
           border: Border.all(
             color: _hover
-                ? _accent.withValues(alpha: 0.5)
+                ? _ugeAccent.withValues(alpha: 0.5)
                 : (dark ? AppTokens.divider : const Color(0xFFE0E0E0)),
           ),
         ),

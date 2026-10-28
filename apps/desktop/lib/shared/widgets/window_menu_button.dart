@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/storage/site_registry.dart';
 import '../../core/version/version_check.dart';
+import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/downloads/quick_add.dart';
 import '../../features/downloads/site_login_dialog.dart';
