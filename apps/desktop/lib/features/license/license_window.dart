@@ -47,13 +47,18 @@ class _LicenseWindowState extends ConsumerState<LicenseWindow> {
       setState(() => _message = '请输入授权码');
       return;
     }
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() => _message = '请输入购买邮箱');
+      return;
+    }
     setState(() {
       _busy = true;
       _message = null;
     });
     final (ok, message) = await ref
         .read(licenseNotifierProvider.notifier)
-        .activate(code, email: _emailController.text.trim());
+        .activate(code, email: email);
     if (!mounted) return;
     setState(() {
       _busy = false;
