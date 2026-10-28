@@ -534,7 +534,7 @@ Downie 主窗口不是主 nib 构建的，Help Book 截图是当前最可靠的�
 
 | 结构 | 测量值 | 复刻 |
 | --- | --- | --- |
-| 窗口 | `NSWindowRect {{196,240},{1100,548}}`，最小 `{1010,500}`，autosave `XUGuidedExtractionWindow` | UGE 全窗口路由，打开时临时 1100×620、最小 1010×500，关闭恢复原窗口 |
+| 窗口 | `NSWindowRect {{196,240},{1100,548}}`，最小 `{1010,500}`，autosave `XUGuidedExtractionWindow` | UGE 全窗口路由，最小 1010×500；沿用用户当前窗口大小，关闭恢复主窗口 |
 | 标题栏 | 三个 `NSTitlebarAccessoryViewController` 视图：导航 109×35、地址 560×36、右侧工具 287×36 | 52px 工具栏；macOS 左侧留 92px 交通灯；Windows 自绘标题/caption |
 | 导航 | `_navigationSegmentedControl` 63×24（前进/后退），`Bookmarks` 40×28（NSBookmarksTemplate） | 63×24 分段 + 书签 popover |
 | 地址 | `XUUGEAddressField` 524×22，下面 526×20 进度条、右侧 16×16 spinner，最右 Help 24×24 | 28px 圆角地址框、2px 进度条、spinner、? 帮助 |
