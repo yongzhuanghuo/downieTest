@@ -903,6 +903,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           backgroundColor: web,
           body: Column(
             children: [
+              _buildTitleRow(context, chrome),
               _buildToolbar(context, chrome),
               Expanded(
                 child: Row(
@@ -930,11 +931,55 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     );
   }
 
+  /// 28px 原生标题栏：macOS 只留交通灯拖拽区，Windows 显示图标/标题/caption。
+  Widget _buildTitleRow(BuildContext context, Color chrome) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanStart: (_) => windowManager.startDragging(),
+      onDoubleTap: _toggleMaximize,
+      child: Container(
+        height: 28,
+        color: chrome,
+        child: Platform.isMacOS
+            ? const SizedBox.expand()
+            : Row(
+                children: [
+                  const SizedBox(width: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.asset(
+                      AppBrand.logoAsset,
+                      width: 14,
+                      height: 14,
+                      filterQuality: FilterQuality.medium,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    '用户自定义视频提取',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                      color: dark
+                          ? AppTokens.textPrimary
+                          : AppTokens.textPrimaryLight,
+                    ),
+                  ),
+                  const Spacer(),
+                  ..._windowsCaptions(dark, height: 28),
+                ],
+              ),
+      ),
+    );
+  }
+
+  /// 36px 工具栏：导航 + 地址 + 右侧按钮（对应 nib 的三个 titlebar accessory）。
   Widget _buildToolbar(BuildContext context, Color chrome) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final divider = dark ? AppTokens.divider : const Color(0xFFD6D6D6);
     return Container(
-      height: 52,
+      height: 36,
       decoration: BoxDecoration(
         color: chrome,
         border: Border(bottom: BorderSide(color: divider)),
@@ -946,29 +991,6 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
         child: Row(
           children: [
             SizedBox(width: Platform.isMacOS ? 92 : 12),
-            if (!Platform.isMacOS) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.asset(
-                  AppBrand.logoAsset,
-                  width: 16,
-                  height: 16,
-                  filterQuality: FilterQuality.medium,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '用户自定义视频提取',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: dark
-                      ? AppTokens.textPrimary
-                      : AppTokens.textPrimaryLight,
-                ),
-              ),
-              const SizedBox(width: 12),
-            ],
             _buildNavCluster(dark),
             const SizedBox(width: 10),
             Expanded(
@@ -982,7 +1004,6 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
             ),
             const SizedBox(width: 8),
             _buildActions(dark),
-            if (!Platform.isMacOS) ..._windowsCaptions(dark),
             const SizedBox(width: 10),
           ],
         ),
@@ -1052,7 +1073,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
       children: [
         Expanded(
           child: SizedBox(
-            height: 28,
+            height: 26,
             child: Stack(
               children: [
                 Container(
@@ -1169,14 +1190,16 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           badge: _subtitles.isNotEmpty ? _subtitles.length : null,
           onTap: () => _setMode(_SidebarMode.subtitles),
         ),
-        const SizedBox(width: 2),
-        _ActionButton(
-          icon: Icons.download_outlined,
-          tooltip: '下载',
-          color: _mode == _SidebarMode.links ? _ugeAccent : fg,
-          badge: _links.isNotEmpty ? _links.length : null,
-          onTap: () => _setMode(_SidebarMode.links),
-        ),
+        if (_links.isNotEmpty) ...[
+          const SizedBox(width: 2),
+          _ActionButton(
+            icon: Icons.download_outlined,
+            tooltip: '下载',
+            color: _mode == _SidebarMode.links ? _ugeAccent : fg,
+            badge: _links.length,
+            onTap: () => _setMode(_SidebarMode.links),
+          ),
+        ],
         const SizedBox(width: 2),
         _ActionButton(
           icon: Icons.view_sidebar,
@@ -1188,23 +1211,25 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     );
   }
 
-  List<Widget> _windowsCaptions(bool dark) {
+  List<Widget> _windowsCaptions(bool dark, {double height = 28}) {
     final fg = dark ? AppTokens.textSecondary : const Color(0xFF3A3A3C);
     return [
-      const SizedBox(width: 8),
       _WinCaption(
         icon: Icons.remove,
         color: fg,
+        height: height,
         onTap: () => windowManager.minimize(),
       ),
       _WinCaption(
         icon: Icons.crop_square,
         color: fg,
+        height: height,
         onTap: _toggleMaximize,
       ),
       _WinCaption(
         icon: Icons.close,
         color: fg,
+        height: height,
         hover: AppTokens.error,
         onTap: _close,
       ),
@@ -1980,6 +2005,7 @@ class _WinCaption extends StatefulWidget {
   final IconData icon;
   final Color color;
   final Color? hover;
+  final double height;
   final VoidCallback onTap;
 
   const _WinCaption({
@@ -1987,6 +2013,7 @@ class _WinCaption extends StatefulWidget {
     required this.color,
     required this.onTap,
     this.hover,
+    this.height = 28,
   });
 
   @override
@@ -2007,7 +2034,7 @@ class _WinCaptionState extends State<_WinCaption> {
         onExit: (_) => setState(() => _hover = false),
         child: Container(
           width: 42,
-          height: 52,
+          height: widget.height,
           color: _hover
               ? (widget.hover ?? (dark ? AppTokens.hover : const Color(0x0D000000)))
               : Colors.transparent,

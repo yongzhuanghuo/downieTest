@@ -528,6 +528,25 @@ Downie 主窗口不是主 nib 构建的，Help Book 截图是当前最可靠的�
 - **自动化**：`flutter analyze`/`flutter test`（本机当前无 Flutter，用 CI）、现有插件测试、新增 widget/golden、双端 CI 构建。
 - **风险**：布局接近 ≠ 复制资产；单窗口浮层不是真 NSWindow；14 天试用改造跨度大，先设计迁移；删每日额度要客户端/服务端同步；640×440 对长标题/中文需实测；Windows 自绘 caption 与 DPI 有细节差异。
 
+### 12.11 用户自定义视频提取（UGE）1:1 结构（2.0.31）
+
+证据：`XUGuidedExtractionWindowController.nib`（388 个对象、94 个连接，NIBArchive 由 REA `decode_interface_builder` 解码），辅以 `XUUGEImagesViewController.nib`、`XUUGEBookmarksViewController.nib`、`XUUGEImageCollectionViewItem.nib`、`XUExtractedLinkDetailsViewController.nib`。
+
+| 结构 | 测量值 | 复刻 |
+| --- | --- | --- |
+| 窗口 | `NSWindowRect {{196,240},{1100,548}}`，最小 `{1010,500}`，autosave `XUGuidedExtractionWindow` | UGE 全窗口路由，打开时临时 1100×620、最小 1010×500，关闭恢复原窗口 |
+| 标题栏 | 三个 `NSTitlebarAccessoryViewController` 视图：导航 109×35、地址 560×36、右侧工具 287×36 | 52px 工具栏；macOS 左侧留 92px 交通灯；Windows 自绘标题/caption |
+| 导航 | `_navigationSegmentedControl` 63×24（前进/后退），`Bookmarks` 40×28（NSBookmarksTemplate） | 63×24 分段 + 书签 popover |
+| 地址 | `XUUGEAddressField` 524×22，下面 526×20 进度条、右侧 16×16 spinner，最右 Help 24×24 | 28px 圆角地址框、2px 进度条、spinner、? 帮助 |
+| 右侧工具 | 静音 SoundOn、选项 NSActionTemplate、图片 ImageDownloads、字幕 SubtitleDownloads、下载 Downloads、边栏 ToggleSidebar，均为 `XUBadgedButton` 40×26、间距 10 | 6 个 36×28 图标按钮，数量角标 |
+| 侧栏 | 300pt 宽；分隔 NSBox 5px；表格 300×469、行高 48；列宽 238 + 27；底栏 32px | 300px 侧栏、1px 分隔、48px 行、27px 添加列、32px 底栏 |
+| 行内容 | 标题 16px、副标题 14px（如 `Direct Downloader • 4.4 MB • MP4`）、站点 14px；右侧 AddDownloader | 文件名 / 格式来源+大小+扩展名 / host；右侧圆形 + |
+| 底栏 | 搜索框 139×24、`Add All` 67×24、`Clear` 56×24 | 搜索框、添加全部、清除 |
+| 动作 | `addCurrentLinkToQueue:`、`addAll:`、`clear:`、`search:`、`toggleSidebar:`、`toggleMute:`、`showSubtitles:`、`showOptionsPopover:` | 行内 + / 添加全部 / 清除 / 搜索 / 边栏开关 / 静音 / 字幕 / 选项 |
+| 次级视图 | 图片 500×600 网格 + Order/Sort By/Clear/Download All；书签 popover；链接 popover 300×252 | 图片/字幕侧栏模式、书签/选项 popover（图片网格和独立面板后续精修） |
+
+边界：只复刻布局、尺寸、层级、动作路径和视觉节奏；图标使用 Material/SF Symbols 近似，未复制 Downie 的图片、nib 或代码。
+
 ---
 
 ## 附录：术语与边界
