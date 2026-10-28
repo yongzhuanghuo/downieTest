@@ -1269,6 +1269,16 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
           badge: _subtitles.isNotEmpty ? _subtitles.length : null,
           onTap: () => _setMode(_SidebarMode.subtitles),
         ),
+        if (_mode != _SidebarMode.links) ...[
+          const SizedBox(width: 2),
+          _ActionButton(
+            icon: Icons.download_outlined,
+            tooltip: '下载',
+            color: fg,
+            badge: _links.isNotEmpty ? _links.length : null,
+            onTap: () => _setMode(_SidebarMode.links),
+          ),
+        ],
         const SizedBox(width: 2),
         _ActionButton(
           icon: Icons.view_sidebar,
