@@ -226,11 +226,11 @@ async def unbind(session: AsyncSession, code: str, device_fp: str) -> dict[str, 
     if not normalized or not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
 
-    lic = await _get_license(session, normalized)
-    if lic is None:
-        raise LicenseError(400, "INVALID_CODE", "激活码无效")
-
     async with session.begin():
+        # 必须在事务内查询：SQLAlchemy 2.0 autobegin 后不能再 begin()。
+        lic = await _get_license(session, normalized)
+        if lic is None:
+            raise LicenseError(400, "INVALID_CODE", "激活码无效")
         dev = await session.scalar(
             select(DeviceBinding).where(
                 DeviceBinding.code == normalized,
