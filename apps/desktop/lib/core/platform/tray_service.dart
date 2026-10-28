@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
@@ -49,7 +51,8 @@ class TrayService with TrayListener {
     try {
       if (enabled) {
         await trayManager.setIcon(
-          'assets/logo.png',
+          // Windows LoadImage 只认 ICO，PNG 会得到空 HICON（托盘不显示）
+          Platform.isWindows ? 'assets/tray.ico' : 'assets/logo.png',
           iconSize: 18,
         );
         await trayManager.setToolTip(AppBrand.name);

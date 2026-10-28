@@ -11,8 +11,56 @@ import 'window_menu_button.dart';
 ///
 /// macOS 保留系统红黄绿交通灯，中间只放标题；
 /// Windows 自绘最小化/最大化/关闭，和 macOS 共用同一套内容布局。
-class WindowTitleBar extends StatelessWidget {
+class WindowTitleBar extends StatefulWidget {
   const WindowTitleBar({super.key});
+
+  @override
+  State<WindowTitleBar> createState() => _WindowTitleBarState();
+}
+
+class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
+  bool _maximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    _syncMaximized();
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  Future<void> _syncMaximized() async {
+    try {
+      final maximized = await windowManager.isMaximized();
+      final fullscreen = await windowManager.isFullScreen();
+      if (mounted) setState(() => _maximized = maximized || fullscreen);
+    } catch (_) {}
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) setState(() => _maximized = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) setState(() => _maximized = false);
+  }
+
+  @override
+  void onWindowEnterFullScreen() {
+    if (mounted) setState(() => _maximized = true);
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    if (mounted) setState(() => _maximized = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,8 +138,8 @@ class WindowTitleBar extends StatelessWidget {
           onTap: () => windowManager.minimize(),
         ),
         _CaptionButton(
-          icon: Icons.crop_square,
-          tooltip: '最大化',
+          icon: _maximized ? Icons.filter_none : Icons.crop_square,
+          tooltip: _maximized ? '还原' : '最大化',
           color: secondary,
           onTap: _toggleMaximize,
         ),
@@ -108,11 +156,14 @@ class WindowTitleBar extends StatelessWidget {
 
   Future<void> _toggleMaximize() async {
     try {
-      if (await windowManager.isMaximized()) {
+      if (await windowManager.isFullScreen()) {
+        await windowManager.setFullScreen(false);
+      } else if (await windowManager.isMaximized()) {
         await windowManager.unmaximize();
       } else {
         await windowManager.maximize();
       }
+      await _syncMaximized();
     } catch (e) {
       debugPrint('[窗口] 最大化切换失败: $e');
     }

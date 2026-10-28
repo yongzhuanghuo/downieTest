@@ -1,19 +1,26 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:window_manager/window_manager.dart';
+
+import '../../core/platform/window_close_coordinator.dart';
 import '../../shared/branding/app_brand.dart';
 import 'help_content.dart';
 import 'support_dialog.dart';
 
-/// 帮助窗口：左侧主题列表 + 右侧内容，布局参考常见桌面下载器帮助面板。
+/// 帮助窗口：左侧主题列表 + 右侧内容，整窗铺开，不使用浮层卡片。
 class HelpWindow extends StatefulWidget {
   const HelpWindow({super.key});
 
   static Future<void> show(BuildContext context) {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.transparent,
-      builder: (_) => const HelpWindow(),
+    return Navigator.of(context, rootNavigator: true).push<void>(
+      PageRouteBuilder<void>(
+        opaque: true,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+        pageBuilder: (_, __, ___) => const HelpWindow(),
+      ),
     );
   }
 
@@ -21,16 +28,77 @@ class HelpWindow extends StatefulWidget {
   State<HelpWindow> createState() => _HelpWindowState();
 }
 
-class _HelpWindowState extends State<HelpWindow> {
+class _HelpWindowState extends State<HelpWindow> with WindowListener {
   HelpTopic? _selected;
   String _query = '';
+  bool _closing = false;
+  bool _maximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    WindowCloseCoordinator.instance.push(this, _close);
+    _syncMaximized();
+  }
+
+  Future<void> _syncMaximized() async {
+    try {
+      final maximized = await windowManager.isMaximized();
+      final fullscreen = await windowManager.isFullScreen();
+      if (mounted) setState(() => _maximized = maximized || fullscreen);
+    } catch (_) {}
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) setState(() => _maximized = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) setState(() => _maximized = false);
+  }
+
+  @override
+  void onWindowEnterFullScreen() {
+    if (mounted) setState(() => _maximized = true);
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    if (mounted) setState(() => _maximized = false);
+  }
+
+  Future<void> _toggleMaximize() async {
+    try {
+      if (await windowManager.isFullScreen()) {
+        await windowManager.setFullScreen(false);
+      } else if (await windowManager.isMaximized()) {
+        await windowManager.unmaximize();
+      } else {
+        await windowManager.maximize();
+      }
+      await _syncMaximized();
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    WindowCloseCoordinator.instance.pop(this);
+    super.dispose();
+  }
+
+  void _close() {
+    if (_closing || !mounted) return;
+    _closing = true;
+    Navigator.of(context).maybePop();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final size = MediaQuery.sizeOf(context);
-    final width = size.width * 0.86 > 1100 ? 1100.0 : size.width * 0.86;
-    final height = size.height * 0.84 > 760 ? 760.0 : size.height * 0.84;
     final q = _query.trim().toLowerCase();
     final topics = q.isEmpty
         ? kHelpTopics
@@ -40,59 +108,87 @@ class _HelpWindowState extends State<HelpWindow> {
                 t.summary.toLowerCase().contains(q))
             .toList();
 
-    return Dialog(
-      insetPadding: const EdgeInsets.all(24),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: Column(
-          children: [
-            _buildHeader(theme),
-            Divider(
-              height: 1,
-              color: theme.dividerColor.withValues(alpha: 0.4),
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  _buildSidebar(theme, topics),
-                  VerticalDivider(
-                    width: 1,
-                    color: theme.dividerColor.withValues(alpha: 0.4),
-                  ),
-                  Expanded(child: _buildContent(theme)),
-                ],
+    final isMac = Platform.isMacOS;
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.escape): _close,
+        SingleActivator(
+          LogicalKeyboardKey.keyW,
+          meta: isMac,
+          control: !isMac,
+        ): _close,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: theme.colorScheme.surface,
+          body: Column(
+            children: [
+              _buildHeader(theme),
+              Divider(
+                height: 1,
+                color: theme.dividerColor.withValues(alpha: 0.4),
               ),
-            ),
-          ],
+              Expanded(
+                child: Row(
+                  children: [
+                    _buildSidebar(theme, topics),
+                    VerticalDivider(
+                      width: 1,
+                      color: theme.dividerColor.withValues(alpha: 0.4),
+                    ),
+                    Expanded(child: _buildContent(theme)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildHeader(ThemeData theme) {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Icon(Icons.help_outline,
-              size: 18, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Text(
-            '帮助',
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const Spacer(),
-          IconButton(
-            tooltip: '关闭',
-            icon: const Icon(Icons.close, size: 20),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanStart: (_) => windowManager.startDragging(),
+      onDoubleTap: _toggleMaximize,
+      child: Container(
+        height: 52,
+        padding: EdgeInsets.fromLTRB(Platform.isMacOS ? 92 : 16, 0, 8, 0),
+        child: Row(
+          children: [
+            Icon(Icons.help_outline,
+                size: 18, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Text(
+              '帮助',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const Spacer(),
+            if (Platform.isWindows) ...[
+              IconButton(
+                tooltip: '最小化',
+                icon: const Icon(Icons.remove, size: 15),
+                onPressed: () => windowManager.minimize(),
+              ),
+              IconButton(
+                tooltip: _maximized ? '还原' : '最大化',
+                icon: Icon(
+                  _maximized ? Icons.filter_none : Icons.crop_square,
+                  size: 13,
+                ),
+                onPressed: _toggleMaximize,
+              ),
+            ],
+            IconButton(
+              tooltip: '关闭',
+              icon: const Icon(Icons.close, size: 20),
+              onPressed: _close,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -171,7 +267,7 @@ class _HelpWindowState extends State<HelpWindow> {
         padding: const EdgeInsets.fromLTRB(44, 36, 44, 48),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
+            constraints: const BoxConstraints(maxWidth: 860),
             child: topic == null ? _buildHome(theme) : _buildTopic(theme, topic),
           ),
         ),

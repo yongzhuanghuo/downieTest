@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform/webview2.dart';
+import '../../core/platform/window_close_coordinator.dart';
 import '../../core/sites/plugin_registry.dart';
 import '../../core/sites/plugins/generic_web_plugin.dart';
 import '../../core/sites/search_engines.dart';
@@ -155,8 +156,7 @@ class WebCaptureDialog extends ConsumerStatefulWidget {
   ConsumerState<WebCaptureDialog> createState() => _WebCaptureDialogState();
 }
 
-class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
-    with WindowListener {
+class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
   static const String _uaDesktop =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
       'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -388,18 +388,18 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     _addressController.dispose();
     _addressFocus.dispose();
     _searchController.dispose();
-    windowManager.removeListener(this);
+    WindowCloseCoordinator.instance.pop(this);
     unawaited(_restoreWindow());
     super.dispose();
   }
 
   Future<void> _configureWindow() async {
     try {
-      windowManager.addListener(this);
       await windowManager.setMinimumSize(const Size(1010, 500));
       await windowManager.setTitle('用户自定义视频提取');
-      await windowManager.setPreventClose(true);
+      WindowCloseCoordinator.instance.push(this, _handleCloseRequest);
       if (_disposed) {
+        WindowCloseCoordinator.instance.pop(this);
         await _restoreWindow();
       }
     } catch (e) {
@@ -409,7 +409,6 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
 
   Future<void> _restoreWindow() async {
     try {
-      await windowManager.setPreventClose(false);
       await windowManager.setMinimumSize(const Size(800, 600));
       await windowManager.setTitle(AppBrand.name);
     } catch (e) {
@@ -417,8 +416,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog>
     }
   }
 
-  @override
-  void onWindowClose() {
+  void _handleCloseRequest() {
     if (!_closing) {
       _close();
     }

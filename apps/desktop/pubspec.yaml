@@ -2,7 +2,7 @@ name: downie_test
 description: "4KDownle - 网页视频下载工具"
 publish_to: 'none'
 
-version: 2.0.31+32
+version: 2.0.32+33
 
 environment:
   sdk: ^3.13.0
@@ -66,6 +66,7 @@ flutter:
 
   assets:
     - assets/logo.png
+    - assets/tray.ico
     - assets/bin/macos/
     - assets/bin/windows/
     - assets/douyin_sign/
