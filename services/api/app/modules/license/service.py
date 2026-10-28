@@ -144,6 +144,10 @@ async def activate(
             raise LicenseError(400, "INVALID_CODE", "激活码无效")
         if lic.status == "revoked":
             raise LicenseError(403, "LICENSE_REVOKED", "该激活码已被吊销")
+        if lic.expire_at is not None and lic.expire_at <= int(
+            datetime.now(timezone.utc).timestamp() * 1000
+        ):
+            raise LicenseError(403, "LICENSE_EXPIRED", "该激活码已过期")
 
         provided_email = (email or "").strip()
         if provided_email and (
@@ -312,6 +316,10 @@ async def verify(session: AsyncSession, code: str, device_fp: str) -> dict[str, 
     lic = await _get_license(session, normalized)
     if lic is None:
         return {"ok": True, "valid": False, "reason": "INVALID_CODE"}
+    if lic.expire_at is not None and lic.expire_at <= int(
+        datetime.now(timezone.utc).timestamp() * 1000
+    ):
+        return {"ok": True, "valid": False, "reason": "LICENSE_EXPIRED"}
 
     bound = await session.scalar(
         select(DeviceBinding).where(
