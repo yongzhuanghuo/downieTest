@@ -14,8 +14,8 @@ import 'support_report.dart';
 
 /// Downie 式支持窗口：邮箱、链接、需要账户、问题描述和诊断信息。
 ///
-/// 发送使用 mailto 打开系统邮件客户端；没有默认客户端时自动提供
-/// 「复制报告」，避免邮件按钮变成死路。
+/// 发送走服务端 HTTPS（`/api/support/report`），不依赖本机邮件客户端；
+/// 服务端不可用时回退到「复制报告 / 邮件客户端」。
 class SupportDialog extends StatefulWidget {
   final String reportUrl;
   final String initialMessage;
@@ -68,9 +68,9 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
   bool _includeDiagnostics = true;
   bool _closing = false;
   bool _sending = false;
-  bool _openedMailClient = false;
   bool _maximized = false;
   String? _emailError;
+  String? _messageError;
   String _diagnostics = '';
   SupportReport? _lastReport;
 
@@ -185,14 +185,35 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
       setState(() => _emailError = error);
       return;
     }
+    final hasBody = _messageController.text.trim().isNotEmpty ||
+        _urlController.text.trim().isNotEmpty;
+    if (!hasBody) {
+      setState(() => _messageError = '请填写问题描述或链接');
+      return;
+    }
     setState(() {
       _emailError = null;
+      _messageError = null;
       _sending = true;
-      _openedMailClient = false;
       _lastReport = _report();
     });
     await _saveEmail(_emailController.text.trim());
     final report = _lastReport!;
+    final result = await sendSupportReport(report);
+    if (!mounted) return;
+    setState(() => _sending = false);
+    if (result.ok) {
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      Navigator.of(context).maybePop();
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('报告已发送，我们通常会在 24 小时内回复')),
+      );
+      return;
+    }
+    await _showSendFailed(report, result.message);
+  }
+
+  Future<void> _openMailClient(SupportReport report) async {
     var opened = false;
     try {
       opened = await launchUrl(
@@ -202,13 +223,10 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
     } catch (_) {
       opened = false;
     }
-    if (!mounted) return;
-    setState(() {
-      _sending = false;
-      _openedMailClient = opened;
-    });
-    if (!opened) {
-      await _showCopyFallback(report);
+    if (!opened && mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('无法打开邮件客户端，请复制报告后发送')),
+      );
     }
   }
 
@@ -222,16 +240,37 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
     );
   }
 
-  Future<void> _showCopyFallback(SupportReport report) async {
+  Future<void> _showSendFailed(SupportReport report, String reason) async {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('未找到邮件客户端'),
+        title: const Text('发送失败'),
         content: SizedBox(
           width: 560,
-          height: 320,
-          child: SelectableText(report.clipboardText),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(reason),
+              const SizedBox(height: 10),
+              Text(
+                '可以复制报告后发到 ${AppBrand.supportEmail}，'
+                '或改用本机邮件客户端。',
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 240),
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    report.clipboardText,
+                    style: const TextStyle(fontSize: 11, height: 1.4),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -240,17 +279,20 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
                 ClipboardData(text: report.clipboardText),
               );
               if (ctx.mounted) Navigator.of(ctx).pop();
+              if (mounted) {
+                ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                  const SnackBar(content: Text('报告已复制，可粘贴到任意邮箱发送')),
+                );
+              }
             },
             child: const Text('复制报告'),
           ),
           TextButton(
             onPressed: () {
-              Clipboard.setData(
-                ClipboardData(text: AppBrand.supportEmail),
-              );
-              if (ctx.mounted) Navigator.of(ctx).pop();
+              Navigator.of(ctx).pop();
+              _openMailClient(report);
             },
-            child: const Text('复制邮箱地址'),
+            child: const Text('用邮件客户端发送'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -359,6 +401,11 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
                                 hintText: '相关视频链接（可选）',
                                 isDense: true,
                               ),
+                              onChanged: (_) {
+                                if (_messageError != null) {
+                                  setState(() => _messageError = null);
+                                }
+                              },
                             ),
                             const SizedBox(height: 14),
                             _fieldLabel(theme, '需要账户'),
@@ -377,10 +424,16 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
                               minLines: 7,
                               maxLines: 12,
                               style: const TextStyle(fontSize: 13, height: 1.45),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 hintText: '请描述你遇到的问题、期望结果，以及复现步骤…',
+                                errorText: _messageError,
                                 alignLabelWithHint: true,
                               ),
+                              onChanged: (_) {
+                                if (_messageError != null) {
+                                  setState(() => _messageError = null);
+                                }
+                              },
                             ),
                             const SizedBox(height: 16),
                             Row(
@@ -424,26 +477,6 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
                                   ),
                                 ),
                               ),
-                            if (_openedMailClient) ...[
-                              const SizedBox(height: 14),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary
-                                      .withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '已打开邮件客户端，请确认发送。'
-                                  '如果没有打开，请点「复制报告」后粘贴到任意邮箱。',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                       ),

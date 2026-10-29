@@ -1,5 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:downie_test/features/help/support_report.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 void main() {
   test('email validation', () {
@@ -59,5 +64,67 @@ void main() {
     expect(report.clipboardText, contains('收件人：huoyongzhuang@qq.com'));
     expect(report.clipboardText, contains('主题：'));
     expect(report.clipboardText, contains('hello'));
+  });
+
+  test('server payload keeps all form fields', () {
+    final report = buildSupportReport(
+      email: 'buyer@example.com',
+      url: 'https://youtu.be/PHkxkeeoLyw',
+      account: 'YouTube',
+      message: '无效的配置',
+      diagnostics: '版本：2.0.33',
+    );
+    expect(report.toJson(), {
+      'email': 'buyer@example.com',
+      'url': 'https://youtu.be/PHkxkeeoLyw',
+      'account': 'YouTube',
+      'message': '无效的配置',
+      'diagnostics': '版本：2.0.33',
+    });
+  });
+
+  test('sendSupportReport posts to server and parses success', () async {
+    late http.Request captured;
+    final client = MockClient((request) async {
+      captured = request;
+      return http.Response.bytes(
+        utf8.encode(jsonEncode({'ok': true, 'message': '已发送'})),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+    });
+    final report = buildSupportReport(
+      email: 'buyer@example.com',
+      url: 'https://youtu.be/PHkxkeeoLyw',
+      message: '无效的配置',
+    );
+    final result = await sendSupportReport(report, client: client);
+    expect(result.ok, isTrue);
+    expect(result.message, '已发送');
+    expect(captured.url.path, '/api/support/report');
+    expect(captured.method, 'POST');
+    final body = jsonDecode(captured.body) as Map<String, dynamic>;
+    expect(body['email'], 'buyer@example.com');
+    expect(body['platform'], Platform.operatingSystem);
+  });
+
+  test('sendSupportReport surfaces server failure message', () async {
+    final client = MockClient(
+      (_) async => http.Response.bytes(
+        utf8.encode(jsonEncode({
+          'ok': false,
+          'error': 'MAIL_NOT_CONFIGURED',
+          'message': '服务端未配置支持邮箱',
+        })),
+        503,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      ),
+    );
+    final result = await sendSupportReport(
+      buildSupportReport(email: 'buyer@example.com', message: 'hello'),
+      client: client,
+    );
+    expect(result.ok, isFalse);
+    expect(result.message, contains('未配置支持邮箱'));
   });
 }

@@ -8,6 +8,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../../core/engine/douyin_parser.dart';
 import '../../core/platform/webview2.dart';
+import '../../core/platform/window_close_coordinator.dart';
 import '../../core/storage/settings_storage.dart';
 import '../../core/storage/site_cookies.dart';
 import '../../core/storage/site_registry.dart';
@@ -78,6 +79,7 @@ class SiteLoginDialog extends StatefulWidget {
 
 class _SiteLoginDialogState extends State<SiteLoginDialog> {
   bool _saving = false;
+  bool _closing = false;
   bool _loginDetected = false;
   bool _webView2Missing = false;
   bool _pageLoading = true;
@@ -196,6 +198,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   @override
   void initState() {
     super.initState();
+    WindowCloseCoordinator.instance.push(this, _close);
     // Windows 没装 WebView2 会空白，这里先检测，缺了就提示
     final available = isWebView2Available();
     _webView2Missing = !available;
@@ -208,9 +211,17 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
 
   @override
   void dispose() {
+    WindowCloseCoordinator.instance.pop(this);
     _pollTimer?.cancel();
     _douyinProbeTimer?.cancel();
     super.dispose();
+  }
+
+  /// Cmd+W / 系统关闭只关登录窗口，不关主窗口。
+  void _close() {
+    if (_closing || !mounted) return;
+    _closing = true;
+    Navigator.of(context).pop(false);
   }
 
   Future<void> _finish() async {
@@ -830,9 +841,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
               child: Row(
                 children: [
                   if (Platform.isMacOS) ...[
-                    _TrafficLights(
-                      onClose: () => Navigator.of(context).pop(false),
-                    ),
+                    _TrafficLights(onClose: _close),
                     const SizedBox(width: AppSpacing.lg),
                   ] else ...[
                     const SizedBox(width: AppSpacing.xs),
@@ -898,7 +907,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                   if (!Platform.isMacOS) ...[
                     const SizedBox(width: AppSpacing.sm),
                     IconButton(
-                      onPressed: () => Navigator.of(context).pop(false),
+                      onPressed: _close,
                       tooltip: '关闭',
                       icon: Icon(Icons.close, size: 16, color: secondary),
                     ),

@@ -365,7 +365,7 @@ class _HelpWindowState extends State<HelpWindow> with WindowListener {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '发邮件到 ${AppBrand.supportEmail}，或打开报告窗口。',
+                  '通过报告窗口提交链接、描述和诊断信息，通常 24 小时内回复。',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),

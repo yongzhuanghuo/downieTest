@@ -79,6 +79,12 @@ def latest_version(platform: str = "macos"):
     }
 
 
+# ---------- support：联系支持（不依赖 DB，所有模块组合都挂载）----------
+from .modules.support import router as support_router  # noqa: E402
+
+app.include_router(support_router.router)
+
+
 # ---------- license：客户端授权 ----------
 if "license" in MODULES:
     from .modules.license import router as license_router

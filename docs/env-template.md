@@ -54,6 +54,22 @@ OSS_ACCESS_KEY_SECRET=
 OSS_BUCKET=
 OSS_PUBLIC_BASE_URL=
 
+# ============ 联系支持（客户端 HTTPS 提交，服务端 SMTP 转发）============
+# 客户端「联系支持」发到 /api/support/report，由服务端转发；不依赖用户邮件客户端。
+# 以 QQ 邮箱为例：SMTP_HOST=smtp.qq.com SMTP_PORT=465 SMTP_SSL=true，
+# SMTP_USER=支持邮箱，SMTP_PASSWORD=邮箱授权码（不是登录密码）。
+# 不配置时接口返回 503，客户端自动回退到「复制报告 / 邮件客户端」。
+SUPPORT_EMAIL_TO=huoyongzhuang@qq.com
+SMTP_HOST=
+SMTP_PORT=465
+SMTP_USER=
+SMTP_PASSWORD=
+# 留空则用 SMTP_USER
+SMTP_FROM=
+# 465 用隐式 SSL；587 改成 SMTP_SSL=false + SMTP_STARTTLS=true
+SMTP_SSL=true
+SMTP_STARTTLS=false
+
 # ============ App 版本推送（桌面端启动查 /api/version/latest）============
 # 发新版：CI 打 tag 自动把固定名安装包覆盖传 OSS（.github/workflows/build.yml），
 # 这里改 LATEST_VERSION / LATEST_BUILD / CHANGELOG 后 pm2 restart api 即生效；

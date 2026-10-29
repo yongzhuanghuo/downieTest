@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../core/api/api_base.dart';
 import '../../core/storage/settings_storage.dart';
 import '../../shared/branding/app_brand.dart';
 
@@ -51,6 +54,64 @@ class SupportReport {
         path: AppBrand.supportEmail,
         queryParameters: {'subject': subject, 'body': body},
       );
+
+  /// 服务端 `/api/support/report` 的请求体。
+  Map<String, dynamic> toJson() => {
+        'email': email,
+        'url': url,
+        'account': account,
+        'message': message,
+        'diagnostics': diagnostics,
+      };
+}
+
+class SupportSendResult {
+  final bool ok;
+  final String message;
+
+  const SupportSendResult({required this.ok, required this.message});
+}
+
+/// 通过我们的服务端提交（Downie 同款方式）：不依赖用户本机邮件客户端。
+/// 服务端转发到支持邮箱；未配置 SMTP 时返回明确错误，由界面回退到复制/邮件。
+Future<SupportSendResult> sendSupportReport(
+  SupportReport report, {
+  http.Client? client,
+}) async {
+  final uri = Uri.parse('$kApiBase/api/support/report');
+  final sender = client ?? http.Client();
+  try {
+    final response = await sender
+        .post(
+          uri,
+          headers: const {'Content-Type': 'application/json; charset=utf-8'},
+          body: jsonEncode({
+            ...report.toJson(),
+            'platform': Platform.operatingSystem,
+          }),
+        )
+        .timeout(const Duration(seconds: 25));
+    Map<String, dynamic> data = const {};
+    try {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is Map<String, dynamic>) data = decoded;
+    } catch (_) {}
+    final message = data['message']?.toString();
+    if (response.statusCode == 200 && data['ok'] == true) {
+      return SupportSendResult(ok: true, message: message ?? '已发送');
+    }
+    return SupportSendResult(
+      ok: false,
+      message: message ?? '发送失败（HTTP ${response.statusCode}）',
+    );
+  } catch (_) {
+    return const SupportSendResult(
+      ok: false,
+      message: '无法连接服务器，请检查网络后重试',
+    );
+  } finally {
+    if (client == null) sender.close();
+  }
 }
 
 /// 返回 null 表示合法；否则返回中文错误提示。

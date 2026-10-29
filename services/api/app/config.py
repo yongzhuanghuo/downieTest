@@ -58,6 +58,15 @@ class Settings(BaseSettings):
     force_update: bool = False
     # yt-dlp cookies 文件路径（Netscape 格式）。B站机房 IP 无 cookie 会被风控 412，填这个绕过
     ytdlp_cookies: str = ""
+    # ---- 联系支持（客户端 HTTPS 提交，服务端 SMTP 转发）----
+    support_email_to: str = "huoyongzhuang@qq.com"
+    smtp_host: str = ""
+    smtp_port: int = 465
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""          # 留空则用 smtp_user
+    smtp_ssl: bool = True        # 465 用隐式 SSL；587 设 SMTP_SSL=false + SMTP_STARTTLS=true
+    smtp_starttls: bool = False
     # 并发媒体任务数（0 = 自动按 CPU 核数 / 2）
     media_concurrency: int = 0
     # ---- 阿里云 OSS（后端中转转存）----

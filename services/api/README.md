@@ -1,9 +1,10 @@
 # services/api — 统一服务端（FastAPI）
 
-授权（激活码 / 设备绑定）+ 视频处理（解析 / 下载 / 去水印）+ 管理后台，一个进程按 `MODULES` 挂载。
+授权（激活码 / 设备绑定）+ 视频处理（解析 / 下载 / 去水印）+ 管理后台，一个进程按 `MODULES` 挂载；联系支持接口始终挂载。
 
 - 单一服务端：授权（license 模块）+ 视频处理（media 模块）+ 管理后台（admin 模块），一个进程按 `MODULES` 挂载。
 - 客户端授权接口 `/api/license/*` 与旧 Node 服务**逐字段兼容**，桌面端无感。
+- 联系支持 `/api/support/report` 由服务端 SMTP 转发到支持邮箱，不依赖用户本机邮件客户端。
 
 仓库级约定见[根 CLAUDE.md](../../CLAUDE.md)；操作手册见 [docs/项目使用助手.md](../../docs/项目使用助手.md)。
 
@@ -27,6 +28,7 @@ uvicorn app.main:app --reload         # http://127.0.0.1:3000
 | `license` | `/api/license/*` 授权接口 |
 | `admin` | `/admin/api/*` 管理后台 API + `/admin` 静态页 |
 | `media` | `/api/parse` `/api/download` `/api/delogo/*` `/api/*/process` 视频处理 + `/files` `/tmp` 静态 |
+| 始终挂载 | `/api/support/report` 联系支持，服务端 SMTP 转发 |
 
 默认 `MODULES=license,admin,media` 全开。境外媒体节点可 `MODULES=media`（不连 MySQL）。
 
@@ -43,9 +45,10 @@ app/
 └── modules/
     ├── license/    授权（models / service / router / codes）
     ├── admin/      管理后台 API（JWT）
+    ├── support/    联系支持（HTTPS 提交 + SMTP 转发）
     └── media/      视频处理（routers / services / tasks）
 sql/schema.sql      授权三张表（licenses / device_bindings / unbind_log）
-scripts/            init_db.py / generate_licenses.py
+scripts/            init_db.py / generate_licenses.py / test_support_smtp.py
 ```
 
 ## 环境变量
@@ -56,6 +59,7 @@ scripts/            init_db.py / generate_licenses.py
 - `REDIS_*`：Redis 连接
 - `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `JWT_SECRET`：管理后台
 - `PUBLIC_BASE_URL` / `MAX_UPLOAD_SIZE` / `YTDLP_PROXY` / `MEDIA_CONCURRENCY` / `SIGNED_URLS`：媒体
+- `SUPPORT_EMAIL_TO` / `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SSL` / `SMTP_STARTTLS`：联系支持（QQ 邮箱用 `smtp.qq.com:465` + 授权码）
 
 ## 已知限制
 

@@ -8,13 +8,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../shared/routes/navigator_key.dart';
+import '../api/api_base.dart';
 import 'update_installer.dart';
-
-/// 后端 API 基础地址（与 license_client 同源，独立声明避免动授权契约）
-const String _kApiBase = String.fromEnvironment(
-  'API_BASE',
-  defaultValue: 'http://127.0.0.1:3000',
-);
 
 /// 新版本信息（服务端 /api/version/latest 返回）
 class UpdateInfo {
@@ -40,7 +35,7 @@ Future<UpdateInfo?> checkForUpdate() async {
   final platform = Platform.isMacOS ? 'macos' : 'windows';
 
   final resp = await http
-      .get(Uri.parse('$_kApiBase/api/version/latest?platform=$platform'))
+      .get(Uri.parse('$kApiBase/api/version/latest?platform=$platform'))
       .timeout(const Duration(seconds: 15));
   if (resp.statusCode != 200) return null;
   final j = jsonDecode(resp.body) as Map<String, dynamic>;

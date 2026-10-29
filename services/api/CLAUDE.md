@@ -9,6 +9,7 @@ FastAPI 单进程统一服务端，按 `MODULES` 环境变量挂载三个模块�
 - `license` — 激活码 / 设备绑定（接口契约与历史 Node 版一致，桌面端无感）
 - `admin` — 管理后台 API + 静态页（对应 `apps/admin-web`）
 - `media` — 视频解析 / 下载 / 去水印 / 加水印 / 改 MD5 / 转 GIF（原 media-api）
+- `support` — 联系支持 `/api/support/report`，服务端 SMTP 转发（不依赖 MODULES，始终挂载）
 
 接口清单、环境变量、快速开始见 [README.md](README.md)；怎么跑怎么排查见 [docs/项目使用助手.md](../../docs/项目使用助手.md)。
 
@@ -38,6 +39,7 @@ app/
 └── modules/
     ├── license/     codes / models / service / router
     ├── admin/       router（9 接口 + JWT）
+    ├── support/     联系支持（HTTPS 提交 + SMTP 转发）
     └── media/       routers + services + tasks
 ```
 
@@ -51,6 +53,7 @@ app/
 - **media 模块资源重**：ffmpeg 重编码 + 无上限会拖垮 2C2G 机器。并发靠 `MEDIA_CONCURRENCY`（`limits.py`），上传大小靠 `stream_to_file`，磁盘靠 lifespan 里的清理循环。
 - **抖音签名要起 node 子进程**（`media/services/douyin_sign/abogus.py`）。node 是未声明的系统级依赖。
 - **代理**：境内部署抓 YouTube 要配 `YTDLP_PROXY`（`media/services/ytdlp.py` 的 `_base_opts` 读它）。
+- **联系支持依赖 SMTP**：`SMTP_HOST/PORT/USER/PASSWORD` 不配时 `/api/support/report` 返回 503，客户端回退到复制报告/邮件客户端。本地自测跑 `python scripts/test_support_smtp.py`（需 `requirements-dev.txt`），会起本地 SMTP 收信，不连真实邮箱。
 
 ## 与桌面端抖音解析的重复
 

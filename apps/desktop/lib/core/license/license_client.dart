@@ -4,23 +4,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../api/api_base.dart';
+
 /// ===================================================================
 /// 许可证后端客户端（自建服务器 API）
 ///
 /// 负责与远程服务器通信：激活/解绑/查询状态/心跳/验证
 /// 直连后端，不做本地验签（授权由服务端校验）
 /// ===================================================================
-
-/// 后端 API 基础地址
-///
-/// 自建服务器：默认 http://127.0.0.1:3000（本机调试）。
-/// 发布时改成你的服务器地址，或构建时覆盖：
-///   flutter build macos --dart-define=API_BASE=http://你的服务器IP:3000
-/// 后续上 HTTPS 后改成 https://你的域名 即可。
-const String _kApiBase = String.fromEnvironment(
-  'API_BASE',
-  defaultValue: 'http://127.0.0.1:3000',
-);
 
 /// FastAPI 的 HTTPException 会把错误体包在 `detail` 里；
 /// 客户端契约是顶层 `ok/error/message`，这里统一拍平。
@@ -241,7 +232,7 @@ class LicenseClient {
 
   /// POST 请求（直连后端）
   Future<http.Response> _post(String path, Map<String, dynamic> body) async {
-    final uri = Uri.parse('$_kApiBase$path');
+    final uri = Uri.parse('$kApiBase$path');
     final headers = {'Content-Type': 'application/json'};
     return http
         .post(uri, headers: headers, body: jsonEncode(body))
@@ -251,7 +242,7 @@ class LicenseClient {
   /// GET 请求（直连后端）
   Future<http.Response> _get(String path,
       [Map<String, String>? queryParams]) async {
-    var uri = Uri.parse('$_kApiBase$path');
+    var uri = Uri.parse('$kApiBase$path');
     if (queryParams != null) {
       uri = uri.replace(queryParameters: queryParams);
     }

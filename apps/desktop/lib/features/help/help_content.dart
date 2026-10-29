@@ -183,7 +183,7 @@ final List<HelpTopic> kHelpTopics = [
           '只有授权校验、版本检查和你主动发送的反馈会联网。',
       '站点 cookie 保存在本地应用数据目录，用于后续解析/下载。'
           '偏好设置 → 家长控制与隐私可以一键清除站点登录数据或下载历史。'
-          '反馈和支持邮件会发送到 ${AppBrand.supportEmail}。',
+          '反馈和支持报告会通过服务器发送到 ${AppBrand.supportEmail}。',
     ],
   ),
   const HelpTopic(
