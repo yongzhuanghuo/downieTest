@@ -46,6 +46,8 @@ enum DownloadStatus {
   failed,
   cancelled,
   paused,
+  loading,    // 已加入队列，正在获取页面信息（Downie: 加载中）
+  preparing,  // 正在解析/准备格式（Downie: 准备中...）
 }
 
 /// 下载任务
@@ -186,6 +188,8 @@ class DownloadTask {
     Object? progress = _unset,
     String? title,
     int? duration,
+    String? thumbnail,
+    String? extractor,
     String? formatId,
     String? formatLabel,
     int? height,
@@ -214,8 +218,8 @@ class DownloadTask {
       url: url,
       title: title ?? this.title,
       duration: duration ?? this.duration,
-      thumbnail: thumbnail,
-      extractor: extractor,
+      thumbnail: thumbnail ?? this.thumbnail,
+      extractor: extractor ?? this.extractor,
       formatId: formatId ?? this.formatId,
       formatLabel: formatLabel ?? this.formatLabel,
       availableFormats: availableFormats ?? this.availableFormats,
@@ -255,6 +259,8 @@ class DownloadTask {
   // ==================== 是否状态 ====================
 
   bool get isPending => status == DownloadStatus.pending;
+  bool get isLoading => status == DownloadStatus.loading;
+  bool get isPreparing => status == DownloadStatus.preparing;
   bool get isDownloading => status == DownloadStatus.downloading;
   bool get isRunning =>
       status == DownloadStatus.pending ||
@@ -284,6 +290,10 @@ class DownloadTask {
 
   String get statusText {
     switch (status) {
+      case DownloadStatus.loading:
+        return '加载中';
+      case DownloadStatus.preparing:
+        return '准备中';
       case DownloadStatus.pending:
         return '等待中';
       case DownloadStatus.downloading:

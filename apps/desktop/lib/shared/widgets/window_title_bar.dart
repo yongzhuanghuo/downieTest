@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../branding/app_brand.dart';
 import '../theme/design_tokens.dart';
+import 'restore_glyph.dart';
 import 'window_menu_button.dart';
 
 /// 统一标题栏。
@@ -132,19 +133,21 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
         ),
         const WindowMenuButton(),
         _CaptionButton(
-          icon: Icons.remove,
+          iconBuilder: (color) => Icon(Icons.remove, size: 12, color: color),
           tooltip: '最小化',
           color: secondary,
           onTap: () => windowManager.minimize(),
         ),
         _CaptionButton(
-          icon: _maximized ? Icons.filter_none : Icons.crop_square,
+          iconBuilder: _maximized
+              ? (color) => RestoreGlyph(color: color)
+              : (color) => Icon(Icons.crop_square, size: 12, color: color),
           tooltip: _maximized ? '还原' : '最大化',
           color: secondary,
           onTap: _toggleMaximize,
         ),
         _CaptionButton(
-          icon: Icons.close,
+          iconBuilder: (color) => Icon(Icons.close, size: 12, color: color),
           tooltip: '关闭',
           color: secondary,
           hoverColor: AppTokens.error,
@@ -171,14 +174,14 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
 }
 
 class _CaptionButton extends StatefulWidget {
-  final IconData icon;
+  final Widget Function(Color color) iconBuilder;
   final String tooltip;
   final Color color;
   final VoidCallback onTap;
   final Color? hoverColor;
 
   const _CaptionButton({
-    required this.icon,
+    required this.iconBuilder,
     required this.tooltip,
     required this.color,
     required this.onTap,
@@ -211,11 +214,9 @@ class _CaptionButtonState extends State<_CaptionButton> {
             height: 32,
             color: _hovering ? hover : Colors.transparent,
             alignment: Alignment.center,
-            child: Icon(
-              widget.icon,
-              size: 12,
-              color: _hovering && widget.hoverColor != null
-                  ? widget.hoverColor
+            child: widget.iconBuilder(
+              _hovering && widget.hoverColor != null
+                  ? widget.hoverColor!
                   : widget.color,
             ),
           ),
@@ -224,3 +225,4 @@ class _CaptionButtonState extends State<_CaptionButton> {
     );
   }
 }
+

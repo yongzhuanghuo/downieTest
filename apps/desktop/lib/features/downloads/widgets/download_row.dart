@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../help/support_dialog.dart';
+
 import '../../../data/models/download_task.dart';
 import '../../../data/models/format_option.dart';
 import '../../../shared/branding/app_brand.dart';
@@ -338,7 +340,7 @@ class DownloadRow extends ConsumerWidget {
               }
               break;
             case 'report':
-              await _reportLink(task);
+              await _reportLink(context, task);
               break;
             case 'debug':
               await TaskDebugDialog.show(context, task);
@@ -439,7 +441,8 @@ class DownloadRow extends ConsumerWidget {
             const PopupMenuItem(value: 'open', child: Text('打开所在目录')),
           ],
           if (task.isFailed || task.status == DownloadStatus.cancelled) ...[
-            const PopupMenuItem(value: 'retry', child: Text('重试')),
+            if (task.formatId.isNotEmpty)
+              const PopupMenuItem(value: 'retry', child: Text('重试')),
             const PopupMenuItem(value: 'report', child: Text('报告链接…')),
           ],
           if (task.isRunning)
@@ -564,23 +567,16 @@ class DownloadRow extends ConsumerWidget {
     }
   }
 
-  Future<void> _reportLink(DownloadTask task) async {
-    final uri = Uri(
-      scheme: 'mailto',
-      path: AppBrand.supportEmail,
-      queryParameters: {
-        'subject': '下载失败：${task.title}',
-        'body': '链接：${task.url}\n'
-            '站点：${task.extractor}\n'
-            '错误：${task.error ?? '无'}\n'
-            '格式：${task.formatLabel}\n',
-      },
+  Future<void> _reportLink(BuildContext context, DownloadTask task) async {
+    await SupportDialog.show(
+      context,
+      reportUrl: task.url,
+      account: task.extractor,
+      taskId: task.id,
+      initialMessage: '错误：${task.error ?? '无'}\n'
+          '格式：${task.formatLabel}\n'
+          '标题：${task.title}\n',
     );
-    try {
-      await launchUrl(uri);
-    } catch (e) {
-      debugPrint('[下载行] 打开邮件失败: $e');
-    }
   }
 
   Future<void> _rename(
@@ -646,6 +642,10 @@ class DownloadRow extends ConsumerWidget {
   String _statusLine(DownloadTask task) {
     final p = task.progress;
     switch (task.status) {
+      case DownloadStatus.loading:
+        return '加载中';
+      case DownloadStatus.preparing:
+        return '准备中...';
       case DownloadStatus.pending:
         return '等待中';
       case DownloadStatus.downloading:
@@ -673,6 +673,9 @@ class DownloadRow extends ConsumerWidget {
 
   IconData _statusIcon(DownloadTask task) {
     switch (task.status) {
+      case DownloadStatus.loading:
+      case DownloadStatus.preparing:
+        return Icons.hourglass_top;
       case DownloadStatus.pending:
         return Icons.schedule;
       case DownloadStatus.downloading:

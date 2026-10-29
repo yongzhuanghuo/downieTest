@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/platform/automation_request.dart';
 import '../../core/sites/format_selector.dart';
@@ -11,7 +10,7 @@ import '../../core/storage/adult_filter.dart';
 import '../../data/models/download_task.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
-import '../../shared/branding/app_brand.dart';
+import '../help/support_dialog.dart';
 import '../home/home_provider.dart';
 import '../license/license_provider.dart';
 import '../license/license_window.dart';
@@ -37,9 +36,6 @@ class QuickAddOptions {
     this.postprocessing,
   });
 }
-
-/// 当前正在后台解析的快速添加任务数（用于右上角「加载中…」胶囊）。
-final quickAddLoadingProvider = StateProvider<int>((ref) => 0);
 
 /// 点击底部 +：优先直接解析剪贴板里的链接，不弹添加窗口。
 Future<QuickAddResult> quickAddFromClipboard(
@@ -112,39 +108,80 @@ Future<QuickAddResult> quickAddText(
     return QuickAddResult.failed;
   }
 
-  final loading = ref.read(quickAddLoadingProvider.notifier);
-  loading.state++;
-  var loadingActive = true;
-  void finishLoading() {
-    if (!loadingActive) return;
-    loadingActive = false;
-    loading.state = (loading.state - 1).clamp(0, 999).toInt();
-  }
+  final downloads = ref.read(downloadListProvider.notifier);
+  final placeholderId = await downloads.addPlaceholder(
+    target,
+    title: placeholderTitleForUrl(target),
+  );
 
   try {
-    await ref.read(parseProvider.notifier).parse(target);
-    // 解析（含登录窗口）结束后收起「加载中…」，再处理结果
-    finishLoading();
-    if (!context.mounted) return QuickAddResult.failed;
+    // Downie：先在队列里显示「加载中」，随后切「准备中…」
+    final parseFuture = ref.read(parseProvider.notifier).parse(target);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (context.mounted) {
+      await downloads.setPlaceholderStatus(
+        placeholderId,
+        DownloadStatus.preparing,
+      );
+    }
+    await parseFuture;
+    if (!context.mounted) {
+      await downloads.remove(placeholderId);
+      return QuickAddResult.failed;
+    }
 
     final parse = ref.read(parseProvider);
     final info = parse.videoInfo;
     if (parse.isError || info == null) {
-      // 与 Downie 一样：不打开「添加链接」，直接给不支持的链接提示
+      await downloads.setPlaceholderStatus(
+        placeholderId,
+        DownloadStatus.failed,
+        error: parse.error ?? '无法解析该链接',
+      );
+      // 与 Downie 一样：不打开「添加链接」，直接给不支持的链接提示；
+      // 失败行保留在队列里，可从行菜单「报告链接…」联系支持。
       return _handleUnsupported(context, ref, target);
     }
-    return _enqueueInfo(context, ref, info, options: options);
+    final result = await _enqueueInfo(
+      context,
+      ref,
+      info,
+      options: options,
+      placeholderId: placeholderId,
+    );
+    if (result != QuickAddResult.added) {
+      await downloads.remove(placeholderId);
+    }
+    return result;
   } catch (e) {
-    finishLoading();
+    await downloads.setPlaceholderStatus(
+      placeholderId,
+      DownloadStatus.failed,
+      error: e.toString(),
+    );
     if (context.mounted) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(content: Text('添加失败：$e')),
       );
     }
     return QuickAddResult.failed;
-  } finally {
-    finishLoading();
   }
+}
+
+/// 占位行标题：YouTube 用视频 ID，其他站点优先取路径里的 ID/文件名。
+String placeholderTitleForUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return url;
+  final host = uri.host;
+  final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+  final v = uri.queryParameters['v'];
+  if (v != null && v.isNotEmpty) return v;
+  if (host == 'youtu.be' && segments.isNotEmpty) return segments.first;
+  for (final segment in segments) {
+    if (segment.startsWith('BV') || segment.startsWith('av')) return segment;
+  }
+  if (segments.isNotEmpty) return segments.last;
+  return host.isEmpty ? url : host;
 }
 
 Future<QuickAddResult> _handleUnsupported(
@@ -189,17 +226,11 @@ Future<QuickAddResult> _handleUnsupported(
       );
       return added ? QuickAddResult.added : QuickAddResult.failed;
     case UnsupportedAction.support:
-      final uri = Uri(
-        scheme: 'mailto',
-        path: AppBrand.supportEmail,
-        queryParameters: {
-          'subject': '请求添加 ${AppBrand.name} 站点支持',
-          'body': '链接：$target',
-        },
+      await SupportDialog.show(
+        context,
+        reportUrl: target,
+        initialMessage: '请添加对该链接/站点的支持。\n',
       );
-      try {
-        await launchUrl(uri);
-      } catch (_) {}
       return QuickAddResult.failed;
     case UnsupportedAction.ignore:
       return QuickAddResult.failed;
@@ -270,6 +301,7 @@ Future<QuickAddResult> _enqueueInfo(
   WidgetRef ref,
   VideoInfo info, {
   QuickAddOptions? options,
+  String? placeholderId,
 }) async {
   if (!ref.read(canDownloadProvider)) {
     await LicenseWindow.show(context);
@@ -305,6 +337,7 @@ Future<QuickAddResult> _enqueueInfo(
   final added = await ref.read(downloadListProvider.notifier).startDownload(
         videoInfo: info,
         format: format,
+        placeholderId: placeholderId,
         downloadSubtitles: settings.defaultDownloadSubtitles,
         downloadCover: settings.defaultDownloadCover,
         titleOverride: options?.title,

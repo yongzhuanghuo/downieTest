@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform/window_close_coordinator.dart';
 import '../../shared/branding/app_brand.dart';
+import '../../shared/widgets/restore_glyph.dart';
 import 'help_content.dart';
 import 'support_dialog.dart';
 
@@ -175,10 +176,12 @@ class _HelpWindowState extends State<HelpWindow> with WindowListener {
               ),
               IconButton(
                 tooltip: _maximized ? '还原' : '最大化',
-                icon: Icon(
-                  _maximized ? Icons.filter_none : Icons.crop_square,
-                  size: 13,
-                ),
+                icon: _maximized
+                    ? RestoreGlyph(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        size: 12,
+                      )
+                    : const Icon(Icons.crop_square, size: 13),
                 onPressed: _toggleMaximize,
               ),
             ],

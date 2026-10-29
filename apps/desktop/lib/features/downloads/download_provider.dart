@@ -106,6 +106,12 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           speed: 0,
         );
         needResets.add(reset);
+      } else if (t.status == DownloadStatus.loading ||
+          t.status == DownloadStatus.preparing) {
+        needResets.add(t.copyWith(
+          status: DownloadStatus.failed,
+          error: '上次添加未完成解析，请重新添加',
+        ));
       }
     }
     if (needResets.isNotEmpty) {
@@ -164,10 +170,52 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
 
   // ==================== 添加任务 ====================
 
-  /// 添加并（有坑位时立刻/否则等待）下载
+  /// 添加占位行：Downie 添加链接后立即出现在队列里显示「加载中」。
+  Future<String> addPlaceholder(String url, {String title = ''}) async {
+    final id = const Uuid().v4();
+    final host = Uri.tryParse(url)?.host ?? '';
+    final task = DownloadTask(
+      id: id,
+      url: url,
+      title: title.isEmpty ? (host.isEmpty ? url : host) : title,
+      thumbnail: '',
+      extractor: host,
+      formatId: '',
+      formatLabel: 'MP4',
+      height: 0,
+      ext: 'mp4',
+      audioOnly: false,
+      status: DownloadStatus.loading,
+      createdAt: DateTime.now(),
+    );
+    await _dao.upsert(task);
+    state = [task, ...state];
+    return id;
+  }
+
+  /// 占位行状态：加载中 → 准备中 → 成功转 pending / 失败。
+  Future<void> setPlaceholderStatus(
+    String id,
+    DownloadStatus status, {
+    String? title,
+    String? error,
+  }) async {
+    await _apply(
+      id,
+      (t) => t.copyWith(
+        status: status,
+        title: title,
+        error: error ?? t.error,
+      ),
+    );
+  }
+
+  /// 添加并（有坑位时立刻/否则等待）下载。
+  /// [placeholderId] 不为空时复用队列里已有的占位行。
   Future<bool> startDownload({
     required VideoInfo videoInfo,
     required FormatOption format,
+    String? placeholderId,
     bool downloadSubtitles = false,
     bool downloadCover = false,
     int throttleKbps = 0,
@@ -176,6 +224,8 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     PostprocessingMode? postprocessing,
   }) async {
     var taskDestination = destinationDir ?? '';
+    // 占位行已被用户移除
+    if (placeholderId != null && _find(placeholderId) == null) return false;
     // 显式传入目录（含空串）时跳过询问；普通添加才按偏好弹出目录选择器。
     if (destinationDir == null &&
         SettingsStorage.instance.current.askForDestination &&
@@ -183,37 +233,73 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       final picked = await FilePicker.platform.getDirectoryPath(
         dialogTitle: '选择保存位置',
       );
-      if (picked == null) return false;
+      if (picked == null) {
+        if (placeholderId != null) await remove(placeholderId);
+        return false;
+      }
       taskDestination = picked;
     }
 
     final title = titleOverride?.trim() ?? '';
-    final task = DownloadTask(
-      id: const Uuid().v4(),
-      url: videoInfo.url,
-      title: title.isEmpty ? videoInfo.title : title,
-      duration: videoInfo.duration,
-      thumbnail: videoInfo.thumbnail,
-      extractor: videoInfo.extractor,
-      formatId: format.formatId,
-      formatLabel: format.label,
-      availableFormats: videoInfo.formats,
-      height: format.height,
-      ext: format.ext,
-      fileSize: format.fileSize ?? 0,
-      audioOnly: format.audioOnly,
-      downloadSubtitles: downloadSubtitles,
-      downloadCover: downloadCover,
-      throttleKbps: throttleKbps,
-      destinationDir: taskDestination,
-      playlistTitle: videoInfo.playlistTitle,
-      postprocessing: postprocessing ?? _defaultPostprocessing(),
-      createdAt: DateTime.now(),
-    );
+    final existing = placeholderId == null ? null : _find(placeholderId);
+    final task = existing == null
+        ? DownloadTask(
+            id: const Uuid().v4(),
+            url: videoInfo.url,
+            title: title.isEmpty ? videoInfo.title : title,
+            duration: videoInfo.duration,
+            thumbnail: videoInfo.thumbnail,
+            extractor: videoInfo.extractor,
+            formatId: format.formatId,
+            formatLabel: format.label,
+            availableFormats: videoInfo.formats,
+            height: format.height,
+            ext: format.ext,
+            fileSize: format.fileSize ?? 0,
+            audioOnly: format.audioOnly,
+            downloadSubtitles: downloadSubtitles,
+            downloadCover: downloadCover,
+            throttleKbps: throttleKbps,
+            destinationDir: taskDestination,
+            playlistTitle: videoInfo.playlistTitle,
+            postprocessing: postprocessing ?? _defaultPostprocessing(),
+            createdAt: DateTime.now(),
+          )
+        : existing.copyWith(
+            title: title.isEmpty ? videoInfo.title : title,
+            duration: videoInfo.duration,
+            thumbnail: videoInfo.thumbnail,
+            extractor: videoInfo.extractor,
+            formatId: format.formatId,
+            formatLabel: format.label,
+            availableFormats: videoInfo.formats,
+            height: format.height,
+            ext: format.ext,
+            fileSize: format.fileSize ?? 0,
+            audioOnly: format.audioOnly,
+            downloadSubtitles: downloadSubtitles,
+            downloadCover: downloadCover,
+            throttleKbps: throttleKbps,
+            destinationDir: taskDestination,
+            playlistTitle: videoInfo.playlistTitle,
+            postprocessing: postprocessing ?? _defaultPostprocessing(),
+            status: DownloadStatus.pending,
+            progress: null,
+            error: null,
+            retryCount: 0,
+            startedAt: null,
+            completedAt: null,
+          );
 
-    // 立即写入 DB + 内存
+    // 立即写入 DB + 内存；占位行保持原位置
     await _dao.upsert(task);
-    state = [task, ...state];
+    if (existing == null) {
+      state = [task, ...state];
+    } else {
+      state = [
+        for (final t in state) if (t.id == task.id) task else t,
+      ];
+    }
 
     // 触发调度器
     unawaited(_scheduler());

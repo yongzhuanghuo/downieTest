@@ -221,7 +221,6 @@ class _WindowShellState extends ConsumerState<WindowShell> {
         unawaited(TrayService.instance.setEnabled(next.showInMenuBar));
       }
     });
-    final quickLoading = ref.watch(quickAddLoadingProvider) > 0;
     final isMac = Platform.isMacOS;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return DropRegion(
@@ -292,40 +291,6 @@ class _WindowShellState extends ConsumerState<WindowShell> {
                 child: _dropOverlay(dark),
               ),
             ),
-          if (quickLoading)
-            Positioned(
-              top: 4,
-              right: 8,
-              child: IgnorePointer(child: _loadingPill()),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _loadingPill() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppTokens.accent,
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.6,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(width: 7),
-          Text(
-            '加载中...',
-            style: TextStyle(fontSize: 12, color: Colors.white),
-          ),
         ],
       ),
     );
