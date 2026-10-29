@@ -14,7 +14,7 @@ import 'support_report.dart';
 
 /// Downie 式支持窗口：邮箱、链接、需要账户、问题描述和诊断信息。
 ///
-/// 发送走服务端 HTTPS（`/api/support/report`），不依赖本机邮件客户端；
+/// 发送走服务端（`/api/support/report`），不依赖本机邮件客户端；
 /// 服务端不可用时回退到「复制报告 / 邮件客户端」。
 class SupportDialog extends StatefulWidget {
   final String reportUrl;

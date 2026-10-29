@@ -54,7 +54,7 @@ OSS_ACCESS_KEY_SECRET=
 OSS_BUCKET=
 OSS_PUBLIC_BASE_URL=
 
-# ============ 联系支持（客户端 HTTPS 提交，服务端 SMTP 转发）============
+# ============ 联系支持（客户端提交，服务端 SMTP 转发）============
 # 客户端「联系支持」发到 /api/support/report，由服务端转发；不依赖用户邮件客户端。
 # 以 QQ 邮箱为例：SMTP_HOST=smtp.qq.com SMTP_PORT=465 SMTP_SSL=true，
 # SMTP_USER=支持邮箱，SMTP_PASSWORD=邮箱授权码（不是登录密码）。

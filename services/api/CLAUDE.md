@@ -9,7 +9,7 @@ FastAPI 单进程统一服务端，按 `MODULES` 环境变量挂载三个模块�
 - `license` — 激活码 / 设备绑定（接口契约与历史 Node 版一致，桌面端无感）
 - `admin` — 管理后台 API + 静态页（对应 `apps/admin-web`）
 - `media` — 视频解析 / 下载 / 去水印 / 加水印 / 改 MD5 / 转 GIF（原 media-api）
-- `support` — 联系支持 `/api/support/report`，服务端 SMTP 转发（不依赖 MODULES，始终挂载）
+- `support` — 联系支持 `/api/support/report`，服务端 SMTP 转发（不依赖其他模块，始终挂载）
 
 接口清单、环境变量、快速开始见 [README.md](README.md)；怎么跑怎么排查见 [docs/项目使用助手.md](../../docs/项目使用助手.md)。
 
@@ -39,7 +39,7 @@ app/
 └── modules/
     ├── license/     codes / models / service / router
     ├── admin/       router（9 接口 + JWT）
-    ├── support/     联系支持（HTTPS 提交 + SMTP 转发）
+    ├── support/     联系支持（提交 + SMTP 转发）
     └── media/       routers + services + tasks
 ```
 

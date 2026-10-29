@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     force_update: bool = False
     # yt-dlp cookies 文件路径（Netscape 格式）。B站机房 IP 无 cookie 会被风控 412，填这个绕过
     ytdlp_cookies: str = ""
-    # ---- 联系支持（客户端 HTTPS 提交，服务端 SMTP 转发）----
+    # ---- 联系支持（客户端提交，服务端 SMTP 转发）----
     support_email_to: str = "huoyongzhuang@qq.com"
     smtp_host: str = ""
     smtp_port: int = 465
