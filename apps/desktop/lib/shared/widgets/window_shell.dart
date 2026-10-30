@@ -25,6 +25,7 @@ import '../../features/home/home_provider.dart';
 import '../../features/license/license_provider.dart';
 import '../../features/preferences/preferences_window.dart';
 import '../../features/settings/settings_provider.dart';
+import '../routes/navigator_key.dart';
 import '../theme/design_tokens.dart';
 import 'window_status_bar.dart';
 import 'window_title_bar.dart';
@@ -51,10 +52,14 @@ class _WindowShellState extends ConsumerState<WindowShell> {
 
   bool _dropHover = false;
   StreamSubscription<List<String>>? _instanceSub;
+  late final ValueNotifier<({String location, Widget child})> _content;
 
   @override
   void initState() {
     super.initState();
+    _content = ValueNotifier(
+      (location: widget.location, child: widget.child),
+    );
     if (Platform.isMacOS) {
       _linkChannel.setMethodCallHandler(_onLinkCall);
       unawaited(
@@ -114,9 +119,16 @@ class _WindowShellState extends ConsumerState<WindowShell> {
   }
 
   @override
+  void didUpdateWidget(covariant WindowShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _content.value = (location: widget.location, child: widget.child);
+  }
+
+  @override
   void dispose() {
     _linkChannel.setMethodCallHandler(null);
     _instanceSub?.cancel();
+    _content.dispose();
     super.dispose();
   }
 
@@ -278,8 +290,21 @@ class _WindowShellState extends ConsumerState<WindowShell> {
           body: Column(
             children: [
               const WindowTitleBar(),
-              Expanded(child: widget.child),
-              WindowStatusBar(location: widget.location),
+              Expanded(
+                child: Navigator(
+                  key: contentNavigatorKey,
+                  onGenerateRoute: (_) => MaterialPageRoute<void>(
+                    builder: (_) => ValueListenableBuilder<
+                        ({String location, Widget child})>(
+                      valueListenable: _content,
+                      builder: (_, value, __) => _WindowContent(
+                        location: value.location,
+                        child: value.child,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -435,5 +460,26 @@ class _WindowShellState extends ConsumerState<WindowShell> {
       }
     }
     return null;
+  }
+}
+
+/// 内容区首屏：下载队列 + 底部状态栏。
+///
+/// 放在内容区 Navigator 的初始路由里，这样帮助/UGE 等页面压栈时
+/// 只覆盖状态栏和队列，不覆盖顶部标题栏。
+class _WindowContent extends StatelessWidget {
+  final String location;
+  final Widget child;
+
+  const _WindowContent({required this.location, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(child: child),
+        WindowStatusBar(location: location),
+      ],
+    );
   }
 }

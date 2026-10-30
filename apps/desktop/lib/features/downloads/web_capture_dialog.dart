@@ -18,6 +18,7 @@ import '../../core/storage/settings_storage.dart';
 import '../../features/help/help_window.dart';
 import '../../features/settings/settings_provider.dart';
 import '../../shared/branding/app_brand.dart';
+import '../../shared/routes/navigator_key.dart';
 import '../../shared/theme/design_tokens.dart';
 
 const Color _ugeAccent = Color(0xFF0A84FF);
@@ -135,7 +136,8 @@ class WebCaptureDialog extends ConsumerStatefulWidget {
       }
     }
     if (!context.mounted) return null;
-    return Navigator.of(context, rootNavigator: true).push<List<CapturedMedia>>(
+    return pushContentRoute<List<CapturedMedia>>(
+      context,
       PageRouteBuilder<List<CapturedMedia>>(
         opaque: true,
         barrierDismissible: false,
@@ -431,18 +433,6 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
     Navigator.of(context).pop<List<CapturedMedia>>(
       List<CapturedMedia>.of(_pending),
     );
-  }
-
-  Future<void> _toggleMaximize() async {
-    try {
-      if (await windowManager.isMaximized()) {
-        await windowManager.unmaximize();
-      } else {
-        await windowManager.maximize();
-      }
-    } catch (e) {
-      debugPrint('[UGE] 最大化切换失败: $e');
-    }
   }
 
   void _onSearchChanged() {
@@ -975,7 +965,6 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
           backgroundColor: web,
           body: Column(
             children: [
-              _buildTitleRow(context, chrome),
               _buildToolbar(context, chrome),
               Expanded(
                 child: Row(
@@ -1007,49 +996,6 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// 28px 原生标题栏：macOS 只留交通灯拖拽区，Windows 显示图标/标题/caption。
-  Widget _buildTitleRow(BuildContext context, Color chrome) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onPanStart: (_) => windowManager.startDragging(),
-      onDoubleTap: _toggleMaximize,
-      child: Container(
-        height: 28,
-        color: chrome,
-        child: Platform.isMacOS
-            ? const SizedBox.expand()
-            : Row(
-                children: [
-                  const SizedBox(width: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Image.asset(
-                      AppBrand.logoAsset,
-                      width: 14,
-                      height: 14,
-                      filterQuality: FilterQuality.medium,
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    '用户自定义视频提取',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                      color: dark
-                          ? AppTokens.textPrimary
-                          : AppTokens.textPrimaryLight,
-                    ),
-                  ),
-                  const Spacer(),
-                  ..._windowsCaptions(dark, height: 28),
-                ],
-              ),
       ),
     );
   }
@@ -1284,33 +1230,15 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
           color: fg,
           onTap: () => setState(() => _sidebarVisible = !_sidebarVisible),
         ),
+        const SizedBox(width: 6),
+        _ActionButton(
+          icon: Icons.close,
+          tooltip: '关闭',
+          color: fg,
+          onTap: _close,
+        ),
       ],
     );
-  }
-
-  List<Widget> _windowsCaptions(bool dark, {double height = 28}) {
-    final fg = dark ? AppTokens.textSecondary : const Color(0xFF3A3A3C);
-    return [
-      _WinCaption(
-        icon: Icons.remove,
-        color: fg,
-        height: height,
-        onTap: () => windowManager.minimize(),
-      ),
-      _WinCaption(
-        icon: Icons.crop_square,
-        color: fg,
-        height: height,
-        onTap: _toggleMaximize,
-      ),
-      _WinCaption(
-        icon: Icons.close,
-        color: fg,
-        height: height,
-        hover: AppTokens.error,
-        onTap: _close,
-      ),
-    ];
   }
 
   bool get _showSupportBanner =>
@@ -2191,55 +2119,6 @@ class _ActionButtonState extends State<_ActionButton> {
                   ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WinCaption extends StatefulWidget {
-  final IconData icon;
-  final Color color;
-  final Color? hover;
-  final double height;
-  final VoidCallback onTap;
-
-  const _WinCaption({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    this.hover,
-    this.height = 28,
-  });
-
-  @override
-  State<_WinCaption> createState() => _WinCaptionState();
-}
-
-class _WinCaptionState extends State<_WinCaption> {
-  bool _hover = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onTap,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: Container(
-          width: 42,
-          height: widget.height,
-          color: _hover
-              ? (widget.hover ?? (dark ? AppTokens.hover : const Color(0x0D000000)))
-              : Colors.transparent,
-          alignment: Alignment.center,
-          child: Icon(
-            widget.icon,
-            size: 12,
-            color: _hover && widget.hover != null ? Colors.white : widget.color,
           ),
         ),
       ),

@@ -2,13 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform/window_close_coordinator.dart';
 import '../../shared/branding/app_brand.dart';
+import '../../shared/routes/navigator_key.dart';
 import '../../shared/widgets/restore_glyph.dart';
+import '../license/license_provider.dart';
 import 'help_window.dart';
 import 'support_report.dart';
 
@@ -37,7 +38,8 @@ class SupportDialog extends StatefulWidget {
     String account = '',
     String? taskId,
   }) {
-    return Navigator.of(context, rootNavigator: true).push<void>(
+    return pushContentRoute<void>(
+      context,
       PageRouteBuilder<void>(
         opaque: true,
         transitionDuration: Duration.zero,
@@ -57,9 +59,6 @@ class SupportDialog extends StatefulWidget {
 }
 
 class _SupportDialogState extends State<SupportDialog> with WindowListener {
-  static const _boxName = 'downlo_support';
-  static const _emailKey = 'lastEmail';
-
   final _emailController = TextEditingController();
   final _urlController = TextEditingController();
   final _accountController = TextEditingController();
@@ -77,6 +76,8 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
   @override
   void initState() {
     super.initState();
+    // 默认使用激活时绑定的邮箱；试用/未绑定邮箱保持为空，发送时再校验。
+    _emailController.text = LicenseStorage.instance.current?.email ?? '';
     _urlController.text = widget.reportUrl;
     _accountController.text = widget.account;
     if (widget.initialMessage.isNotEmpty) {
@@ -85,7 +86,6 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
     windowManager.addListener(this);
     WindowCloseCoordinator.instance.push(this, _close);
     _syncMaximized();
-    _loadLastEmail();
     _loadDiagnostics();
   }
 
@@ -98,23 +98,6 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
     _accountController.dispose();
     _messageController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadLastEmail() async {
-    try {
-      final box = await Hive.openBox(_boxName);
-      final email = box.get(_emailKey)?.toString() ?? '';
-      if (email.isNotEmpty && mounted) {
-        _emailController.text = email;
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _saveEmail(String email) async {
-    try {
-      final box = await Hive.openBox(_boxName);
-      await box.put(_emailKey, email);
-    } catch (_) {}
   }
 
   Future<void> _loadDiagnostics() async {
@@ -197,7 +180,6 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
       _sending = true;
       _lastReport = _report();
     });
-    await _saveEmail(_emailController.text.trim());
     final report = _lastReport!;
     final result = await sendSupportReport(report);
     if (!mounted) return;

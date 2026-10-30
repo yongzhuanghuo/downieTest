@@ -2,11 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform/window_close_coordinator.dart';
 import '../../shared/branding/app_brand.dart';
-import '../../shared/widgets/restore_glyph.dart';
+import '../../shared/routes/navigator_key.dart';
 import 'help_content.dart';
 import 'support_dialog.dart';
 
@@ -15,7 +14,8 @@ class HelpWindow extends StatefulWidget {
   const HelpWindow({super.key});
 
   static Future<void> show(BuildContext context) {
-    return Navigator.of(context, rootNavigator: true).push<void>(
+    return pushContentRoute<void>(
+      context,
       PageRouteBuilder<void>(
         opaque: true,
         transitionDuration: Duration.zero,
@@ -29,64 +29,19 @@ class HelpWindow extends StatefulWidget {
   State<HelpWindow> createState() => _HelpWindowState();
 }
 
-class _HelpWindowState extends State<HelpWindow> with WindowListener {
+class _HelpWindowState extends State<HelpWindow> {
   HelpTopic? _selected;
   String _query = '';
   bool _closing = false;
-  bool _maximized = false;
 
   @override
   void initState() {
     super.initState();
-    windowManager.addListener(this);
     WindowCloseCoordinator.instance.push(this, _close);
-    _syncMaximized();
-  }
-
-  Future<void> _syncMaximized() async {
-    try {
-      final maximized = await windowManager.isMaximized();
-      final fullscreen = await windowManager.isFullScreen();
-      if (mounted) setState(() => _maximized = maximized || fullscreen);
-    } catch (_) {}
-  }
-
-  @override
-  void onWindowMaximize() {
-    if (mounted) setState(() => _maximized = true);
-  }
-
-  @override
-  void onWindowUnmaximize() {
-    if (mounted) setState(() => _maximized = false);
-  }
-
-  @override
-  void onWindowEnterFullScreen() {
-    if (mounted) setState(() => _maximized = true);
-  }
-
-  @override
-  void onWindowLeaveFullScreen() {
-    if (mounted) setState(() => _maximized = false);
-  }
-
-  Future<void> _toggleMaximize() async {
-    try {
-      if (await windowManager.isFullScreen()) {
-        await windowManager.setFullScreen(false);
-      } else if (await windowManager.isMaximized()) {
-        await windowManager.unmaximize();
-      } else {
-        await windowManager.maximize();
-      }
-      await _syncMaximized();
-    } catch (_) {}
   }
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
     WindowCloseCoordinator.instance.pop(this);
     super.dispose();
   }
@@ -123,74 +78,29 @@ class _HelpWindowState extends State<HelpWindow> with WindowListener {
         autofocus: true,
         child: Scaffold(
           backgroundColor: theme.colorScheme.surface,
-          body: Column(
+          body: Stack(
             children: [
-              _buildHeader(theme),
-              Divider(
-                height: 1,
-                color: theme.dividerColor.withValues(alpha: 0.4),
+              Row(
+                children: [
+                  _buildSidebar(theme, topics),
+                  VerticalDivider(
+                    width: 1,
+                    color: theme.dividerColor.withValues(alpha: 0.4),
+                  ),
+                  Expanded(child: _buildContent(theme)),
+                ],
               ),
-              Expanded(
-                child: Row(
-                  children: [
-                    _buildSidebar(theme, topics),
-                    VerticalDivider(
-                      width: 1,
-                      color: theme.dividerColor.withValues(alpha: 0.4),
-                    ),
-                    Expanded(child: _buildContent(theme)),
-                  ],
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  tooltip: '关闭',
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: _close,
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onPanStart: (_) => windowManager.startDragging(),
-      onDoubleTap: _toggleMaximize,
-      child: Container(
-        height: 52,
-        padding: EdgeInsets.fromLTRB(Platform.isMacOS ? 92 : 16, 0, 8, 0),
-        child: Row(
-          children: [
-            Icon(Icons.help_outline,
-                size: 18, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Text(
-              '帮助',
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const Spacer(),
-            if (Platform.isWindows) ...[
-              IconButton(
-                tooltip: '最小化',
-                icon: const Icon(Icons.remove, size: 15),
-                onPressed: () => windowManager.minimize(),
-              ),
-              IconButton(
-                tooltip: _maximized ? '还原' : '最大化',
-                icon: _maximized
-                    ? RestoreGlyph(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        size: 12,
-                      )
-                    : const Icon(Icons.crop_square, size: 13),
-                onPressed: _toggleMaximize,
-              ),
-            ],
-            IconButton(
-              tooltip: '关闭',
-              icon: const Icon(Icons.close, size: 20),
-              onPressed: _close,
-            ),
-          ],
         ),
       ),
     );
