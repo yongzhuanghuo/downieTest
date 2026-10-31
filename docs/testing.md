@@ -73,7 +73,7 @@ Bilibili,https://www.bilibili.com/video/BV...,普通视频
 
 - `--simulate` 只解析不下载，避免样本链接产生大量流量；
 - 失败的样本要区分“样本失效/地区限制/需要登录/引擎不支持”，不要直接把站点标成不支持；
-- 通过后把 `docs/site-coverage.csv` 的 `verified` 改成 `yes`，并在 `notes` 写明验证日期和样本类型；
+- 通过后重新运行 `python3 apps/desktop/tools/generate_site_coverage.py`，它会根据 `docs/site-verification.csv` 自动更新 `verified`；并在样本 CSV 的 `note` 写明验证日期和样本类型；
 - 海外站点走代理测出来的结果要注明“测试环境使用代理”。
 
 ## L5：安装包端到端（发布前）

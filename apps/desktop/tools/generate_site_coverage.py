@@ -110,13 +110,13 @@ def norm(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", (value or "").lower())
 
 
-def load_verification() -> tuple[set[str], list[dict[str, str]]]:
+def load_verification() -> tuple[dict[str, str], list[dict[str, str]]]:
     if not VERIFICATION.exists():
-        return set(), []
+        return {}, []
     with VERIFICATION.open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
     passed = {
-        r.get("site", "")
+        r.get("site", ""): (r.get("verified_at") or "")
         for r in rows
         if r.get("ok") == "yes" and r.get("site")
     }
@@ -180,7 +180,7 @@ def is_drm(row: dict[str, str]) -> bool:
 def classify(
     row: dict[str, str],
     extractors: list[str],
-    verified_sites: set[str],
+    verified_sites: dict[str, str],
 ) -> dict[str, object]:
     cls = row.get("class", "")
     site = row.get("site", "")
@@ -208,7 +208,9 @@ def classify(
     notes = (row.get("notes") or "").strip()
     sample_verified = site in verified_sites
     if sample_verified:
-        notes = (notes + "；2026-10-27 样本解析通过" if notes else "2026-10-27 样本解析通过")
+        stamp = verified_sites.get(site) or "已"
+        note = f"{stamp} 样本解析通过"
+        notes = f"{notes}；{note}" if notes else note
     if status == "drm" and "drm" not in notes.lower():
         notes = (notes + "；DRM 正片不支持" if notes else "DRM 正片不支持")
     if status == "generic":
@@ -338,7 +340,7 @@ def main() -> None:
     top = [r for r in coverage if r["priority"] == "P0"]
     lines = [
         "# Downie 4 站点覆盖矩阵\n\n",
-        f"- 基线：Downie 4 v4.13.3；yt-dlp 2026.07.04（{len(extractors)} 个提取器）\n",
+        f"- 基线：Downie 4 v4.13.3；yt-dlp latest（构建时下载；{len(extractors)} 个提取器）\n",
         f"- 总数：{len(coverage)} 个 Downie 下载器/站点变体\n",
         "- 生成：`python3 apps/desktop/tools/generate_site_coverage.py`\n\n",
         "## 统计\n\n",
@@ -349,9 +351,20 @@ def main() -> None:
         f"| 通用资源检测（未复刻） | {counts['generic']} | 没有原生/已知提取器，只能靠通用 HTML/WebView 嗅探；未逐站验证 |\n",
         f"| DRM（不支持） | {counts['drm']} | Downie 自身也拒绝的 DRM 正片 |\n\n",
         "> 重要：`yt-dlp` 不等于“原生复刻”。本表把“能下载”和“代码复刻”分开标注，避免把 yt-dlp 覆盖误报成已完成站点。\n\n",
+        "## 怎么复验\n\n",
+        "- 样本：`docs/data/site-samples.csv`（`site,url,note`）\n",
+        "- 验证：`python3 apps/desktop/tools/verify_site_samples.py "
+        "--samples docs/data/site-samples.csv --out docs/site-verification.csv --ytdlp <latest yt-dlp>`\n",
+        "- 该脚本只验证 **yt-dlp 路径**；Bilibili、抖音、TikTok、Weibo 等原生插件站点"
+        "必须在 App 内做真实下载回归，yt-dlp 失败不代表 App 不支持。\n",
+        "- 失败先分类：样本失效、需要登录、地区限制、DRM、yt-dlp 真解析失败。"
+        "只有最后一类才需要补原生插件或 UGE 规则。\n",
+        "- 最近一次 P0 实测结论：`docs/site-verification-report-2026-10-31.md`\n\n",
         "## 最近样本验证\n\n",
         "来源：`docs/site-verification.csv`（`tools/verify_site_samples.py` 生成）。"
         "失败不等于站点不支持，需区分样本失效、地区限制、登录/风控和引擎缺陷。\n\n",
+        f"共 {len(verification_rows)} 个样本，通过 "
+        f"{sum(1 for r in verification_rows if r.get('ok') == 'yes')} 个。\n\n",
         "| 站点 | 覆盖状态 | 结果 | 详情/错误 | 耗时 |\n|---|---|---|---|---:|\n",
         *[
             "| {site} | {status} | {ok} | {detail} | {secs}s |\n".format(
@@ -368,9 +381,9 @@ def main() -> None:
             )
             for r in verification_rows
         ],
-        "> 说明：Douyin 行的失败是 **yt-dlp 直跑**需要 cookie，不代表原生插件；"
-        "TikTok 2.0.19 已改为原生插件，下一次样本验证会更新。"
-        "X 的样本被冻结、YouTube 样本私有、Twitch VOD 已删除，属于样本失效。\n\n",
+        "> 说明：失败不等于站点不支持。原生插件站点（抖音/B站/TikTok/微博）"
+        "走 App 内插件，yt-dlp 直跑结果仅供参考；需要登录/地区限制/DRM 的站点"
+        "即使 Downie 也依赖账号或地区。\n\n",
         "\n## P0 站点（35 个）\n\n",
         md_table(top),
         "\n## 已原生复刻\n\n",

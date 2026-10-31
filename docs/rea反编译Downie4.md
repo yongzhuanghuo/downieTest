@@ -2,8 +2,8 @@
 
 - **文档状态**：可执行规划 v1
 - **对标基线**：Downie 4 v4.13.3（`CFBundleVersion` 4000，`com.charliemonroe.Downie-4`）
-- **当前产品**：Downie6 v2.0.29+30（Flutter，macOS + Windows）
-- **更新日期**：2026-10-27
+- **当前产品**：Downie6 v2.0.35+36（Flutter，macOS + Windows）
+- **更新日期**：2026-10-31
 - **当前执行计划**：[downie-parity-plan.md](downie-parity-plan.md)
 - **站点覆盖全表**：[site-coverage.md](site-coverage.md)
 - **详细分析底稿**：`~/re/downie4/reports/`（本文是汇总版，底稿不在仓库）
@@ -16,7 +16,7 @@
 2. **做不到“源码级复刻”**：REA 目前只完成了 Mach-O、符号、字符串、资源层面的静态分析；Ghidra/Hopper 尚未安装，没有逐函数反编译，也拿不到原始 Swift 工程。
 3. **不支持 DRM 正片**：Netflix / Disney+ / Prime Video 等 Widevine/FairPlay/PlayReady 内容，Downie 自己也明确拒绝下载。这不是我们没做，而是不在范围。
 4. **786 个下载器类不能靠一次性交付**：正确目标是 Top 20–30 + 通用 WebView 嗅探 + 自定义集成 + yt-dlp 兜底，然后按失败率持续补站。
-5. **当前进度（2026-10-26）**：Downie 风格 UI、DMG/EXE 发布链、应用内更新、抖音/B站插件、通用网页提取、14 天服务端试用、反激活、暂停/继续、优先级、批量链接、播放列表展开、系统通知、浏览器书签/Chrome 扩展均已落地；Top 30 中大部分站点仍走 yt-dlp，部分站点的原生定制仍未完成；浏览器链接/文本拖拽已支持；签名/公证按用户决定不做。
+5. **当前进度（2026-10-31，2.0.35）**：Downie 风格 UI、12 项偏好、UGE 1:1 布局、DMG/EXE 发布链、应用内更新（支持 SHA-256 校验）、抖音/B站/TikTok/快手/微博原生插件、通用网页提取、14 天服务端试用、反激活、6h 授权复验、管理端 RBAC/限流、暂停/继续、优先级、批量链接、播放列表展开、系统通知、浏览器书签/Chrome 扩展均已落地；Top 30 中大部分站点仍走 yt-dlp 且未逐站验证，自定义集成/主窗口搜索/AppleScript 等仍未做；签名/公证按用户决定不做。
 
 ---
 
@@ -84,7 +84,7 @@ rea analyze "/Applications/Downie 4.app"
 | 登录/网络 | Cookie/登录助手、代理、本地 HTTP 服务、IP 转发 | WebView 登录 + cookie、浏览器 cookie 读取、代理、本地 8765 接收端口/书签/Chrome 扩展已完成 |
 | UX | 浏览器扩展、剪贴板/拖拽、通知、外观、导入 | Downie 风格主界面、粘贴/多链接/文件导入、系统通知、Chrome 扩展/书签、原生链接/文本拖拽已完成 |
 | 高级 | 自定义集成（Registry/提交/控制台/JS 执行）、快速预览 | 未开始 |
-| 授权 | 14 天试用、邮箱绑定、4 设备、反激活、找回、撤销 | 14 天试用、邮箱存储、4 设备绑定、反激活已上线；邮件 OTP/自动找回/签名令牌/心跳撤销未做 |
+| 授权 | 14 天试用、邮箱绑定、4 设备、反激活、找回、撤销 | 14 天试用、邮箱绑定、4 设备、反激活、6h 复验/心跳已上线；管理端 RBAC/限流/随机初始密码已加固；OTP/自动找回/签名令牌/HTTPS/安全存储未做 |
 | 发布 | macOS/Windows 安装包、更新提示、OTA/OSS | DMG + EXE + OSS + 版本接口 + 应用内下载安装已完成；签名/公证按用户决定不做；HTTPS 未做 |
 
 ### 2.2 明确不做
@@ -212,7 +212,7 @@ URL
 | Weibo | `WeiboDownloader` | yes | yt-dlp 优先 |
 | WeTV | `WeTVDownloader` | yes | yt-dlp 优先；地区/登录 |
 | Youku | `YoukuDownloader` | yes | yt-dlp 优先；地区/登录 |
-| YouTube | `YouTubeDownloader` | yes | 原生候选（PO Token/SABR/JS Challenge） |
+| YouTube | `YouTubeDownloader` | yes | 已通过固定 commit 的 SABR yt-dlp 构建支持 1080p；原生插件/PO Token 仍待完善 |
 
 > 完整矩阵：`~/re/downie4/reports/site-coverage-matrix.csv`（786 行）。该矩阵是启发式结果，域名、DRM、登录方式仍需逐站复核。
 
@@ -223,7 +223,7 @@ URL
 - Token/挑战按站实现：
   - 抖音：`a_bogus`、`msToken`、`ttwid`（当前插件已覆盖主要路径）。
   - B站：WBI 签名（已实现）、buvid、cookie。
-  - YouTube：PO Token、JS Challenge、SABR（未实现）。
+  - YouTube：PO Token、JS Challenge、SABR。SABR 已通过固定 commit 的 yt-dlp fork 构建支持（visionos/m3u8，能下 1080p）；PO Token 链路仍待完善，但当前链接不再依赖登录。
   - 其他：X-Bogus、signature、时间戳/随机数、站点专用 header。
 - 原则：优先用公开算法思路按行为重写；需要 DOM 的用隐藏 WebView；token 算法会变，必须监控失败率。
 
@@ -250,13 +250,25 @@ Downie 二进制中的证据：
 - 客户端存储：macOS Keychain、Windows DPAPI；不写明文。
 - 授权接口走 HTTPS，限流 + 防枚举；管理端真正校验管理员权限。
 
-### 5.2 现状（未改）
+### 5.2 现状（2026-10-31 更新）
 
-- 现有 `/api/license/*` 是数据库卡密 + 明文 JSON；桌面端 PRO 状态在明文 Hive。
-- 没有邮箱、试用、签名令牌、心跳/撤销下发；服务端不校验到期。
-- `/api/license/unbind` 有事务问题；错误契约不匹配，失败常显示“网络错误”。
-- 授权请求仍是明文 HTTP；移动端不发送授权头，服务端缺头放行。
-- 详细设计见 `~/re/downie4/reports/licensing-v2-design.md`。
+已完成：
+
+- 服务端 14 天试用、4 设备上限、反激活、设备列表、卡密邮箱绑定、服务端过期校验。
+- 客户端启动校验 + 每 6 小时复验、24h 心跳、离线试用缓存（按 `trial_end` 拦截）。
+- 授权/管理接口加固：管理端 JWT + `admin` 角色校验、登录与授权接口进程内限流、`/api/license/status` 只允许已绑定设备查询、授权过期/吊销在心跳中拒绝。
+- `init_all.sql` 补齐 `trial_devices`（老库迁移见 `sql/migrations/20261031_trial_devices.sql`），避免试用接口 500 后客户端 fail-open。
+- 新库管理员不再使用 `admin123`：`ADMIN_PASSWORD` 未配置时随机生成并打印一次。
+- 版本接口可返回安装包 SHA-256，客户端下载后校验；缺少 `JWT_SECRET` 时服务端拒绝启动。
+
+仍未完成：
+
+- **HTTPS**：客户端发布包仍硬编码 HTTP IP；Nginx 模板已补（`services/api/nginx.conf.example`），需要域名/证书后切换。
+- **签名令牌 + 安全存储**：无 Ed25519 离线验签，PRO 仍存明文 Hive（未接 Keychain/DPAPI）。
+- **账号与撤销闭环**：邮箱 OTP / 自动找回（当前 mailto）、卡密哈希存储、撤销心跳下发（目前靠 6h verify）、管理端试用/设备/撤销页面。
+- **媒体鉴权**：`/files` `/tmp` 默认无签名 URL、CORS 默认 `*`、`require_license` 无头放行。
+
+详细设计见 `~/re/downie4/reports/licensing-v2-design.md`。
 
 ### 5.3 实施顺序
 
@@ -289,7 +301,7 @@ Downie 二进制中的证据：
 | Phase 0 | 架构定稿、插件接口、WebView PoC、授权 API 设计、CI/测试 | 1–2 周 | 部分完成：插件接口/发布链/测试已有；HTTPS、签名、统一 bundle id 未做 |
 | Phase 1 | 下载引擎抽象 + 5–10 站 + macOS 跑通 | 3–6 周 | 部分完成：插件层 + 抖音/B站 + FFmpeg HLS/DASH；原生分片引擎未完成 |
 | Phase 2 | Windows 平台层、WebView2、本地服务、扩展 | 3–5 周 | 部分完成：Windows 构建/安装包/WebView2 依赖已有；扩展/本地服务未做 |
-| Phase 3 | 授权 v2（试用/邮箱/设备/撤销/管理端） | 3–6 周 | 设计完成，未实现 |
+| Phase 3 | 授权 v2（试用/邮箱/设备/撤销/管理端） | 3–6 周 | 部分完成：试用/设备/反激活/心跳/管理端 RBAC 已上线；签名令牌、OTP、HTTPS、安全存储、管理端试用/设备页未做 |
 | Phase 4 | 自定义集成、字幕/后处理、Top 30、UI 打磨 | 3–6 周 | 安装体验已完成；UI 需按第 12 节重做 |
 | 持续 | 站点维护、token 更新、双端兼容、签名发布 | 长期 | 进行中 |
 

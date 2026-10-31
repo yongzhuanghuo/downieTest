@@ -1,23 +1,36 @@
 site,url,note
-YouTube,https://www.youtube.com/watch?v=3x5d12PP5Mo,Downie test URL
-Twitter,https://x.com/bbs2269/status/1673335410510946309,Downie test URL
-Facebook,https://www.facebook.com/boredpanda/videos/10156522412064252/,Downie test URL
-Vimeo,http://vimeo.com/75906247,Downie test URL
-Reddit,http://www.reddit.com/r/videos/comments/20x091/being_a_dickheads_cool/,Downie test URL
-Soundcloud,https://soundcloud.com/ethmusic/lostin-powers-she-so-heavy,Downie test URL
-TikTok,https://www.tiktok.com/@proteinhewani/video/6756589355923410178,Downie test URL
-Twitch,https://www.twitch.tv/videos/124137118,Downie test URL
-Weibo,https://h5.video.weibo.com/show/1034:4574447982805003,Downie test URL
-Youku,http://v.youku.com/v_show/id_XNjMwOTA1Njk2.html,Downie test URL
-WeTV,https://wetv.vip/play/ib6bbeqctm2qkxp/t0039t0ea5n,Downie test URL
-Pinterest,https://www.pinterest.at/pin/28147566414114925,Downie test URL
-Rumble,https://rumble.com/embed/u790a.vbq2h/,Downie test URL
-CCTV,http://tv.cctv.cn/2016/03/04/VIDE6972jaTfawNMwRBtBwAQ160304.shtml,Downie test URL
-CBS,https://www.cbs.com/shows/video/GfttMtUBBfAeORI6kkvqq1RBwe1bmjQa/,Downie test URL
-NBC,https://www.nbc.com/night-court/video/the-honorable-dan-fielding-part-2/9000319183,Downie test URL
-PBS,https://player.pbs.org/viralplayer/3043497119/,Downie test URL
-MLB,https://www.mlb.com/video/condensed-game-2023-all-star-game,Downie test URL
-MTV,http://www.mtv.com/episodes/qxjq6t/world-star-tv-lil-dicky-season-1-ep-106,Downie test URL
-Naver,http://tv.naver.com/v/2084516,Downie test URL
-Bilibili,https://www.bilibili.com/video/BV1xx411c7mD,known test video
-Douyin,https://v.douyin.com/VbqfzLlhxHw/,user link (native plugin, not yt-dlp)
+Bilibili,https://www.bilibili.com/video/BV1xx411c7mD,原生插件
+Douyin,https://v.douyin.com/VbqfzLlhxHw/,原生插件（yt-dlp 需 cookie）
+TikTok,https://www.tiktok.com/@proteinhewani/video/6756589355923410178,原生插件；yt-dlp 样本可能失效
+Weibo,https://h5.video.weibo.com/show/1034:4574447982805003,原生插件；需要登录 cookie
+AbemaTV,https://abema.tv/video/episode/194-25_s2_p1,yt-dlp 官方测试样本；可能地区限制
+BBC,http://www.bbc.co.uk/iplayer/episode/b00yng5w/The_Man_in_Black_Series_3_The_Printed_Name/,yt-dlp 官方测试样本；可能地区/DRM
+CBS,https://www.cbs.com/shows/video/GfttMtUBBfAeORI6kkvqq1RBwe1bmjQa/,可能地区限制
+CCTV,http://tv.cctv.cn/2016/03/04/VIDE6972jaTfawNMwRBtBwAQ160304.shtml,已通过
+ESPN,https://cdn.espn.go.com/video/clip/_/id/19771774,yt-dlp 官方测试样本
+Facebook,https://www.facebook.com/cnn/videos/10155529876156509/,公开视频；旧测试样本已失效
+Fox,https://www.fox.com/watch/4b765a60490325103ea69888fb2bd4e8/,yt-dlp 官方测试样本；可能地区限制
+Instagram,https://www.instagram.com/reel/Chunk8-jurw/,yt-dlp 官方测试样本；可能需要登录
+Kakao,https://tv.kakao.com/channel/3643855/cliplink/412069491,yt-dlp 官方测试样本
+Kaltura,https://cdnapisec.kaltura.com/index.php/kwidget/wid/_557781/uiconf_id/22845202/entry_id/1_plr1syf3,yt-dlp 官方测试样本
+MLB,https://www.mlb.com/video/condensed-game-2023-all-star-game,已通过
+MTV,http://www.mtv.com/episodes/qxjq6t/world-star-tv-lil-dicky-season-1-ep-106,样本可能已删除
+Naver,http://tv.naver.com/v/2084516,样本可能失效
+NBC,https://www.nbc.com/night-court/video/the-honorable-dan-fielding-part-2/9000319183,可能地区限制
+Odysee,https://odysee.com/@gardeningincanada:b/plants-i-will-never-grow-again.-the:e,yt-dlp 官方测试样本
+PBS,https://player.pbs.org/viralplayer/3043497119/,样本可能失效
+Pinterest,https://www.pinterest.at/pin/28147566414114925/,已通过
+Radiko,https://radiko.jp/#!/ts/QRR/20210425101300,yt-dlp 官方测试样本；日本地区限制
+Reddit,https://www.reddit.com/r/videos/comments/6rrwyj/that_small_heart_attack/,yt-dlp 官方测试样本
+Rumble,https://rumble.com/embed/u790a.vbq2h/,样本可能 403
+Soundcloud,https://soundcloud.com/ethmusic/lostin-powers-she-so-heavy,已通过
+Twitch,https://www.twitch.tv/videos/2915062847,2026-10-31 验证通过的公开 VOD
+Twitter,https://twitter.com/i/videos/tweet/705235433198714880,官方测试样本已失效；需要一个公开视频推文链接
+Udemy,https://www.udemy.com/java-tutorial/#/lecture/172757,yt-dlp 官方测试样本；需要登录
+Vimeo,https://vimeo.com/channels/staffpicks/1239544587,公开视频；旧测试样本需要登录
+WeTV,https://wetv.vip/play/ib6bbeqctm2qkxp/t0039t0ea5n,可能地区限制
+Youku,http://v.youku.com/v_show/id_XNjMwOTA1Njk2.html,已通过
+YouTube,https://www.youtube.com/watch?v=dQw4w9WgXcQ,公开稳定样本
+JWPlayer,https://cdn.jwplayer.com/players/nPripu9l-ALJ3XQCI.js,平台型资源（通用嗅探）
+Wavve,,暂无公开样本；通用嗅探
+Disney,http://video.disney.com/watch/moana-trailer-545ed1857afee5a0ec239977,DRM 正片不支持；此处只验证非 DRM 预告片

@@ -24,7 +24,7 @@
    "ytdlpExtractors": [
     "BiliBili"
    ],
-   "notes": "2026-10-27 样本解析通过"
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "Douyin",
@@ -51,7 +51,7 @@
    ],
    "status": "native",
    "statusLabel": "原生插件",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "TikTok",
@@ -62,7 +62,7 @@
     "tiktok:tag (CURRENTLY BROKEN)",
     "tiktok:user"
    ],
-   "notes": ""
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "Weibo",
@@ -208,7 +208,7 @@
    "ytdlpExtractors": [
     "CCTV"
    ],
-   "notes": "2026-10-27 样本解析通过"
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "ESPN",
@@ -235,14 +235,14 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "facebook",
     "facebook:ads",
     "facebook:reel"
    ],
-   "notes": ""
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "Fox",
@@ -271,7 +271,7 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "Instagram",
@@ -279,7 +279,7 @@
     "instagram:tag",
     "instagram:user (CURRENTLY BROKEN)"
    ],
-   "notes": ""
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "Kakao",
@@ -329,7 +329,7 @@
    "ytdlpExtractors": [
     "MLB"
    ],
-   "notes": "2026-10-27 样本解析通过"
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "MTV",
@@ -432,7 +432,7 @@
    "ytdlpExtractors": [
     "Pinterest"
    ],
-   "notes": "2026-10-27 样本解析通过"
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "Radiko",
@@ -504,7 +504,7 @@
     "soundcloud:user",
     "soundcloud:user:permalink"
    ],
-   "notes": "2026-10-27 样本解析通过"
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "Twitch",
@@ -516,7 +516,7 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "twitch:clips",
@@ -527,7 +527,7 @@
     "twitch:videos:collections",
     "twitch:vod"
    ],
-   "notes": ""
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "Twitter",
@@ -573,7 +573,7 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "vimeo",
@@ -585,7 +585,7 @@
     "vimeo:ondemand",
     "vimeo:pro"
    ],
-   "notes": ""
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "WeTV",
@@ -619,7 +619,7 @@
     "youku",
     "youku:show"
    ],
-   "notes": "2026-10-27 样本解析通过"
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "YouTube",
@@ -631,7 +631,7 @@
    ],
    "status": "ytdlp",
    "statusLabel": "yt-dlp（待验证）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [
     "youtube",
@@ -643,7 +643,7 @@
     "youtube:notif",
     "youtube:playlist"
    ],
-   "notes": ""
+   "notes": "2026-10-31 样本解析通过"
   },
   {
    "site": "ABCNews",
@@ -841,9 +841,7 @@
    "statusLabel": "yt-dlp（待验证）",
    "verified": false,
    "priority": "P1",
-   "ytdlpExtractors": [
-    "ARD"
-   ],
+   "ytdlpExtractors": [],
    "notes": ""
   },
   {
@@ -2186,8 +2184,10 @@
    "verified": false,
    "priority": "P1",
    "ytdlpExtractors": [
+    "kick:clip",
     "kick:clips",
     "kick:live",
+    "kick:videos",
     "kick:vod"
    ],
    "notes": ""
@@ -4845,10 +4845,10 @@
    ],
    "status": "generic",
    "statusLabel": "通用资源检测（未复刻）",
-   "verified": false,
+   "verified": true,
    "priority": "P0",
    "ytdlpExtractors": [],
-   "notes": "generic/base；未原生复刻，需通用资源检测/自定义集成验证"
+   "notes": "generic/base；2026-10-31 样本解析通过；未原生复刻，需通用资源检测/自定义集成验证"
   },
   {
    "site": "Wavve",
@@ -5118,9 +5118,7 @@
    "statusLabel": "通用资源检测（未复刻）",
    "verified": false,
    "priority": "P1",
-   "ytdlpExtractors": [
-    "ApplePodcasts"
-   ],
+   "ytdlpExtractors": [],
    "notes": "未原生复刻，需通用资源检测/自定义集成验证"
   },
   {
@@ -7262,8 +7260,10 @@
    "verified": false,
    "priority": "P1",
    "ytdlpExtractors": [
+    "kick:clip",
     "kick:clips",
     "kick:live",
+    "kick:videos",
     "kick:vod"
    ],
    "notes": "未原生复刻，需通用资源检测/自定义集成验证"
@@ -10846,7 +10846,8 @@
    "verified": false,
    "priority": "P1",
    "ytdlpExtractors": [
-    "apple:music:connect"
+    "apple:music:connect",
+    "apple:podcasts"
    ],
    "notes": "DRM host: Downie refuses"
   },

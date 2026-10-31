@@ -15,6 +15,7 @@ import argparse
 import csv
 import subprocess
 import time
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -121,6 +122,7 @@ def main() -> None:
                 "error": error,
                 "seconds": str(elapsed),
                 "url": url,
+                "verified_at": date.today().isoformat(),
             }
         )
         print(
@@ -141,6 +143,7 @@ def main() -> None:
                 "error",
                 "seconds",
                 "url",
+                "verified_at",
             ],
             lineterminator="\n",
         )

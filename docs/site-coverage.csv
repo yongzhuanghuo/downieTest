@@ -1,7 +1,7 @@
 site,className,domains,status,statusLabel,verified,priority,ytdlpExtractors,notes
-Bilibili,BilibiliDownloader,https://bilibili.com;http://www.bilibili.tv;http://api.bilibili.com,native,原生插件,yes,P0,BiliBili,2026-10-27 样本解析通过
+Bilibili,BilibiliDownloader,https://bilibili.com;http://www.bilibili.tv;http://api.bilibili.com,native,原生插件,yes,P0,BiliBili,2026-10-31 样本解析通过
 Douyin,DouyinDownloader,https://www.douyin.com;https://live.douyin.com;https://music.douyin.com,native,原生插件,yes,P0,Douyin,
-TikTok,TikTokDownloader,https://www.tiktok.com,native,原生插件,no,P0,TikTok;tiktok:collection;tiktok:effect (CURRENTLY BROKEN);tiktok:live;tiktok:sound (CURRENTLY BROKEN);tiktok:tag (CURRENTLY BROKEN);tiktok:user,
+TikTok,TikTokDownloader,https://www.tiktok.com,native,原生插件,yes,P0,TikTok;tiktok:collection;tiktok:effect (CURRENTLY BROKEN);tiktok:live;tiktok:sound (CURRENTLY BROKEN);tiktok:tag (CURRENTLY BROKEN);tiktok:user,2026-10-31 样本解析通过
 Weibo,WeiboDownloader,https://weibo.com;https://www.weibo.com;http://video.weibo.com,native,原生插件,no,P0,Weibo,
 BilibiliBangumi,BilibiliBangumiDownloader,,native,原生插件,no,P1,BiliBili;BiliBiliBangumi,
 BilibiliEmbed,BilibiliEmbedDownloader,,native,原生插件,no,P1,BiliBili,
@@ -11,31 +11,31 @@ WeiboHTML5,WeiboHTML5Downloader,,native,原生插件,no,P1,Weibo,
 AbemaTV,AbemaTVDownloader,,ytdlp,yt-dlp（待验证）,no,P0,AbemaTV,
 BBC,BBCDownloader,http://www.bbc.com;https://www.bbc.com;http://www.bbc.co.uk,ytdlp,yt-dlp（待验证）,no,P0,bbc,
 CBS,CBSDownloader,http://www.cbs.com;https://can.cbs.com;https://www.cbs.com,ytdlp,yt-dlp（待验证）,no,P0,,
-CCTV,CCTVDownloader,http://tv.cctv.cn;http://app.cctv.com;http://news.cctv.com,ytdlp,yt-dlp（待验证）,yes,P0,CCTV,2026-10-27 样本解析通过
+CCTV,CCTVDownloader,http://tv.cctv.cn;http://app.cctv.com;http://news.cctv.com,ytdlp,yt-dlp（待验证）,yes,P0,CCTV,2026-10-31 样本解析通过
 ESPN,ESPNDownloader,http://espn.go.com;http://www.espn.com;https://www.espn.com,ytdlp,yt-dlp（待验证）,no,P0,ESPN,
-Facebook,FacebookDownloader,https://www.facebook.com,ytdlp,yt-dlp（待验证）,no,P0,facebook;facebook:ads;facebook:reel,
+Facebook,FacebookDownloader,https://www.facebook.com,ytdlp,yt-dlp（待验证）,yes,P0,facebook;facebook:ads;facebook:reel,2026-10-31 样本解析通过
 Fox,FoxDownloader,http://www.fox.com;https://www.fox.com;https://api3.fox.com,ytdlp,yt-dlp（待验证）,no,P0,FOX,
-Instagram,InstagramDownloader,http://instagram.com;https://i.instagram.com;https://www.instagram.com,ytdlp,yt-dlp（待验证）,no,P0,Instagram;instagram:story;instagram:tag;instagram:user (CURRENTLY BROKEN),
+Instagram,InstagramDownloader,http://instagram.com;https://i.instagram.com;https://www.instagram.com,ytdlp,yt-dlp（待验证）,yes,P0,Instagram;instagram:story;instagram:tag;instagram:user (CURRENTLY BROKEN),2026-10-31 样本解析通过
 Kakao,KakaoDownloader,https://kakaotv.daum.net;https://play-tv.kakao.com,ytdlp,yt-dlp（待验证）,no,P0,Kakao,
 Kaltura,KalturaDownloader,http://www.kaltura.com;http://cdnapi.kaltura.com;https://cdnapisec.kaltura.com,ytdlp,yt-dlp（待验证）,no,P0,Kaltura,generic/base
-MLB,MLBDownloader,https://www.mlb.com;https://dapi.cms.mlbinfra.com;https://media-gateway.mlb.com,ytdlp,yt-dlp（待验证）,yes,P0,MLB,2026-10-27 样本解析通过
+MLB,MLBDownloader,https://www.mlb.com;https://dapi.cms.mlbinfra.com;https://media-gateway.mlb.com,ytdlp,yt-dlp（待验证）,yes,P0,MLB,2026-10-31 样本解析通过
 MTV,MTVDownloader,http://www.mtv.com;http://media.mtvnservices.com;https://media-utils.mtvnservices.com,ytdlp,yt-dlp（待验证）,no,P0,mtv,
 Naver,NaverDownloader,http://tv.naver.com;https://m.naver.com;http://m.tv.naver.com,ytdlp,yt-dlp（待验证）,no,P0,Naver;Naver:live,
 NBC,NBCDownloader,https://api.nbc.com;https://www.nbc.com;http://www.msnbc.com,ytdlp,yt-dlp（待验证）,no,P0,NBC,
 Odysee,OdyseeDownloader,https://odysee.com;https://api.na-backend.odysee.com,ytdlp,yt-dlp（待验证）,no,P0,lbry;lbry:channel;lbry:playlist,
 PBS,PBSDownloader,https://pbskids.org;https://player.pbs.org;https://www.pbslearningmedia.org,ytdlp,yt-dlp（待验证）,no,P0,pbs,
-Pinterest,PinterestDownloader,https://www.pinterest.at;https://www.pinterest.com,ytdlp,yt-dlp（待验证）,yes,P0,Pinterest,2026-10-27 样本解析通过
+Pinterest,PinterestDownloader,https://www.pinterest.at;https://www.pinterest.com,ytdlp,yt-dlp（待验证）,yes,P0,Pinterest,2026-10-31 样本解析通过
 Radiko,RadikoDownloader,https://radiko.jp;https://api.radiko.jp,ytdlp,yt-dlp（待验证）,no,P0,Radiko,
 Reddit,RedditDownloader,http://reddit.tv;http://www.reddit.com;https://www.reddit.com,ytdlp,yt-dlp（待验证）,no,P0,Reddit,
 Rumble,RumbleDownloader,https://rumble.com,ytdlp,yt-dlp（待验证）,no,P0,Rumble,
-Soundcloud,SoundcloudDownloader,https://soundcloud.com;https://api.soundcloud.com;http://api-v2.soundcloud.com,ytdlp,yt-dlp（待验证）,yes,P0,soundcloud;soundcloud:playlist;soundcloud:related;soundcloud:search;soundcloud:set;soundcloud:trackstation;soundcloud:user;soundcloud:user:permalink,2026-10-27 样本解析通过
-Twitch,TwitchDownloader,https://twitch.tv;https://api.twitch.tv;https://gql.twitch.tv,ytdlp,yt-dlp（待验证）,no,P0,twitch:clips;twitch:collection;twitch:stream;twitch:videos;twitch:videos:clips;twitch:videos:collections;twitch:vod,
+Soundcloud,SoundcloudDownloader,https://soundcloud.com;https://api.soundcloud.com;http://api-v2.soundcloud.com,ytdlp,yt-dlp（待验证）,yes,P0,soundcloud;soundcloud:playlist;soundcloud:related;soundcloud:search;soundcloud:set;soundcloud:trackstation;soundcloud:user;soundcloud:user:permalink,2026-10-31 样本解析通过
+Twitch,TwitchDownloader,https://twitch.tv;https://api.twitch.tv;https://gql.twitch.tv,ytdlp,yt-dlp（待验证）,yes,P0,twitch:clips;twitch:collection;twitch:stream;twitch:videos;twitch:videos:clips;twitch:videos:collections;twitch:vod,2026-10-31 样本解析通过
 Twitter,TwitterDownloader,,ytdlp,yt-dlp（待验证）,no,P0,twitter;twitter:amplify;twitter:broadcast;twitter:card;twitter:shortener;twitter:spaces,
 Udemy,UdemyDownloader,https://www.udemy.com,ytdlp,yt-dlp（待验证）,no,P0,udemy;udemy:course,
-Vimeo,VimeoDownloader,http://vimeo.com;https://vimeo.com;https://vimeopro.com,ytdlp,yt-dlp（待验证）,no,P0,vimeo;vimeo:album;vimeo:channel;vimeo:event;vimeo:group;vimeo:likes;vimeo:ondemand;vimeo:pro,
+Vimeo,VimeoDownloader,http://vimeo.com;https://vimeo.com;https://vimeopro.com,ytdlp,yt-dlp（待验证）,yes,P0,vimeo;vimeo:album;vimeo:channel;vimeo:event;vimeo:group;vimeo:likes;vimeo:ondemand;vimeo:pro,2026-10-31 样本解析通过
 WeTV,WeTVDownloader,https://wetv.vip;https://play.wetv.vip,ytdlp,yt-dlp（待验证）,no,P0,wetv:episode,
-Youku,YoukuDownloader,http://youku.com;http://m.youku.com;http://v.youku.com,ytdlp,yt-dlp（待验证）,yes,P0,youku;youku:show,2026-10-27 样本解析通过
-YouTube,YouTubeDownloader,https://youtube.com;https://m.youtube.com;http://www.youtube.com,ytdlp,yt-dlp（待验证）,no,P0,youtube;youtube:clip;youtube:consent;youtube:favorites;youtube:history;youtube:music:search_url;youtube:notif;youtube:playlist,
+Youku,YoukuDownloader,http://youku.com;http://m.youku.com;http://v.youku.com,ytdlp,yt-dlp（待验证）,yes,P0,youku;youku:show,2026-10-31 样本解析通过
+YouTube,YouTubeDownloader,https://youtube.com;https://m.youtube.com;http://www.youtube.com,ytdlp,yt-dlp（待验证）,yes,P0,youtube;youtube:clip;youtube:consent;youtube:favorites;youtube:history;youtube:music:search_url;youtube:notif;youtube:playlist,2026-10-31 样本解析通过
 ABCNews,ABCNewsDownloader,http://abcnews.go.com;https://abcnews.go.com,ytdlp,yt-dlp（待验证）,no,P1,abcnews;abcnews:video,
 Acast,AcastDownloader,https://play.acast.com;https://embed.acast.com;https://feeder.acast.com,ytdlp,yt-dlp（待验证）,no,P1,acast;acast:channel,
 AcFun,AcFunDownloader,http://acfun.cn;http://m.acfun.cn;http://www.acfun.cn,ytdlp,yt-dlp（待验证）,no,P1,,
@@ -48,7 +48,7 @@ AnimalPlanet,AnimalPlanetDownloader,https://www.animalplanet.com,ytdlp,yt-dlp（
 Antenna,AntennaDownloader,https://api.antenna.gr;https://vod.antenna.gr,ytdlp,yt-dlp（待验证）,no,P1,antenna:watch,
 Anvato,AnvatoDownloader,,ytdlp,yt-dlp（待验证）,no,P1,Anvato,
 Aparat,AparatDownloader,https://www.aparat.com,ytdlp,yt-dlp（待验证）,no,P1,Aparat,
-ARD,ARDDownloader,http://ard.de;https://streamyard.com;https://play.vidyard.com,ytdlp,yt-dlp（待验证）,no,P1,ARD,
+ARD,ARDDownloader,http://ard.de;https://streamyard.com;https://play.vidyard.com,ytdlp,yt-dlp（待验证）,no,P1,,
 Areena,AreenaDownloader,https://areena.yle.fi,ytdlp,yt-dlp（待验证）,no,P1,,
 ArteTV,ArteTVDownloader,,ytdlp,yt-dlp（待验证）,no,P1,ArteTV,
 Artv,ArtvDownloader,,ytdlp,yt-dlp（待验证）,no,P1,,
@@ -135,7 +135,7 @@ Ixigua,IxiguaDownloader,https://m.ixigua.com;https://www.ixigua.com,ytdlp,yt-dlp
 JOJ,JOJDownloader,https://media.joj.sk;http://profesionali.joj.sk,ytdlp,yt-dlp（待验证）,no,P1,Joj,
 Jove,JoveDownloader,http://www.jove.com;https://www.jove.com,ytdlp,yt-dlp（待验证）,no,P1,Jove,
 KelbyOne,KelbyOneDownloader,https://members.kelbyone.com,ytdlp,yt-dlp（待验证）,no,P1,,
-Kick,KickDownloader,https://kick.com;https://mobile.kick.com,ytdlp,yt-dlp（待验证）,no,P1,kick:clips;kick:live;kick:vod,
+Kick,KickDownloader,https://kick.com;https://mobile.kick.com,ytdlp,yt-dlp（待验证）,no,P1,kick:clip;kick:clips;kick:live;kick:videos;kick:vod,
 La7,La7Downloader,,ytdlp,yt-dlp（待验证）,no,P1,,
 LCI,LCIDownloader,https://www.lci.fr,ytdlp,yt-dlp（待验证）,no,P1,LCI,
 Letv,LetvDownloader,http://www.letv.com;http://yuntv.letv.com;http://api.letvcloud.com,ytdlp,yt-dlp（待验证）,no,P1,,
@@ -307,7 +307,7 @@ Zing,ZingDownloader,http://mp3.zing.vn,ytdlp,yt-dlp（待验证）,no,P1,,
 Zoom,ZoomDownloader,https://zoom.us;https://trhc.zoom.us;https://us02web.zoom.us,ytdlp,yt-dlp（待验证）,no,P1,zoom;zoom:clips,
 Zype,ZypeDownloader,https://player.zype.com,ytdlp,yt-dlp（待验证）,no,P1,Zype,
 XU,XUDownloader,https://article.xuexi.cn,ytdlp,yt-dlp（待验证）,no,P2,,generic/base
-JWPlayer,JWPlayerDownloader,https://cdn.jwplayer.com,generic,通用资源检测（未复刻）,no,P0,,generic/base；未原生复刻，需通用资源检测/自定义集成验证
+JWPlayer,JWPlayerDownloader,https://cdn.jwplayer.com,generic,通用资源检测（未复刻）,yes,P0,,generic/base；2026-10-31 样本解析通过；未原生复刻，需通用资源检测/自定义集成验证
 Wavve,WavveDownloader,https://www.wavve.com;https://apis.wavve.com,generic,通用资源检测（未复刻）,no,P0,,未原生复刻，需通用资源检测/自定义集成验证
 ABCiView,ABCiViewDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 ABCShows,ABCShowsDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
@@ -329,7 +329,7 @@ AnimeDigitalNetwork,AnimeDigitalNetworkDownloader,https://animedigitalnetwork.fr
 Animelek,AnimelekDownloader,http://player.animelek.com,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 AnyPorn,AnyPornDownloader,http://anyporn.com,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 AppleDeveloper,AppleDeveloperDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
-ApplePodcasts,ApplePodcastsDownloader,,generic,通用资源检测（未复刻）,no,P1,ApplePodcasts,未原生复刻，需通用资源检测/自定义集成验证
+ApplePodcasts,ApplePodcastsDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 ARDSounds,ARDSoundsDownloader,https://www.ardsounds.de,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 ArteEmbeddedPlaylist,ArteEmbeddedPlaylistDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 ArtePlaylist,ArtePlaylistDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
@@ -501,7 +501,7 @@ JWPlayerConfig,JWPlayerConfigDownloader,,generic,通用资源检测（未复刻�
 KalturaBase,KalturaBaseDownloader,,generic,通用资源检测（未复刻）,no,P1,Kaltura,未原生复刻，需通用资源检测/自定义集成验证
 KalturaConcrete,KalturaConcreteDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 KalturaEmbedFrame,KalturaEmbedFrameDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
-KickBase,KickBaseDownloader,,generic,通用资源检测（未复刻）,no,P1,kick:clips;kick:live;kick:vod,未原生复刻，需通用资源检测/自定义集成验证
+KickBase,KickBaseDownloader,,generic,通用资源检测（未复刻）,no,P1,kick:clip;kick:clips;kick:live;kick:videos;kick:vod,未原生复刻，需通用资源检测/自定义集成验证
 KickLiveStream,KickLiveStreamDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 Kijk,KijkDownloader,http://www.kijk.nl;https://www.kijk.nl;https://embed.kijk.nl,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
 KijkShortLink,KijkShortLinkDownloader,,generic,通用资源检测（未复刻）,no,P1,,未原生复刻，需通用资源检测/自定义集成验证
@@ -780,7 +780,7 @@ HTTPDirect,HTTPDirectDownloader,,generic,通用资源检测（未复刻）,no,P2
 IPForwarding,IPForwardingDownloader,,generic,通用资源检测（未复刻）,no,P2,,generic/base；未原生复刻，需通用资源检测/自定义集成验证
 LimelightNetworks,LimelightNetworksDownloader,,generic,通用资源检测（未复刻）,no,P2,,generic/base；未原生复刻，需通用资源检测/自定义集成验证
 Disney,DisneyDownloader,http://video.disney.com;http://watchdisneyxd.go.com,drm,DRM（不支持）,no,P0,Disney,DRM host: Downie refuses
-Apple,AppleDownloader,http://www.apple.com;https://tv.apple.com;http://trailers.apple.com,drm,DRM（不支持）,no,P1,apple:music:connect,DRM host: Downie refuses
+Apple,AppleDownloader,http://www.apple.com;https://tv.apple.com;http://trailers.apple.com,drm,DRM（不支持）,no,P1,apple:music:connect;apple:podcasts,DRM host: Downie refuses
 AppleTVClip,AppleTVClipDownloader,,drm,DRM（不支持）,no,P1,,DRM 正片不支持
 DisneyBase,DisneyBaseDownloader,,drm,DRM（不支持）,no,P1,Disney,DRM 正片不支持
 DisneyChannel,DisneyChannelDownloader,,drm,DRM（不支持）,no,P1,,DRM 正片不支持
