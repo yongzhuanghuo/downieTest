@@ -1,5 +1,33 @@
 # 更新日志
 
+## 2.0.35（2026-10-31）
+
+### YouTube / 下载引擎
+
+- 接入带 SABR 支持的 yt-dlp 固定构建（`coletdjnz/yt-dlp-dev` @ `b7685f0`），修复 YouTube 1080p 视频被强制 SABR 后只能 360p 或报 bot check 的问题
+- macOS 按架构选择 SABR 版 yt-dlp（arm64 / x86_64），官方 universal 包保留兜底；Windows 构建 SABR 版 exe
+- App 升级时通过 `YTDLP_BUILD` 标记自动替换已提取的旧 yt-dlp，不再被旧文件挡住
+- SABR 构建下禁用 `yt-dlp -U`，避免被换回正式版后丢失 YouTube 1080p 能力
+
+### 登录窗口
+
+- 登录 WebView 改用 Safari UA，修复 Google「此浏览器或应用可能不安全」
+- 完成按钮始终可点；页面有 Cookie 即可保存并继续（对齐 Downie 的 Consider Logged In）
+- YouTube 额外抓取 `.google.com` 登录 Cookie，登录态不再漏抓
+
+### 授权 / 服务端
+
+- 管理端接口校验 `admin` 角色；登录和授权接口增加限流
+- 心跳拒绝已吊销/已过期授权；客户端每 6 小时复验一次
+- 补齐 `trial_devices` 建表与老库迁移；新库管理员改为随机初始密码
+- 缺少 `JWT_SECRET` 时服务端拒绝启动；更新包支持 SHA-256 校验
+- 新增 7 个安全回归测试；补 Nginx/HTTPS 模板
+
+### 站点
+
+- 更新 P0 站点实测报告与覆盖矩阵；验证脚本记录 `verified_at`
+- yt-dlp 提取器列表更新到 2026.10.26（新增 Kick 等）
+
 ## 2.0.34（2026-10-30）
 
 ### 窗口与支持
