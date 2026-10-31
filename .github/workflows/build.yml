@@ -26,6 +26,11 @@ jobs:
         with:
           channel: stable
 
+      - name: 安装 Python（构建 SABR yt-dlp）
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: 下载 macOS 二进制（yt-dlp + ffmpeg universal）
         run: |
           mkdir -p assets/bin/macos assets/bin/windows
@@ -40,6 +45,14 @@ jobs:
             https://github.com/eugeneware/ffmpeg-static/releases/latest/download/ffmpeg-darwin-arm64
           lipo -create /tmp/ffmpeg-x64 /tmp/ffmpeg-arm64 -output assets/bin/macos/ffmpeg
           chmod +x assets/bin/macos/ffmpeg
+
+      - name: 构建 SABR 版 yt-dlp（YouTube 1080p）
+        # 失败不阻断构建：App 会回退到上面的官方 universal yt-dlp
+        continue-on-error: true
+        run: |
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then OUT=assets/bin/macos/yt-dlp_x86_64; else OUT=assets/bin/macos/yt-dlp_arm64; fi
+          python tools/build_sabr_ytdlp.py --output "$OUT"
 
       - name: 下载 node（抖音 a_bogus 签名用）
         run: |
@@ -71,7 +84,7 @@ jobs:
       - name: 打包 macOS
         run: |
           set -o pipefail
-          flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000 2>&1 | tee build_macos.log
+          flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000 --dart-define=YTDLP_BUILD=sabr-b7685f0-${{ github.sha }} 2>&1 | tee build_macos.log
 
       - name: macOS 构建失败注解
         if: failure()
@@ -139,6 +152,11 @@ jobs:
         with:
           channel: stable
 
+      - name: 安装 Python（构建 SABR yt-dlp）
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: 下载 Windows 二进制（yt-dlp.exe + ffmpeg.exe）
         shell: pwsh
         run: |
@@ -160,6 +178,13 @@ jobs:
           Get-FileWithRetry "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" "ffmpeg.zip"
           Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_tmp"
           Get-ChildItem -Recurse -Filter "ffmpeg.exe" "ffmpeg_tmp" | Select-Object -First 1 | Copy-Item -Destination "assets/bin/windows/ffmpeg.exe"
+
+      - name: 构建 SABR 版 yt-dlp（YouTube 1080p）
+        # 失败不阻断构建：保留上面的官方 yt-dlp.exe 作为兜底
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          python tools/build_sabr_ytdlp.py --output assets/bin/windows/yt-dlp.exe
 
       - name: 下载 node（抖音 a_bogus 签名用）
         shell: pwsh
@@ -186,7 +211,7 @@ jobs:
       - name: 打包 Windows
         shell: pwsh
         run: |
-          flutter build windows --release --dart-define=API_BASE=http://8.153.99.239:3000 2>&1 | Tee-Object -FilePath build_windows.log
+          flutter build windows --release --dart-define=API_BASE=http://8.153.99.239:3000 --dart-define=YTDLP_BUILD=sabr-b7685f0-${{ github.sha }} 2>&1 | Tee-Object -FilePath build_windows.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Windows 构建失败注解

@@ -19,6 +19,10 @@ class BinaryInitializer {
   /// 初始化二进制（幂等操作，已就绪则跳过）
   static Future<BinaryInitResult> initialize() async {
     try {
+      // 升级后把旧的 yt-dlp 换成新构建（SABR 版），否则已提取的旧二进制
+      // 会一直挡在前面，用户升级 App 也拿不到 YouTube 1080p 修复。
+      await _syncYtDlpBuild();
+
       // node + 抖音签名 JS 与 yt-dlp/ffmpeg 独立，任何时候都要提取（幂等），
       // 不能放进下面的「已就绪则跳过」分支，否则老用户升级后 node 永远不落盘
       await _extractBinaryOrSkip(BinaryLocator.nodeFileName);
@@ -73,6 +77,46 @@ class BinaryInitializer {
     }
   }
 
+  /// 按构建标识同步 yt-dlp：只有 CI 传了 `YTDLP_BUILD` 才强制替换。
+  ///
+  /// - 标记文件与当前构建一致 → 不重复提取
+  /// - 架构专用 asset（SABR 版）缺失 → 回退官方 `yt-dlp` universal 包
+  static Future<void> _syncYtDlpBuild() async {
+    final buildId = BinaryLocator.ytDlpBuildId;
+    if (buildId.isEmpty) return;
+    try {
+      final binDir = await BinaryLocator.getBinDirectory();
+      final marker = File('${binDir.path}/.yt-dlp-build');
+      final current = marker.existsSync()
+          ? marker.readAsStringSync().trim()
+          : '';
+      if (current == buildId) return;
+
+      final target = File('${binDir.path}/${BinaryLocator.ytDlpFileName}');
+      if (target.existsSync()) {
+        await target.delete();
+      }
+      try {
+        await _extractBinary(
+          BinaryLocator.ytDlpFileName,
+          assetName: BinaryLocator.ytDlpAssetName,
+        );
+        debugPrint(
+          '[BinaryInit] yt-dlp 已更新：${BinaryLocator.ytDlpAssetName}（$buildId）',
+        );
+      } catch (e) {
+        debugPrint(
+          '[BinaryInit] ${BinaryLocator.ytDlpAssetName} 不可用，回退官方 yt-dlp：$e',
+        );
+        await _extractBinary(BinaryLocator.ytDlpFileName);
+      }
+      await marker.writeAsString(buildId);
+    } catch (e) {
+      // 同步失败不阻断启动；后续 isReady() 会继续走系统 PATH/旧二进制
+      debugPrint('[BinaryInit] 同步 yt-dlp 构建失败：$e');
+    }
+  }
+
   /// 从 assets 提取单个二进制；失败（如开发态 assets 为空）仅记录日志不抛异常
   static Future<void> _extractBinaryOrSkip(String fileName) async {
     try {
@@ -83,7 +127,10 @@ class BinaryInitializer {
   }
 
   /// 从 assets 提取单个二进制（失败抛异常，由上层捕获）
-  static Future<void> _extractBinary(String fileName) async {
+  static Future<void> _extractBinary(
+    String fileName, {
+    String? assetName,
+  }) async {
     final binDir = await BinaryLocator.getBinDirectory();
     final targetPath = '${binDir.path}/$fileName';
     final targetFile = File(targetPath);
@@ -95,7 +142,7 @@ class BinaryInitializer {
     }
 
     final platformDir = _getPlatformDir();
-    final assetPath = 'assets/bin/$platformDir/$fileName';
+    final assetPath = 'assets/bin/$platformDir/${assetName ?? fileName}';
 
     final data = await rootBundle.load(assetPath);
     final bytes = data.buffer.asUint8List();
@@ -128,7 +175,9 @@ class BinaryInitializer {
     for (final name in files) {
       try {
         final data = await rootBundle.load('assets/douyin_sign/$name');
-        await File('${targetDir.path}/$name').writeAsBytes(data.buffer.asUint8List());
+        await File(
+          '${targetDir.path}/$name',
+        ).writeAsBytes(data.buffer.asUint8List());
       } catch (e) {
         debugPrint('[BinaryInit] douyin_sign/$name 提取失败（开发态正常）: $e');
       }

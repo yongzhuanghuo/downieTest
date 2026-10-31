@@ -33,7 +33,11 @@ class YtDlpRunner {
   static Future<String> getVersion() async {
     final result = await _runCommand(['--version']);
     if (result.exitCode != 0) {
-      throw YtDlpException('获取版本失败', exitCode: result.exitCode, stderr: result.stderr);
+      throw YtDlpException(
+        '获取版本失败',
+        exitCode: result.exitCode,
+        stderr: result.stderr,
+      );
     }
     return result.stdout.trim();
   }
@@ -48,6 +52,15 @@ class YtDlpRunner {
   /// 开发态走 PATH 的 brew/pip 版会被禁用（提示用 pip 更新），返回失败即可静默跳过。
   static Future<({bool ok, String version, String message})> update() async {
     final before = await getVersion();
+    // SABR 版是固定 fork 构建，`yt-dlp -U` 会把它换回正式版并丢失 YouTube
+    // SABR 下载能力；必须随 App 一起更新。
+    if (BinaryLocator.ytDlpBuildId.isNotEmpty) {
+      return (
+        ok: false,
+        version: before,
+        message: '当前为 SABR 构建，请随 App 更新（不支持 yt-dlp -U）',
+      );
+    }
     final result = await _runCommand(['-U', '--no-warnings']);
     final after = await getVersion();
     if (result.exitCode != 0) {
@@ -70,7 +83,9 @@ class YtDlpRunner {
   static Future<VideoInfo> parse(String url) async {
     // 站点登录 cookie（解析阶段也可能需要，如抖音）
     final cookiePaths = await SiteCookies.allCookieFilePaths();
-    debugPrint('[解析] cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}');
+    debugPrint(
+      '[解析] cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}',
+    );
     for (final cp in cookiePaths) {
       try {
         final lines = await File(cp).readAsLines();
@@ -80,13 +95,17 @@ class YtDlpRunner {
             .toList();
         // 关键登录态/反爬 cookie 概览：抖音缺 msToken 就是 Fresh cookies 的直接原因
         final hasMsToken = names.contains('msToken');
-        final hasSession = names.any((n) =>
-            n.contains('session') ||
-            n.contains('sid_') ||
-            n.contains('login_time'));
-        debugPrint('[解析]   $cp 共 ${names.length} 条，'
-            'msToken=${hasMsToken ? '有' : '❌无'}，'
-            '登录态cookie=${hasSession ? '有' : '❌无'}');
+        final hasSession = names.any(
+          (n) =>
+              n.contains('session') ||
+              n.contains('sid_') ||
+              n.contains('login_time'),
+        );
+        debugPrint(
+          '[解析]   $cp 共 ${names.length} 条，'
+          'msToken=${hasMsToken ? '有' : '❌无'}，'
+          '登录态cookie=${hasSession ? '有' : '❌无'}',
+        );
         debugPrint('[解析]   名字: ${names.join(', ')}');
       } catch (e) {
         debugPrint('[解析]   读 cookie 文件失败: $e');
@@ -206,30 +225,32 @@ class YtDlpRunner {
       if (!webpage.startsWith('http')) continue;
       if (!seen.add(webpage)) continue;
 
-      result.add(VideoInfo(
-        url: webpage,
-        title: json['title'] as String? ?? '未命名视频',
-        duration: (json['duration'] as num?)?.toInt() ?? 0,
-        uploader: json['uploader'] as String? ??
-            json['channel'] as String? ??
-            '',
-        thumbnail: _playlistThumbnail(json),
-        extractor: json['extractor_key'] as String? ??
-            json['extractor'] as String? ??
-            'Unknown',
-        videoId: json['id']?.toString() ?? '',
-        formats: const [
-          FormatOption(
-            formatId: 'bv*+ba/b',
-            label: '最佳画质',
-            height: 0,
-            ext: 'mp4',
-            needsMerge: true,
-          ),
-        ],
-        playlistTitle: json['playlist_title'] as String? ?? '',
-        rawJson: json,
-      ));
+      result.add(
+        VideoInfo(
+          url: webpage,
+          title: json['title'] as String? ?? '未命名视频',
+          duration: (json['duration'] as num?)?.toInt() ?? 0,
+          uploader:
+              json['uploader'] as String? ?? json['channel'] as String? ?? '',
+          thumbnail: _playlistThumbnail(json),
+          extractor:
+              json['extractor_key'] as String? ??
+              json['extractor'] as String? ??
+              'Unknown',
+          videoId: json['id']?.toString() ?? '',
+          formats: const [
+            FormatOption(
+              formatId: 'bv*+ba/b',
+              label: '最佳画质',
+              height: 0,
+              ext: 'mp4',
+              needsMerge: true,
+            ),
+          ],
+          playlistTitle: json['playlist_title'] as String? ?? '',
+          rawJson: json,
+        ),
+      );
     }
     return result;
   }
@@ -286,8 +307,7 @@ class YtDlpRunner {
       if (!ffOk) {
         // 尝试从 PATH 查找
         try {
-          final which =
-              await Process.run('which', ['ffmpeg']);
+          final which = await Process.run('which', ['ffmpeg']);
           if (which.exitCode == 0) {
             actualFfmpegPath = (which.stdout as String).trim();
             debugPrint('[YtDlp] 从 PATH 找到 ffmpeg: $actualFfmpegPath');
@@ -297,14 +317,10 @@ class YtDlpRunner {
         try {
           final recheck = Process.runSync(actualFfmpegPath, ['-version']);
           if (recheck.exitCode != 0) {
-            throw YtDlpException(
-              'ffmpeg 不可用，无法合并音视频流。路径: $actualFfmpegPath',
-            );
+            throw YtDlpException('ffmpeg 不可用，无法合并音视频流。路径: $actualFfmpegPath');
           }
         } catch (e) {
-          throw YtDlpException(
-            'ffmpeg 不可用，无法合并音视频流。请确认 ffmpeg 已安装。',
-          );
+          throw YtDlpException('ffmpeg 不可用，无法合并音视频流。请确认 ffmpeg 已安装。');
         }
       }
     }
@@ -312,14 +328,15 @@ class YtDlpRunner {
     // 站点登录 cookie：把所有已登录站点的 cookies.txt 都传给 yt-dlp（按域名自动匹配）
     final cookiePaths = await SiteCookies.allCookieFilePaths();
     debugPrint(
-        '[YtDlp] 下载使用 cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}');
+      '[YtDlp] 下载使用 cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}',
+    );
 
     final settings = SettingsStorage.instance.current;
     final proxy = settings.proxy;
-    final effectiveConnections =
-        connections > 0 ? connections : settings.connectionsPerDownload;
-    final subtitleLangs =
-        settings.subtitleLangs.replaceAll(RegExp(r'\s+'), '');
+    final effectiveConnections = connections > 0
+        ? connections
+        : settings.connectionsPerDownload;
+    final subtitleLangs = settings.subtitleLangs.replaceAll(RegExp(r'\s+'), '');
     final args = <String>[
       '--newline', // 每行一个进度，便于解析
       '--no-warnings',
@@ -328,20 +345,22 @@ class YtDlpRunner {
       '-f', formatId,
       '-o', outputPath,
       '--ffmpeg-location', actualFfmpegPath,
-      if (effectiveConnections > 1)
-        ...['--concurrent-fragments', '$effectiveConnections'],
-      if (settings.chunkSizeMb > 0)
-        ...['--http-chunk-size', '${settings.chunkSizeMb}M'],
-      if ((throttleKbps > 0 ? throttleKbps : settings.throttleKbps) > 0)
-        ...[
-          '--limit-rate',
-          '${throttleKbps > 0 ? throttleKbps : settings.throttleKbps}K',
-        ],
+      if (effectiveConnections > 1) ...[
+        '--concurrent-fragments',
+        '$effectiveConnections',
+      ],
+      if (settings.chunkSizeMb > 0) ...[
+        '--http-chunk-size',
+        '${settings.chunkSizeMb}M',
+      ],
+      if ((throttleKbps > 0 ? throttleKbps : settings.throttleKbps) > 0) ...[
+        '--limit-rate',
+        '${throttleKbps > 0 ? throttleKbps : settings.throttleKbps}K',
+      ],
       if (settings.saveMetadataJson) '--write-info-json',
       if (settings.forceReencode) ...['--recode-video', 'mp4'],
       if (settings.nativeHlsEngine) '--hls-prefer-native',
-      if (audioOnly)
-        ...['-x', '--audio-format', settings.preferredAudioFormat],
+      if (audioOnly) ...['-x', '--audio-format', settings.preferredAudioFormat],
       if (!audioOnly) ...['--merge-output-format', 'mp4'],
       if (downloadSubtitles) ...[
         '--write-subs',
@@ -355,7 +374,11 @@ class YtDlpRunner {
         ],
       ],
       // --write-thumbnail 只写一张默认封面（即最高清那张），--write-all-thumbnails 才会写多张
-      if (downloadCover) ...['--write-thumbnail', '--convert-thumbnails', 'jpg'],
+      if (downloadCover) ...[
+        '--write-thumbnail',
+        '--convert-thumbnails',
+        'jpg',
+      ],
       ..._cookieArgs(cookiePaths),
       url,
     ];
@@ -365,16 +388,17 @@ class YtDlpRunner {
       try {
         logFile = File(logPath);
         await logFile.parent.create(recursive: true);
-        await logFile.writeAsString(
-          '[cmd] $ytDlpPath ${args.join(' ')}\n',
-        );
+        await logFile.writeAsString('[cmd] $ytDlpPath ${args.join(' ')}\n');
       } catch (_) {
         logFile = null;
       }
     }
 
-    final process =
-        await Process.start(ytDlpPath, args, environment: _processEnv);
+    final process = await Process.start(
+      ytDlpPath,
+      args,
+      environment: _processEnv,
+    );
     final stdoutBuffer = StringBuffer();
     final stderrBuffer = StringBuffer();
 
@@ -383,20 +407,20 @@ class YtDlpRunner {
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      stdoutBuffer.writeln(line);
-      final progress = _parseProgressLine(line);
-      if (progress != null) {
-        onProgress(progress);
-      }
-    });
+          stdoutBuffer.writeln(line);
+          final progress = _parseProgressLine(line);
+          if (progress != null) {
+            onProgress(progress);
+          }
+        });
 
     // 监听 stderr（错误/警告）
     final stderrSub = process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      stderrBuffer.writeln(line);
-    });
+          stderrBuffer.writeln(line);
+        });
 
     // 取消检查
     Timer? cancelTimer;
@@ -443,7 +467,8 @@ class YtDlpRunner {
 
     // 检查合并是否发生（formatId 含 + 表示需要合并音视频流）
     final needsMerge = formatId.contains('+');
-    final hasMergeLine = fullStdout.contains('Merging formats into') ||
+    final hasMergeLine =
+        fullStdout.contains('Merging formats into') ||
         fullStderr.contains('Merging formats into');
 
     // 从 yt-dlp 输出中提取最终文件路径
@@ -537,16 +562,17 @@ class YtDlpRunner {
   ///
   /// 禁用 Python 字节码缓存（PYTHONDONTWRITEBYTECODE），
   /// 避免 brew 版 yt-dlp 运行时写 __pycache__ 到受限目录（如 sandbox）。
-  static Map<String, String> get _processEnv =>
-      {...Platform.environment, 'PYTHONDONTWRITEBYTECODE': '1'};
+  static Map<String, String> get _processEnv => {
+    ...Platform.environment,
+    'PYTHONDONTWRITEBYTECODE': '1',
+  };
 
   /// 执行 yt-dlp 命令并等待完成
   static Future<({int exitCode, String stdout, String stderr})> _runCommand(
     List<String> args,
   ) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
-    final result =
-        await Process.run(ytDlpPath, args, environment: _processEnv);
+    final result = await Process.run(ytDlpPath, args, environment: _processEnv);
     return (
       exitCode: result.exitCode,
       stdout: result.stdout.toString(),
@@ -563,7 +589,8 @@ class YtDlpRunner {
       duration: (json['duration'] as num?)?.toInt() ?? 0,
       uploader: json['uploader'] as String? ?? '未知',
       thumbnail: json['thumbnail'] as String? ?? '',
-      extractor: json['extractor_key'] as String? ??
+      extractor:
+          json['extractor_key'] as String? ??
           json['extractor'] as String? ??
           'Unknown',
       videoId: json['id'] as String? ?? '',
@@ -676,7 +703,9 @@ class YtDlpRunner {
       String? audioId;
       if (ext == 'mp4' || vCodec.contains('avc') || vCodec.contains('h264')) {
         audioId = bestM4aAudioId;
-      } else if (ext == 'webm' || vCodec.contains('vp9') || vCodec.contains('av01')) {
+      } else if (ext == 'webm' ||
+          vCodec.contains('vp9') ||
+          vCodec.contains('av01')) {
         audioId = bestWebmAudioId ?? bestM4aAudioId;
       } else {
         audioId = bestM4aAudioId;
@@ -687,22 +716,25 @@ class YtDlpRunner {
           ? '$formatId+$audioId'
           : formatId;
 
-      final fileSize = (v['filesize'] as num?)?.toInt() ??
+      final fileSize =
+          (v['filesize'] as num?)?.toInt() ??
           (v['filesize_approx'] as num?)?.toInt();
       final fps = (v['fps'] as num?)?.toInt();
       final vbr = (v['vbr'] as num?)?.toInt();
 
-      options.add(FormatOption(
-        formatId: combinedId,
-        label: '${height}p ${ext.toUpperCase()}',
-        height: height,
-        ext: ext,
-        audioOnly: false,
-        fileSize: fileSize,
-        needsMerge: true,
-        vbr: vbr,
-        fps: fps,
-      ));
+      options.add(
+        FormatOption(
+          formatId: combinedId,
+          label: '${height}p ${ext.toUpperCase()}',
+          height: height,
+          ext: ext,
+          audioOnly: false,
+          fileSize: fileSize,
+          needsMerge: true,
+          vbr: vbr,
+          fps: fps,
+        ),
+      );
       seenHeights.add(height);
     }
 
@@ -713,22 +745,25 @@ class YtDlpRunner {
 
       final ext = c['ext']?.toString() ?? 'mp4';
       final formatId = c['format_id']?.toString() ?? '';
-      final fileSize = (c['filesize'] as num?)?.toInt() ??
+      final fileSize =
+          (c['filesize'] as num?)?.toInt() ??
           (c['filesize_approx'] as num?)?.toInt();
       final fps = (c['fps'] as num?)?.toInt();
       final vbr = (c['vbr'] as num?)?.toInt();
 
-      options.add(FormatOption(
-        formatId: formatId,
-        label: '${height}p ${ext.toUpperCase()}',
-        height: height,
-        ext: ext,
-        audioOnly: false,
-        fileSize: fileSize,
-        needsMerge: false,
-        vbr: vbr,
-        fps: fps,
-      ));
+      options.add(
+        FormatOption(
+          formatId: formatId,
+          label: '${height}p ${ext.toUpperCase()}',
+          height: height,
+          ext: ext,
+          audioOnly: false,
+          fileSize: fileSize,
+          needsMerge: false,
+          vbr: vbr,
+          fps: fps,
+        ),
+      );
     }
 
     // 第四轮：纯音频选项
@@ -739,20 +774,23 @@ class YtDlpRunner {
         orElse: () => audioStreams.first,
       );
       final audioId = bestAudio['format_id']?.toString() ?? '';
-      final fileSize = (bestAudio['filesize'] as num?)?.toInt() ??
+      final fileSize =
+          (bestAudio['filesize'] as num?)?.toInt() ??
           (bestAudio['filesize_approx'] as num?)?.toInt();
       final abr = (bestAudio['abr'] as num?)?.toInt();
 
-      options.add(FormatOption(
-        formatId: '$audioId/bestaudio/best',
-        label: 'MP3 纯音频',
-        height: 0,
-        ext: 'mp3',
-        audioOnly: true,
-        fileSize: fileSize,
-        needsMerge: false,
-        abr: abr,
-      ));
+      options.add(
+        FormatOption(
+          formatId: '$audioId/bestaudio/best',
+          label: 'MP3 纯音频',
+          height: 0,
+          ext: 'mp3',
+          audioOnly: true,
+          fileSize: fileSize,
+          needsMerge: false,
+          abr: abr,
+        ),
+      );
     }
 
     // 按清晰度从高到低排序（0=音频排最后）
@@ -878,8 +916,9 @@ class YtDlpRunner {
   static String _extractOutputPath(String stdout, String template) {
     // 查找合并行（yt-dlp 新版 [Merger]，旧版 [ffmpeg]）
     // [Merger] Merging formats into "xxx.mp4"
-    final mergeRegex =
-        RegExp(r'\[(?:Merger|ffmpeg)\] Merging formats into "(.+)"');
+    final mergeRegex = RegExp(
+      r'\[(?:Merger|ffmpeg)\] Merging formats into "(.+)"',
+    );
     final mergeMatch = mergeRegex.firstMatch(stdout);
     if (mergeMatch != null) {
       return mergeMatch.group(1)!;

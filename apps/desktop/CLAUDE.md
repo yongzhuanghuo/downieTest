@@ -58,6 +58,8 @@ bash tools/generate_icons.sh                                        # 重新生�
 
 yt-dlp / ffmpeg 放在 `assets/bin/{macos,windows}/`（被 .gitignore 忽略，不进库，CI 构建时现下）。首次运行由 `BinaryInitializer` 复制到应用支持目录；`BinaryLocator` 定位（开发态回退系统 PATH）。macOS 的 ffmpeg 需合成为 universal（x86_64 + arm64，用 `lipo -create`）。
 
+YouTube SABR 是特例：yt-dlp 正式版还不支持（上游 issue #12482 / PR #13515 未合并），CI 用 `tools/build_sabr_ytdlp.py` 从固定 commit 的 `coletdjnz/yt-dlp-dev` 构建 `yt-dlp_arm64` / `yt-dlp_x86_64` / `yt-dlp.exe`；官方 universal `yt-dlp` 保留为兜底。`BinaryLocator.ytDlpAssetName` 按架构选择，`BinaryInitializer._syncYtDlpBuild` 通过 `--dart-define=YTDLP_BUILD=...` 写 `.yt-dlp-build` 标记，App 升级后会自动替换已提取的旧二进制。升级 fork 时同时改 `build_sabr_ytdlp.py` 的 `SABR_SHA` 和 workflow 里的 `YTDLP_BUILD`。注意 PyInstaller 打包的 yt-dlp 按上游声明是 GPLv3+（官方 yt-dlp 二进制同样如此）；分发时保留 THIRD_PARTY_LICENSES。
+
 ### 站点登录（cookie）
 
 下载/解析失败且报错含 `cookie / login / sign in / bot / 登录 / 验证` 等关键词时，`site_login_prompt.dart` 的 `promptSiteLogin` 弹「需要登录 XX 站」→ `site_login_dialog.dart`（flutter_inappwebview 内置浏览器）登录 → `SiteCookies.saveCookies` 按站点写成 `cookies/<站点>.txt`（Netscape 格式）→ yt-dlp 下载/解析时把 `cookies/` 下所有文件用多个 `--cookies` 传入。

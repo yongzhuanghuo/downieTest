@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -25,6 +26,31 @@ class BinaryLocator {
 
   /// yt-dlp 可执行文件名
   static String get ytDlpFileName => 'yt-dlp$_exeSuffix';
+
+  /// 当前架构对应的 yt-dlp asset 名。
+  ///
+  /// macOS 同时打包 arm64 / x86_64 的 SABR 版；CI 还会保留官方 universal
+  /// `yt-dlp` 作为兜底（架构专用文件缺失时使用）。
+  static String get ytDlpAssetName {
+    if (Platform.isMacOS) {
+      switch (Abi.current()) {
+        case Abi.macosArm64:
+          return 'yt-dlp_arm64';
+        case Abi.macosX64:
+          return 'yt-dlp_x86_64';
+        default:
+          break;
+      }
+    }
+    return ytDlpFileName;
+  }
+
+  /// 本次构建使用的 yt-dlp 构建标识（CI 通过 --dart-define 传入）。
+  /// 为空表示开发态/旧构建，不强制替换已提取的二进制。
+  static const String ytDlpBuildId = String.fromEnvironment(
+    'YTDLP_BUILD',
+    defaultValue: '',
+  );
 
   /// FFmpeg 可执行文件名
   static String get ffmpegFileName => 'ffmpeg$_exeSuffix';
@@ -99,8 +125,9 @@ class BinaryLocator {
     final cached = _probeCache[key];
     if (cached != null) return cached;
     try {
-      final result = await Process.run(path, [flag])
-          .timeout(const Duration(seconds: 30));
+      final result = await Process.run(path, [
+        flag,
+      ]).timeout(const Duration(seconds: 30));
       if (result.exitCode == 0) {
         _probeCache[key] = true;
         return true;
@@ -125,7 +152,8 @@ class BinaryLocator {
       final env = Map<String, String>.from(Platform.environment);
       if (Platform.isMacOS) {
         final origPath = env['PATH'] ?? '';
-        const extras = '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+        const extras =
+            '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
         env['PATH'] = origPath.isEmpty ? extras : '$origPath:$extras';
       }
       final result = await Process.run(cmd, [name], environment: env);
@@ -145,10 +173,10 @@ class BinaryLocator {
 
     // 2. 常见绝对路径
     final candidates = <String>[
-      '/opt/homebrew/bin/$name',    // Apple Silicon brew (优先)
-      '/usr/local/bin/$name',       // Intel Mac brew
-      '/usr/bin/$name',             // 系统自带
-      'C:\\ProgramData\\chocolatey\\bin\\$name.exe',  // Windows chocolatey
+      '/opt/homebrew/bin/$name', // Apple Silicon brew (优先)
+      '/usr/local/bin/$name', // Intel Mac brew
+      '/usr/bin/$name', // 系统自带
+      'C:\\ProgramData\\chocolatey\\bin\\$name.exe', // Windows chocolatey
       'C:\\FFmpeg\\bin\\$name.exe', // Windows FFmpeg 官方
     ];
     for (final p in candidates) {
