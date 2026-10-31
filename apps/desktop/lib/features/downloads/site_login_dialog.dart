@@ -101,11 +101,31 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   String get _loginUrl => widget.initialUrl ?? widget.site.loginUrl;
 
   /// 抖音等站点会按 UA 返回不同的登录页；用桌面 Chrome UA 才能出现
-  /// 短信/扫码等完整控件。Downie 的 XULoginHelper 也配置了自定义 UA。
-  static const String _desktopUA =
+  /// 短信/扫码等完整控件。
+  static const String _chromeUA =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
       'AppleWebKit/537.36 (KHTML, like Gecko) '
       'Chrome/126.0.0.0 Safari/537.36';
+
+  /// Google 会拒绝「嵌入式 Chrome」登录（“此浏览器或应用可能不安全”）。
+  /// WKWebView 本身就是 Safari 内核，登录窗口默认改用 Safari UA；
+  /// Downie 的 XULoginHelper 也是用 Safari UA 打开登录页。
+  static const String _safariUA =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) '
+      'AppleWebKit/605.1.15 (KHTML, like Gecko) '
+      'Version/26.0 Safari/605.1.15';
+
+  static const String _edgeUA =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+      'AppleWebKit/537.36 (KHTML, like Gecko) '
+      'Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0';
+
+  String get _loginUserAgent {
+    // 抖音必须用 Chrome UA 才出完整登录控件；其余站点用平台原生浏览器 UA，
+    // 避免 Google 把登录窗口识别成不安全的嵌入式浏览器。
+    if (widget.site.id == 'douyin') return _chromeUA;
+    return Platform.isMacOS ? _safariUA : _edgeUA;
+  }
 
   /// 抖音登录页会自己请求 aweme/detail；截获后可直接拿到视频数据，
   /// 不再依赖登录后的 HTTP 签名/风控。
@@ -257,43 +277,39 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         }
       }
       // Windows 上必须传 webViewEnvironment，否则 CookieManager 报 Cannot obtain the WebViewEnvironment
-      final allCookies = await CookieManager.instance(
-        webViewEnvironment: widget.environment,
-      ).getCookies(url: WebUri(_loginUrl));
-      // 登录页里的第三方 iframe 会把别站（YouTube/Netflix 等）的 cookie 也带进来，
-      // 按站点域名过滤掉，避免串台。
-      final cookies = _filterSiteCookies(allCookies);
-      debugPrint(
-          '[登录] ${widget.site.name} 抓到 ${allCookies.length} 条（过滤后 ${cookies.length} 条）');
+      final cookies = await _collectCookies();
+      debugPrint('[登录] ${widget.site.name} 抓到 ${cookies.length} 条站点 cookie');
       for (final c in cookies) {
         debugPrint('[登录]   cookie: ${c.name} @ ${c.domain}');
       }
       if (widget.site.id == 'douyin') {
-        final hasUifid = cookies.any(
-          (c) => c.name.toUpperCase() == 'UIFID',
+        final hasUifid = cookies.any((c) => c.name.toUpperCase() == 'UIFID');
+        debugPrint(
+          '[登录] 抖音 UIFID cookie: ${hasUifid ? '✓' : '×（等待页面安全 SDK 写入）'}',
         );
-        debugPrint('[登录] 抖音 UIFID cookie: ${hasUifid ? '✓' : '×（等待页面安全 SDK 写入）'}');
       }
       if (cookies.isEmpty) {
-        debugPrint('[登录] ⚠️ 抓到 0 条 cookie —— 很可能没在页面里真正登录！');
-      }
-      // 检测是否有登录态 cookie（抖音 sessionid / YouTube SID / B站 SESSDATA 等）
-      final hasLogin = _hasLoginCookie(cookies);
-      if (!hasLogin) {
-        debugPrint('[登录] ⚠️ 没发现登录 cookie，可能没真正登录');
+        debugPrint('[登录] ⚠️ 抓到 0 条 cookie，无法继续');
         if (mounted) {
           setState(() {
             _saving = false;
             _loginDetected = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('还没登录成功，请先在页面里登录账号（看到头像/昵称）再点完成'),
-            ),
+            const SnackBar(content: Text('没有抓到任何 Cookie，请等页面加载完或先登录再点完成')),
           );
-          _startLoginPolling(); // 重新监听登录态
+          _startLoginPolling();
         }
-        return; // 不关闭弹窗，让用户继续登录
+        return;
+      }
+      // Downie 的登录窗只要页面有 Cookie 就允许点 Done（“Consider Logged In”），
+      // 不强制要求识别到登录态 cookie。YouTube 的 bot 检查页就是这种情况：
+      // 没登录但已有访客 Cookie，直接用这些 Cookie 重试往往就能过。
+      final hasLogin = _hasLoginCookie(cookies);
+      if (!hasLogin) {
+        debugPrint(
+          '[登录] 没发现登录 cookie，但已有 ${cookies.length} 条站点 cookie，按 Downie 行为继续',
+        );
       }
       await SiteCookies.saveCookies(widget.site.id, cookies);
 
@@ -307,8 +323,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         debugPrint('[登录] 抖音站点 → 尝试补抓 msToken');
         final msToken = await _extractMsToken();
         if (msToken != null && msToken.isNotEmpty) {
-          debugPrint(
-              '[登录] ✅ 抓到 msToken（${msToken.length} 字符），补进 cookie');
+          debugPrint('[登录] ✅ 抓到 msToken（${msToken.length} 字符），补进 cookie');
           await _appendMsToken(msToken);
         } else {
           debugPrint('[登录] ⚠️ 没抓到 msToken，抖音解析可能仍报 Fresh cookies');
@@ -323,17 +338,19 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
           's_v_web_id',
         ]);
       } else {
-        debugPrint('[登录] ${widget.site.name}（id=${widget.site.id}）非抖音，'
-            '跳过 msToken 抓取，不影响其他站点');
+        debugPrint(
+          '[登录] ${widget.site.name}（id=${widget.site.id}）非抖音，'
+          '跳过 msToken 抓取，不影响其他站点',
+        );
       }
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存 Cookie 失败：$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('保存 Cookie 失败：$e')));
       }
     }
   }
@@ -341,23 +358,27 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
   /// 定时检测页面是否已登录，登录后解锁「完成登录」按钮
   void _startLoginPolling() {
     _pollTimer?.cancel();
-    _pollTimer =
-        Timer.periodic(const Duration(seconds: 2), (_) => _detectLogin());
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _detectLogin(),
+    );
   }
 
-  /// 抓 cookie 判断是否有登录态；检测到后解锁按钮并停止轮询
+  /// 抓 cookie 判断是否有登录态 / 是否已有站点 Cookie。
+  ///
+  /// Downie 的按钮在「Has Cookie」时就会解锁；我们同样让有 Cookie 就能点，
+  /// 不要求一定识别到 session/sid 这类登录态。
   Future<void> _detectLogin() async {
     if (_loginDetected || _saving) return;
     final c = _controller;
     if (c == null) return;
     try {
-      final allCookies = await CookieManager.instance(
-        webViewEnvironment: widget.environment,
-      ).getCookies(url: WebUri(_loginUrl));
-      final cookies = _filterSiteCookies(allCookies);
-      if (_hasLoginCookie(cookies) && mounted) {
-        debugPrint('[登录] ✅ 检测到登录态，解锁「完成登录」');
+      final cookies = await _collectCookies();
+      final hasLogin = _hasLoginCookie(cookies);
+      if (!mounted) return;
+      if (hasLogin && !_loginDetected) {
         setState(() => _loginDetected = true);
+        debugPrint('[登录] ✅ 检测到登录态');
         _pollTimer?.cancel();
         _startDouyinCapture();
         _maybeReloadAfterLogin();
@@ -378,18 +399,47 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     });
   }
 
+  /// 抓取站点主域 + 额外域名的 cookie。
+  ///
+  /// YouTube 的登录态分散在 `.youtube.com` 和 `.google.com`，只读原视频
+  /// URL（youtu.be）会漏掉登录 cookie；这里对每个域名都取一次再合并。
+  Future<List<Cookie>> _collectCookies() async {
+    final manager = CookieManager.instance(
+      webViewEnvironment: widget.environment,
+    );
+    final urls = <String>{_loginUrl};
+    for (final raw in widget.site.allCookieDomains) {
+      final bare = (raw.startsWith('.') ? raw.substring(1) : raw).toLowerCase();
+      urls.add('https://www.$bare/');
+    }
+    final merged = <String, Cookie>{};
+    for (final url in urls) {
+      try {
+        final all = await manager.getCookies(url: WebUri(url));
+        for (final c in _filterSiteCookies(all)) {
+          merged['${c.name}|${c.domain}|${c.path}'] = c;
+        }
+      } catch (e) {
+        debugPrint('[登录] 抓取 $url cookie 失败: $e');
+      }
+    }
+    return merged.values.toList();
+  }
+
   /// 只保留属于当前站点的 cookie，过滤掉登录页里第三方 iframe 带进来的别站 cookie。
   /// cookie 的 domain 可能是 `.douyin.com` / `douyin.com` / `www.douyin.com`，
   /// 统一去掉前导点后按「等于目标域 或 是其子域」匹配。
   List<Cookie> _filterSiteCookies(List<Cookie> cookies) {
-    final raw = widget.site.cookieDomain;
-    final target =
-        (raw.startsWith('.') ? raw.substring(1) : raw).toLowerCase();
+    final targets = widget.site.allCookieDomains
+        .map((d) => (d.startsWith('.') ? d.substring(1) : d).toLowerCase())
+        .toList();
     return cookies.where((c) {
       final d = (c.domain ?? '').toLowerCase();
       if (d.isEmpty) return false;
       final norm = d.startsWith('.') ? d.substring(1) : d;
-      return norm == target || norm.endsWith('.$target');
+      return targets.any(
+        (target) => norm == target || norm.endsWith('.$target'),
+      );
     }).toList();
   }
 
@@ -417,7 +467,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       })())
     ''';
     try {
-      final raw = (await c.evaluateJavascript(source: script))?.toString() ?? '';
+      final raw =
+          (await c.evaluateJavascript(source: script))?.toString() ?? '';
       // evaluateJavascript 对字符串返回值可能带 JSON 引号，去掉后再解析
       final jsonStr = raw.startsWith('"') && raw.endsWith('"')
           ? raw.substring(1, raw.length - 1)
@@ -449,8 +500,10 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       final lines = await File(f.path).readAsLines();
       final msLines = lines.where((l) => l.contains('\tmsToken\t')).toList();
       debugPrint('[Cookie] 已追加 msToken 到 ${f.path}');
-      debugPrint('[Cookie] 验证：文件共 ${lines.length} 行，msToken 行数=${msLines.length}'
-          '，msToken 值长度=${msLines.isEmpty ? 0 : msLines.first.length}');
+      debugPrint(
+        '[Cookie] 验证：文件共 ${lines.length} 行，msToken 行数=${msLines.length}'
+        '，msToken 值长度=${msLines.isEmpty ? 0 : msLines.first.length}',
+      );
     } catch (e) {
       debugPrint('[Cookie] 追加 msToken 失败: $e');
     }
@@ -465,16 +518,17 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         _pageLoading) {
       return;
     }
-    final onVideoPage =
-        RegExp(r'/(?:video|note)/\d+').hasMatch(_currentPageUrl);
+    final onVideoPage = RegExp(
+      r'/(?:video|note)/\d+',
+    ).hasMatch(_currentPageUrl);
     _reloadedAfterLogin = true;
     if (onVideoPage) return;
     final controller = _controller;
     if (controller == null) return;
     debugPrint('[登录] 登录后重开短链: $_loginUrl');
-    unawaited(controller.loadUrl(
-      urlRequest: URLRequest(url: WebUri(_loginUrl)),
-    ));
+    unawaited(
+      controller.loadUrl(urlRequest: URLRequest(url: WebUri(_loginUrl))),
+    );
   }
 
   /// 页面加载后持续轮询。抖音的 aweme/detail 可能比页面 onLoadStop 晚
@@ -483,16 +537,13 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     if (widget.site.id != 'douyin' || _douyinReady) return;
     _douyinProbeTimer?.cancel();
     unawaited(_probeDouyin());
-    _douyinProbeTimer = Timer.periodic(
-      const Duration(milliseconds: 1200),
-      (_) {
-        if (!mounted || _douyinReady) {
-          _douyinProbeTimer?.cancel();
-          return;
-        }
-        unawaited(_probeDouyin());
-      },
-    );
+    _douyinProbeTimer = Timer.periodic(const Duration(milliseconds: 1200), (_) {
+      if (!mounted || _douyinReady) {
+        _douyinProbeTimer?.cancel();
+        return;
+      }
+      unawaited(_probeDouyin());
+    });
   }
 
   bool get _hasCachedDouyin {
@@ -532,7 +583,9 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     if (c == null || _probingDouyin) return;
     _probingDouyin = true;
     try {
-      final raw = (await c.evaluateJavascript(source: r'''
+      final raw =
+          (await c.evaluateJavascript(
+            source: r'''
         JSON.stringify((() => {
           const out = {
             href: location.href,
@@ -565,7 +618,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
           } catch (e) {}
           return out;
         })())
-      ''')).toString() ??
+      ''',
+          )).toString() ??
           '';
       final map = jsonDecode(_unwrap(raw)) as Map<String, dynamic>;
       _douyinProbes++;
@@ -590,7 +644,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         }
       }
       if (data.isNotEmpty) {
-        final expectedId = DouyinParser.pageVideoId(href) ??
+        final expectedId =
+            DouyinParser.pageVideoId(href) ??
             DouyinParser.pageVideoId(_currentPageUrl) ??
             DouyinParser.pageVideoId(_loginUrl);
         var cached = DouyinParser.cacheCaptured(
@@ -599,7 +654,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
           expectedId: expectedId,
         );
         if (widget.initialUrl != null) {
-          cached = DouyinParser.cacheCaptured(
+          cached =
+              DouyinParser.cacheCaptured(
                 widget.initialUrl!,
                 data,
                 expectedId: expectedId,
@@ -607,11 +663,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
               cached;
         }
         if (href.isNotEmpty) {
-          cached = DouyinParser.cacheCaptured(
-                href,
-                data,
-                expectedId: expectedId,
-              ) ||
+          cached =
+              DouyinParser.cacheCaptured(href, data, expectedId: expectedId) ||
               cached;
         }
         if (cached) {
@@ -637,11 +690,13 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         return;
       }
       if (verbose || _douyinProbes % 5 == 0) {
-        debugPrint('[登录] 抖音等待 #$_douyinProbes: href=$href '
-            'data=${data.length} hook=${map['hook']} '
-            'uifid=${map['uifid']} '
-            '${detail.isNotEmpty ? 'detail=✓' : 'detail=×'} '
-            'media=${media.length} title=$title');
+        debugPrint(
+          '[登录] 抖音等待 #$_douyinProbes: href=$href '
+          'data=${data.length} hook=${map['hook']} '
+          'uifid=${map['uifid']} '
+          '${detail.isNotEmpty ? 'detail=✓' : 'detail=×'} '
+          'media=${media.length} title=$title',
+        );
       }
       // 如果注入的 hook 没生效，补一次，后续请求仍能抓到。
       if (map['hook'] != true) {
@@ -665,7 +720,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       title: _currentPageTitle,
       height: _douyinVideoHeight,
     );
-    ok = DouyinParser.cacheMedia(
+    ok =
+        DouyinParser.cacheMedia(
           _loginUrl,
           videoUrl: _douyinVideoUrl,
           audioUrl: _douyinAudioUrl,
@@ -675,7 +731,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
         ok;
     final initial = widget.initialUrl;
     if (initial != null) {
-      ok = DouyinParser.cacheMedia(
+      ok =
+          DouyinParser.cacheMedia(
             initial,
             videoUrl: _douyinVideoUrl,
             audioUrl: _douyinAudioUrl,
@@ -709,7 +766,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     if (missing.isEmpty) return;
 
     final keysJson = jsonEncode(missing);
-    final script = '''
+    final script =
+        '''
       JSON.stringify((() => {
         try {
           const out = {};
@@ -722,7 +780,8 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       })())
     ''';
     try {
-      final raw = (await c.evaluateJavascript(source: script))?.toString() ?? '';
+      final raw =
+          (await c.evaluateJavascript(source: script))?.toString() ?? '';
       final jsonStr = raw.startsWith('"') && raw.endsWith('"')
           ? raw.substring(1, raw.length - 1)
           : raw;
@@ -733,9 +792,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       map.forEach((key, value) {
         final v = value.toString();
         if (v.isEmpty) return;
-        buf.writeln(
-          '${widget.site.cookieDomain}\tTRUE\t/\tFALSE\t0\t$key\t$v',
-        );
+        buf.writeln('${widget.site.cookieDomain}\tTRUE\t/\tFALSE\t0\t$key\t$v');
       });
       if (buf.length == 0) return;
       await File(f.path).writeAsString(buf.toString(), mode: FileMode.append);
@@ -784,8 +841,9 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
       builder: (ctx) => AlertDialog(
         title: const Text('登录浏览器'),
         content: const Text(
-          '在打开的网页里完成登录或验证码。检测到登录状态后，'
-          '右上角的 ✓ 会变为可用；点击它会保存登录状态，并继续刚才的解析/下载。',
+          '在打开的网页里完成登录或验证码。页面有 Cookie 后，右上角的 ✓ 就会变绿；'
+          '即使站点没检测到登录，也可以点它保存当前 Cookie 并继续'
+          '（与 Downie 的 Consider Logged In 一致）。',
         ),
         actions: [
           TextButton(
@@ -803,12 +861,15 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     final dark = theme.brightness == Brightness.dark;
     final toolbar = dark ? AppTokens.titleBar : AppTokens.titleBarLight;
     final divider = dark ? AppTokens.divider : AppTokens.dividerLight;
-    final foreground =
-        dark ? AppTokens.textPrimary : AppTokens.textPrimaryLight;
-    final secondary =
-        dark ? AppTokens.textSecondary : AppTokens.textSecondaryLight;
+    final foreground = dark
+        ? AppTokens.textPrimary
+        : AppTokens.textPrimaryLight;
+    final secondary = dark
+        ? AppTokens.textSecondary
+        : AppTokens.textSecondaryLight;
     final host = Uri.tryParse(widget.site.loginUrl)?.host ?? widget.site.name;
-    final canFinish = !_saving && !_webView2Missing && _loginDetected;
+    // 与 Downie 一致：勾始终可点；没 Cookie 时点击会提示等待，而不是灰掉。
+    final canFinish = !_saving && !_webView2Missing;
     final screen = MediaQuery.sizeOf(context);
     final width = (screen.width - 24).clamp(560.0, 1120.0).toDouble();
     final height = (screen.height - 24).clamp(420.0, 700.0).toDouble();
@@ -864,7 +925,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Tooltip(
-                          message: '在页面里完成登录后，点右上角 ✓ 保存登录状态',
+                          message: '登录完成或页面已有 Cookie 后，点右上角 ✓ 保存并继续',
                           child: InkWell(
                             borderRadius: BorderRadius.circular(8),
                             onTap: () => _showLoginInfo(context),
@@ -923,11 +984,10 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
                     ? _buildWebView2Missing(theme)
                     : InAppWebView(
                         webViewEnvironment: widget.environment,
-                        initialUrlRequest:
-                            URLRequest(url: WebUri(_loginUrl)),
+                        initialUrlRequest: URLRequest(url: WebUri(_loginUrl)),
                         initialSettings: InAppWebViewSettings(
                           javaScriptEnabled: true,
-                          userAgent: _desktopUA,
+                          userAgent: _loginUserAgent,
                           javaScriptCanOpenWindowsAutomatically: true,
                           mediaPlaybackRequiresUserGesture: false,
                         ),
@@ -1027,13 +1087,13 @@ class _LoginCheckButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final background = enabled
-        ? AppTokens.accent
+        ? (dark ? AppTokens.success : AppTokens.successLight)
         : (dark ? const Color(0xFF3A3A3A) : const Color(0xFFE3E3E5));
     final color = enabled
         ? Colors.white
         : (dark ? AppTokens.textTertiary : AppTokens.textTertiaryLight);
     return Tooltip(
-      message: enabled ? '完成登录' : '登录成功后可用',
+      message: enabled ? '完成登录（已有 Cookie 即可继续）' : '页面加载后可用',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: enabled ? onTap : null,
@@ -1050,7 +1110,10 @@ class _LoginCheckButton extends StatelessWidget {
               ? SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: color),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: color,
+                  ),
                 )
               : Icon(Icons.check, size: 18, color: color),
         ),

@@ -18,13 +18,20 @@ class SiteConfig {
   /// 抓 cookie 的域名（如 '.youtube.com'）
   final String cookieDomain;
 
+  /// 额外需要抓取的 cookie 域名（如 YouTube 登录态分散在 '.google.com'）
+  final List<String> extraCookieDomains;
+
   const SiteConfig({
     required this.id,
     required this.name,
     required this.domains,
     required this.loginUrl,
     required this.cookieDomain,
+    this.extraCookieDomains = const [],
   });
+
+  /// 登录窗口需要抓取的所有 cookie 域名。
+  List<String> get allCookieDomains => [cookieDomain, ...extraCookieDomains];
 }
 
 /// 内置的常见需登录站点列表
@@ -35,6 +42,9 @@ const List<SiteConfig> kLoginSites = [
     domains: ['youtube.com', 'youtu.be'],
     loginUrl: 'https://www.youtube.com',
     cookieDomain: '.youtube.com',
+    // Google 账号的 SID/HSID/SSID/APISID 等登录 cookie 在 .google.com，
+    // 只抓 .youtube.com 会漏掉，yt-dlp 仍会判定未登录。
+    extraCookieDomains: ['.google.com'],
   ),
   SiteConfig(
     id: 'douyin',
@@ -70,6 +80,7 @@ const List<SiteConfig> kLoginSites = [
     domains: ['weibo.com', 'weibo.cn'],
     loginUrl: 'https://weibo.com',
     cookieDomain: '.weibo.com',
+    extraCookieDomains: ['.weibo.cn'],
   ),
   SiteConfig(
     id: 'twitter',
@@ -77,6 +88,7 @@ const List<SiteConfig> kLoginSites = [
     domains: ['x.com', 'twitter.com', 't.co'],
     loginUrl: 'https://x.com',
     cookieDomain: '.x.com',
+    extraCookieDomains: ['.twitter.com'],
   ),
   SiteConfig(
     id: 'vimeo',
