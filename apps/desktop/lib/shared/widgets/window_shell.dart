@@ -37,11 +37,7 @@ class WindowShell extends ConsumerStatefulWidget {
   final String location;
   final Widget child;
 
-  const WindowShell({
-    super.key,
-    required this.location,
-    required this.child,
-  });
+  const WindowShell({super.key, required this.location, required this.child});
 
   @override
   ConsumerState<WindowShell> createState() => _WindowShellState();
@@ -52,19 +48,16 @@ class _WindowShellState extends ConsumerState<WindowShell> {
 
   bool _dropHover = false;
   StreamSubscription<List<String>>? _instanceSub;
+  Timer? _licenseCheckTimer;
   late final ValueNotifier<({String location, Widget child})> _content;
 
   @override
   void initState() {
     super.initState();
-    _content = ValueNotifier(
-      (location: widget.location, child: widget.child),
-    );
+    _content = ValueNotifier((location: widget.location, child: widget.child));
     if (Platform.isMacOS) {
       _linkChannel.setMethodCallHandler(_onLinkCall);
-      unawaited(
-        _linkChannel.invokeMethod<void>('ready').catchError((_) {}),
-      );
+      unawaited(_linkChannel.invokeMethod<void>('ready').catchError((_) {}));
     }
     if (Platform.isWindows) {
       _instanceSub = SingleInstance.incoming.listen((args) {
@@ -79,24 +72,31 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     }
     unawaited(ref.read(trialProvider.notifier).ensureStarted());
     unawaited(ref.read(licenseNotifierProvider.notifier).verifyCurrentDevice());
+    // 长驻应用也要感知服务端吊销/过期，否则退款或撤销后一直保持 PRO。
+    _licenseCheckTimer = Timer.periodic(
+      const Duration(hours: 6),
+      (_) => unawaited(
+        ref.read(licenseNotifierProvider.notifier).verifyCurrentDevice(),
+      ),
+    );
     unawaited(_syncBrowserBridge());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(TrayService.instance.configure(
-        show: showMainWindow,
-        startAll: () =>
-            ref.read(downloadListProvider.notifier).startAll(),
-        pauseAll: () =>
-            ref.read(downloadListProvider.notifier).pauseAll(),
-        history: () {
-          if (mounted) HistoryWindow.show(context);
-        },
-        settings: () {
-          if (mounted) PreferencesWindow.show(context);
-        },
-        quit: () => windowManager.close(),
-        enabled: ref.read(settingsProvider).showInMenuBar,
-      ));
+      unawaited(
+        TrayService.instance.configure(
+          show: showMainWindow,
+          startAll: () => ref.read(downloadListProvider.notifier).startAll(),
+          pauseAll: () => ref.read(downloadListProvider.notifier).pauseAll(),
+          history: () {
+            if (mounted) HistoryWindow.show(context);
+          },
+          settings: () {
+            if (mounted) PreferencesWindow.show(context);
+          },
+          quit: () => windowManager.close(),
+          enabled: ref.read(settingsProvider).showInMenuBar,
+        ),
+      );
       for (final licenseRequest in AutomationQueue.drainLicenses()) {
         unawaited(_handleLicenseAutomation(licenseRequest));
       }
@@ -126,6 +126,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
 
   @override
   void dispose() {
+    _licenseCheckTimer?.cancel();
     _linkChannel.setMethodCallHandler(null);
     _instanceSub?.cancel();
     _content.dispose();
@@ -160,17 +161,14 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     final notifier = ref.read(licenseNotifierProvider.notifier);
     final (ok, message) = request.activate
         ? await notifier.activate(request.code, email: request.email)
-        : await notifier.deactivateWithCode(
-            request.code,
-            email: request.email,
-          );
+        : await notifier.deactivateWithCode(request.code, email: request.email);
     if (request.activate && ok && request.hide) {
       await ref.read(settingsProvider.notifier).setHideLicenseCode(true);
     }
     if (!mounted) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _handleAutomation(AutomationRequest request) async {
@@ -183,8 +181,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
   /// 启动/停止浏览器接收端口；设置变化时由 ref.listen 重新调用。
   Future<void> _syncBrowserBridge() async {
     final settings = ref.read(settingsProvider);
-    if (!settings.browserBridgeEnabled ||
-        settings.browserBridgeToken.isEmpty) {
+    if (!settings.browserBridgeEnabled || settings.browserBridgeToken.isEmpty) {
       await BrowserBridge.instance.stop();
       return;
     }
@@ -213,7 +210,9 @@ class _WindowShellState extends ConsumerState<WindowShell> {
         forceMp4: settings.forceMp4,
       );
       if (format == null) return false;
-      return await ref.read(downloadListProvider.notifier).startDownload(
+      return await ref
+          .read(downloadListProvider.notifier)
+          .startDownload(
             videoInfo: info,
             format: format,
             downloadSubtitles: settings.defaultDownloadSubtitles,
@@ -236,11 +235,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     final isMac = Platform.isMacOS;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return DropRegion(
-      formats: const [
-        Formats.uri,
-        Formats.plainText,
-        Formats.plainTextFile,
-      ],
+      formats: const [Formats.uri, Formats.plainText, Formats.plainTextFile],
       hitTestBehavior: HitTestBehavior.opaque,
       onDropOver: _onDropOver,
       onDropEnter: (_) => setState(() => _dropHover = true),
@@ -250,72 +245,76 @@ class _WindowShellState extends ConsumerState<WindowShell> {
       child: Stack(
         children: [
           CallbackShortcuts(
-      bindings: {
-        SingleActivator(
-          LogicalKeyboardKey.keyO,
-          meta: isMac,
-          control: !isMac,
-        ): () => AddUrlsPanel.show(context),
-        SingleActivator(
-          LogicalKeyboardKey.comma,
-          meta: isMac,
-          control: !isMac,
-        ): () => PreferencesWindow.show(context),
-        SingleActivator(
-          LogicalKeyboardKey.keyH,
-          meta: isMac,
-          control: !isMac,
-          shift: true,
-        ): () => HistoryWindow.show(context),
-        SingleActivator(
-          LogicalKeyboardKey.keyF,
-          meta: isMac,
-          control: !isMac,
-        ): () => QueueSearchPanel.show(context),
-        SingleActivator(
-          LogicalKeyboardKey.keyE,
-          meta: isMac,
-          control: !isMac,
-        ): () => AddUrlsPanel.show(context),
-        SingleActivator(
-          LogicalKeyboardKey.keyQ,
-          meta: isMac,
-          control: !isMac,
-        ): () => windowManager.close(),
-      },
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          resizeToAvoidBottomInset: false,
-          body: Column(
-            children: [
-              const WindowTitleBar(),
-              Expanded(
-                child: Navigator(
-                  key: contentNavigatorKey,
-                  onGenerateRoute: (_) => MaterialPageRoute<void>(
-                    builder: (_) => ValueListenableBuilder<
-                        ({String location, Widget child})>(
-                      valueListenable: _content,
-                      builder: (_, value, __) => _WindowContent(
-                        location: value.location,
-                        child: value.child,
+            bindings: {
+              SingleActivator(
+                LogicalKeyboardKey.keyO,
+                meta: isMac,
+                control: !isMac,
+              ): () =>
+                  AddUrlsPanel.show(context),
+              SingleActivator(
+                LogicalKeyboardKey.comma,
+                meta: isMac,
+                control: !isMac,
+              ): () =>
+                  PreferencesWindow.show(context),
+              SingleActivator(
+                LogicalKeyboardKey.keyH,
+                meta: isMac,
+                control: !isMac,
+                shift: true,
+              ): () =>
+                  HistoryWindow.show(context),
+              SingleActivator(
+                LogicalKeyboardKey.keyF,
+                meta: isMac,
+                control: !isMac,
+              ): () =>
+                  QueueSearchPanel.show(context),
+              SingleActivator(
+                LogicalKeyboardKey.keyE,
+                meta: isMac,
+                control: !isMac,
+              ): () =>
+                  AddUrlsPanel.show(context),
+              SingleActivator(
+                LogicalKeyboardKey.keyQ,
+                meta: isMac,
+                control: !isMac,
+              ): () =>
+                  windowManager.close(),
+            },
+            child: Focus(
+              autofocus: true,
+              child: Scaffold(
+                resizeToAvoidBottomInset: false,
+                body: Column(
+                  children: [
+                    const WindowTitleBar(),
+                    Expanded(
+                      child: Navigator(
+                        key: contentNavigatorKey,
+                        onGenerateRoute: (_) => MaterialPageRoute<void>(
+                          builder: (_) =>
+                              ValueListenableBuilder<
+                                ({String location, Widget child})
+                              >(
+                                valueListenable: _content,
+                                builder: (_, value, __) => _WindowContent(
+                                  location: value.location,
+                                  child: value.child,
+                                ),
+                              ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
           ),
           if (_dropHover)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: _dropOverlay(dark),
-              ),
-            ),
+            Positioned.fill(child: IgnorePointer(child: _dropOverlay(dark))),
         ],
       ),
     );
@@ -325,8 +324,9 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     return Container(
       margin: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: (dark ? AppTokens.window : AppTokens.windowLight)
-            .withValues(alpha: 0.92),
+        color: (dark ? AppTokens.window : AppTokens.windowLight).withValues(
+          alpha: 0.92,
+        ),
         border: Border.all(color: AppTokens.accent, width: 2),
         borderRadius: BorderRadius.circular(AppRadius.window),
       ),
@@ -341,9 +341,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: dark
-                  ? AppTokens.textPrimary
-                  : AppTokens.textPrimaryLight,
+              color: dark ? AppTokens.textPrimary : AppTokens.textPrimaryLight,
             ),
           ),
         ],
@@ -378,9 +376,9 @@ class _WindowShellState extends ConsumerState<WindowShell> {
     setState(() => _dropHover = false);
     final unique = urls.toSet().toList();
     if (unique.isEmpty) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        const SnackBar(content: Text('没有识别到可下载的链接')),
-      );
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(const SnackBar(content: Text('没有识别到可下载的链接')));
       return;
     }
     await AddUrlsPanel.show(context, initialText: unique.join('\n'));

@@ -28,18 +28,48 @@ _bearer = HTTPBearer(auto_error=False)
 
 # ---------- 管理端 JWT ----------
 
-def _unauthorized() -> HTTPException:
-    return HTTPException(status_code=401, detail={"ok": False, "error": "UNAUTHORIZED"})
+def _unauthorized(message: str = "未登录") -> HTTPException:
+    # 管理后台（Pure-Admin）读取 detail.code / detail.message 做跳转，保持该契约。
+    return HTTPException(status_code=401, detail={"code": 401, "message": message})
 
 
-async def require_admin(cred: Optional[HTTPAuthorizationCredentials] = Depends(_bearer)) -> None:
+async def require_admin(
+    cred: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """管理后台接口：必须是有效 JWT 且账号具有 admin 角色。
+
+    之前的实现只验签、不验角色，任何登录用户都能调卡密/用户管理接口。
+    """
     token = cred.credentials if cred else ""
     if not token:
         raise _unauthorized()
     try:
-        jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+        if payload.get("type") != "access":
+            raise ValueError
     except Exception:
         raise _unauthorized()
+
+    # 延迟导入，避免 security <-> admin.models 的模块级循环依赖
+    from .modules.admin.models import SysRole, SysUser, SysUserRole
+
+    user = await session.scalar(select(SysUser).where(SysUser.id == payload.get("user_id")))
+    if user is None or user.status != 1:
+        raise _unauthorized()
+
+    role_ids = list(
+        (await session.scalars(select(SysUserRole.role_id).where(SysUserRole.user_id == user.id))).all()
+    )
+    roles = (
+        list((await session.scalars(select(SysRole).where(SysRole.id.in_(role_ids)))).all())
+        if role_ids
+        else []
+    )
+    if "admin" not in [r.code for r in roles]:
+        raise HTTPException(status_code=403, detail={"code": 403, "message": "无管理员权限"})
+
+    return {"user_id": user.id, "username": user.username}
 
 
 # ---------- 客户端授权 ----------
@@ -66,6 +96,8 @@ async def require_license(
     lic = await session.scalar(select(License).where(License.code == normalized))
     if lic is None or lic.status == "revoked":
         raise HTTPException(status_code=403, detail={"ok": False, "error": "INVALID_LICENSE"})
+    if lic.expire_at is not None and lic.expire_at <= int(time.time() * 1000):
+        raise HTTPException(status_code=403, detail={"ok": False, "error": "LICENSE_EXPIRED"})
 
     bound = await session.scalar(
         select(DeviceBinding).where(

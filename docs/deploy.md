@@ -108,18 +108,24 @@ flutter build macos --dart-define=API_BASE=http://你的服务器IP:3000
 
 ---
 
-## 五、后续上 HTTPS（可选）
+## 五、上线前必须上 HTTPS
 
-等你有域名后（国内需 ICP 备案），用 Nginx + Let's Encrypt：
+授权、版本接口和更新包地址都在网络上传输，HTTP 会被中间人篡改。有域名后（国内需 ICP 备案）用 Nginx + Let's Encrypt：
 
 ```bash
 sudo apt install -y nginx certbot python3-certbot-nginx
-# 参考 nginx.conf.example 配置反向代理到 127.0.0.1:3000
+# 模板：services/api/nginx.conf.example
+sudo cp services/api/nginx.conf.example /etc/nginx/sites-available/4kdownle
+sudo ln -s /etc/nginx/sites-available/4kdownle /etc/nginx/sites-enabled/
+# 改 server_name 为真实域名后签证书
 sudo certbot --nginx -d your-domain.com
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-然后把客户端 `API_BASE` 改成 `https://your-domain.com` 重新发布即可。
-此时后端代码无需任何改动。
+然后把客户端 `API_BASE` 改成 `https://your-domain.com` 重新发布（CI 的 `--dart-define=API_BASE=...` 也要改）。
+后端代码无需改动；Nginx 会补 `X-Forwarded-For`，服务端限流按真实 IP 计算。
+
+> 没有域名时至少不要把 3000 端口直接暴露公网；可先用 Nginx 自签证书或内网访问。
 
 ---
 

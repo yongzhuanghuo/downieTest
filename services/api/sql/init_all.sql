@@ -1,14 +1,14 @@
 -- ============================================================
 -- 4KDownle 统一服务端：完整建表 + 种子数据（单文件，幂等可重复跑）
 --
--- 包含：9 张表（3 授权 + 6 后台 RBAC）+ 默认角色/菜单/账号
--- 默认账号：admin  /  初始密码：admin123（登录后到后台改）
+-- 包含：10 张表（4 授权 + 6 后台 RBAC）+ 默认角色/菜单
+-- 管理员账号由 scripts/init_db.py 创建（随机密码或 ADMIN_PASSWORD），不在本文件里写死
 --
 -- 用法（在服务器上，容器外执行）：
 --   docker exec -i <容器名> mysql -uroot -p <数据库名> < init_all.sql
 -- ============================================================
 
--- ---------- 授权三张表 ----------
+-- ---------- 授权四张表 ----------
 CREATE TABLE IF NOT EXISTS licenses (
   code        VARCHAR(20)  NOT NULL PRIMARY KEY,
   type        ENUM('free','perpetual') NOT NULL DEFAULT 'perpetual',
@@ -40,6 +40,18 @@ CREATE TABLE IF NOT EXISTS unbind_log (
   unbound_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   reason      VARCHAR(50)  NOT NULL DEFAULT 'user_manual',
   KEY idx_code_time (code, unbound_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS trial_devices (
+  device_fp   VARCHAR(64)  NOT NULL PRIMARY KEY,
+  device_name VARCHAR(255) NULL,
+  platform    VARCHAR(20)  NULL,
+  first_seen  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  trial_start DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  trial_end   DATETIME     NOT NULL,
+  email       VARCHAR(255) NULL,
+  status      ENUM('active','expired','converted','revoked') NOT NULL DEFAULT 'active',
+  last_seen   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------- 后台 RBAC 六张表 ----------
@@ -145,9 +157,8 @@ INSERT IGNORE INTO sys_menus (id, parent_id, menu_type, title, name, path, compo
 INSERT IGNORE INTO sys_role_menus (role_id, menu_id) VALUES
 (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8);
 
--- 默认账号 admin（密码 bcrypt 加密，初始密码 admin123）
-INSERT IGNORE INTO sys_users (id, username, password_hash, nickname, status) VALUES
-(1, 'admin', '$2b$12$T0ntrhGtjmDmyWtJwB68YeKhZ0QVvXAk6TdYzol77sxLgaPRnaoDa', '管理员', 1);
-
--- admin -> 超管角色
-INSERT IGNORE INTO sys_user_roles (user_id, role_id) VALUES (1, 1);
+-- 默认账号不在这里创建：避免仓库里出现固定密码。
+-- 建表后执行 `python scripts/init_db.py`：
+--   - 配置了 ADMIN_PASSWORD 就用它；
+--   - 未配置则随机生成并打印一次。
+-- 已有 admin 账号时该脚本不会覆盖密码。

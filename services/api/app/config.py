@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     latest_build: int = 0           # 客户端对比 build 号（pubspec 的 +N）
     download_url_macos: str = ""
     download_url_windows: str = ""
+    # 安装包 SHA-256（可选；填了客户端下载后会校验，防止 OSS 包被替换/损坏）
+    download_sha256_macos: str = ""
+    download_sha256_windows: str = ""
     changelog: str = ""
     force_update: bool = False
     # yt-dlp cookies 文件路径（Netscape 格式）。B站机房 IP 无 cookie 会被风控 412，填这个绕过

@@ -28,6 +28,22 @@ logging.basicConfig(
 
 MODULES = [m.strip() for m in config.settings.modules.split(",") if m.strip()]
 
+# 没有 JWT_SECRET 时，管理端 token 和签名 URL 都能被伪造 —— 直接拒绝启动。
+if ("admin" in MODULES or "license" in MODULES) and not config.settings.jwt_secret:
+    raise RuntimeError(
+        "JWT_SECRET 未配置。请在 services/api/.env 写入一段足够长的随机字符串后重启；"
+        "它同时用于管理端 JWT 和媒体签名 URL。"
+    )
+
+if "media" in MODULES and not config.settings.signed_urls:
+    logging.getLogger("app.security").warning(
+        "/files 与 /tmp 未启用签名 URL（SIGNED_URLS=0），公网部署前请打开。"
+    )
+if config.settings.allowed_origins.strip() == "*":
+    logging.getLogger("app.security").warning(
+        "ALLOWED_ORIGINS=*：生产环境请收紧为实际域名。"
+    )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -68,12 +84,15 @@ def health():
 def latest_version(platform: str = "macos"):
     """客户端启动时查最新版本。版本信息在 .env 里配，无鉴权（版本号不敏感）。"""
     s = config.settings
-    url = s.download_url_windows if platform == "windows" else s.download_url_macos
+    is_windows = platform == "windows"
+    url = s.download_url_windows if is_windows else s.download_url_macos
+    sha256 = s.download_sha256_windows if is_windows else s.download_sha256_macos
     return {
         "ok": True,
         "version": s.latest_version,
         "build": s.latest_build,
         "url": url,
+        "sha256": sha256,
         "changelog": s.changelog,
         "force": s.force_update,
     }

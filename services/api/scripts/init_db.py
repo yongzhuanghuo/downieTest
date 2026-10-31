@@ -4,9 +4,11 @@
 2. 写入默认 RBAC 数据：超级管理员角色、菜单树、默认账号 admin。
 
 用法：python scripts/init_db.py
-前提：MySQL 已建库、.env 已配 DB_*；默认账号密码取 .env 的 ADMIN_PASSWORD（缺省 admin123）。
+前提：MySQL 已建库、.env 已配 DB_*；默认账号密码取 .env 的 ADMIN_PASSWORD，
+未配置时随机生成并打印一次（不再使用 admin123）。
 """
 import asyncio
+import secrets
 import time
 from pathlib import Path
 
@@ -74,9 +76,15 @@ async def _run():
                 session.add(SysRoleMenu(role_id=role.id, menu_id=mid))
 
         # 4. 默认账号 admin
+        generated_password: str | None = None
         user = await session.scalar(select(SysUser).where(SysUser.username == "admin"))
         if not user:
-            password = settings.admin_password or "admin123"
+            if settings.admin_password:
+                password = settings.admin_password
+            else:
+                # 不再使用 admin123：未配置时生成随机初始密码并打印一次
+                password = secrets.token_urlsafe(12)
+                generated_password = password
             user = SysUser(
                 username="admin",
                 password_hash=bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
@@ -96,6 +104,9 @@ async def _run():
 
         await session.commit()
     print("✅ 种子数据已写入（超级管理员角色 + 菜单树 + 默认账号 admin）")
+    if generated_password:
+        print(f"⚠️  未配置 ADMIN_PASSWORD，admin 的随机初始密码：{generated_password}")
+        print("    请立即保存，并在登录后到「用户管理」修改。")
 
 
 def now_ms() -> int:

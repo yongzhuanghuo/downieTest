@@ -39,7 +39,7 @@ app/
 ├── main.py         入口 + MODULES 开关 + lifespan（磁盘清理）
 ├── config.py       环境变量（DB / REDIS / ADMIN / JWT / 媒体路径）
 ├── db.py           SQLAlchemy async engine + session
-├── security.py     管理端 JWT + 客户端授权校验 + 签名 URL
+├── security.py     管理端 JWT + admin 角色校验 + 客户端授权校验 + 签名 URL
 ├── limits.py       并发信号量 / 上传大小 / 磁盘清理
 ├── schemas.py      媒体请求/响应模型
 └── modules/
@@ -47,7 +47,7 @@ app/
     ├── admin/      管理后台 API（JWT）
     ├── support/    联系支持（HTTPS 提交 + SMTP 转发）
     └── media/      视频处理（routers / services / tasks）
-sql/schema.sql      授权三张表（licenses / device_bindings / unbind_log）
+sql/schema.sql      授权四张表（licenses / device_bindings / unbind_log / trial_devices）
 scripts/            init_db.py / generate_licenses.py / test_support_smtp.py
 ```
 
@@ -57,7 +57,7 @@ scripts/            init_db.py / generate_licenses.py / test_support_smtp.py
 
 - `DB_*`：MySQL 连接
 - `REDIS_*`：Redis 连接
-- `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `JWT_SECRET`：管理后台
+- `ADMIN_PASSWORD`（仅首次建号用）/ `JWT_SECRET`（必填，管理端 JWT + 签名 URL）：管理后台
 - `PUBLIC_BASE_URL` / `MAX_UPLOAD_SIZE` / `YTDLP_PROXY` / `MEDIA_CONCURRENCY` / `SIGNED_URLS`：媒体
 - `SUPPORT_EMAIL_TO` / `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SSL` / `SMTP_STARTTLS`：联系支持（QQ 邮箱用 `smtp.qq.com:465` + 授权码）
 

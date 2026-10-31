@@ -18,11 +18,15 @@ class UpdateInfo {
   final String changelog;
   final bool force;
 
+  /// 安装包 SHA-256（服务端可选返回；非空时下载后必须匹配）。
+  final String sha256;
+
   const UpdateInfo({
     required this.version,
     required this.url,
     required this.changelog,
     required this.force,
+    this.sha256 = '',
   });
 }
 
@@ -49,6 +53,7 @@ Future<UpdateInfo?> checkForUpdate() async {
     url: url,
     changelog: (j['changelog'] as String?) ?? '',
     force: (j['force'] as bool?) ?? false,
+    sha256: (j['sha256'] as String?) ?? '',
   );
 }
 
@@ -102,6 +107,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     try {
       final file = await UpdateInstaller.download(
         widget.info.url,
+        expectedSha256: widget.info.sha256,
         onProgress: (received, total) {
           if (!mounted) return;
           setState(() {
@@ -187,10 +193,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
               const SizedBox(height: 4),
-              const Text(
-                '可以改用浏览器下载安装包。',
-                style: TextStyle(fontSize: 12),
-              ),
+              const Text('可以改用浏览器下载安装包。', style: TextStyle(fontSize: 12)),
             ],
           ],
         ),

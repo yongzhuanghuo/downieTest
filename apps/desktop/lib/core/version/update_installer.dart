@@ -1,8 +1,18 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+
+class _DigestSink implements Sink<Digest> {
+  Digest? value;
+
+  @override
+  void add(Digest data) => value = data;
+
+  @override
+  void close() {}
+}
 
 /// 应用内更新：下载完整安装包并就地替换，然后重启。
 ///
@@ -14,6 +24,7 @@ class UpdateInstaller {
   static Future<File> download(
     String url, {
     void Function(int received, int total)? onProgress,
+    String expectedSha256 = '',
   }) async {
     final dir = await Directory.systemTemp.createTemp('downie6-update-');
     final name = Uri.parse(url).pathSegments.isEmpty
@@ -21,9 +32,10 @@ class UpdateInstaller {
         : Uri.parse(url).pathSegments.last;
     final file = File(p.join(dir.path, name));
     final client = http.Client();
+    final digestSink = _DigestSink();
+    final hasher = sha256.startChunkedConversion(digestSink);
     try {
-      final response =
-          await client.send(http.Request('GET', Uri.parse(url)));
+      final response = await client.send(http.Request('GET', Uri.parse(url)));
       if (response.statusCode != 200) {
         throw Exception('下载失败：HTTP ${response.statusCode}');
       }
@@ -32,11 +44,20 @@ class UpdateInstaller {
       var received = 0;
       await for (final chunk in response.stream) {
         sink.add(chunk);
+        hasher.add(chunk);
         received += chunk.length;
         onProgress?.call(received, total);
       }
       await sink.flush();
       await sink.close();
+      hasher.close();
+
+      final expected = expectedSha256.trim().toLowerCase();
+      final actual = digestSink.value?.toString() ?? '';
+      if (expected.isNotEmpty && actual != expected) {
+        await file.delete().catchError((_) => file);
+        throw Exception('安装包校验失败：SHA-256 不匹配，已取消安装');
+      }
       return file;
     } finally {
       client.close();
@@ -82,10 +103,7 @@ class UpdateInstaller {
       if (copy.exitCode != 0) {
         throw Exception('复制应用失败：${copy.stderr}');
       }
-      await Process.run(
-        'xattr',
-        ['-dr', 'com.apple.quarantine', stagedApp],
-      );
+      await Process.run('xattr', ['-dr', 'com.apple.quarantine', stagedApp]);
 
       final appPath = _currentAppBundlePath();
       final parent = Directory(p.dirname(appPath));
@@ -113,11 +131,12 @@ open "\$APP"
       // 先卸载 DMG，再启动脱离应用的替换脚本
       await Process.run('hdiutil', ['detach', mount.path, '-force']);
       onStatus?.call('安装完成，正在重启…');
-      await Process.start(
-        '/bin/sh',
-        [script.path, appPath, stagedApp, pid.toString()],
-        mode: ProcessStartMode.detached,
-      );
+      await Process.start('/bin/sh', [
+        script.path,
+        appPath,
+        stagedApp,
+        pid.toString(),
+      ], mode: ProcessStartMode.detached);
       await Future<void>.delayed(const Duration(milliseconds: 500));
       exit(0);
     } finally {
@@ -134,16 +153,12 @@ open "\$APP"
       throw Exception('当前平台不是 Windows');
     }
     onStatus?.call('正在启动安装程序…');
-    await Process.start(
-      installer.path,
-      const [
-        '/VERYSILENT',
-        '/SUPPRESSMSGBOXES',
-        '/NORESTART',
-        '/CLOSEAPPLICATIONS',
-      ],
-      mode: ProcessStartMode.detached,
-    );
+    await Process.start(installer.path, const [
+      '/VERYSILENT',
+      '/SUPPRESSMSGBOXES',
+      '/NORESTART',
+      '/CLOSEAPPLICATIONS',
+    ], mode: ProcessStartMode.detached);
     await Future<void>.delayed(const Duration(milliseconds: 500));
     exit(0);
   }

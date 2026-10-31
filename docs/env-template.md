@@ -76,8 +76,12 @@ SMTP_STARTTLS=false
 # DOWNLOAD_URL_* 指向 OSS 固定地址，配一次不用再动
 LATEST_VERSION=2.0.0
 LATEST_BUILD=1
-DOWNLOAD_URL_MACOS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/4KDownle-macos.dmg
-DOWNLOAD_URL_WINDOWS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/4KDownle-Windows-Setup.exe
+DOWNLOAD_URL_MACOS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/Downie6.dmg
+DOWNLOAD_URL_WINDOWS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/Downie6-Windows-Setup.exe
+# 可选但强烈建议：填了以后客户端下载完会校验 SHA-256，防止 OSS 包被替换/下载损坏。
+# 发版时在 CI 产物上执行 `shasum -a 256 Downie6.dmg` / `certutil -hashfile ... SHA256` 后填入。
+DOWNLOAD_SHA256_MACOS=
+DOWNLOAD_SHA256_WINDOWS=
 CHANGELOG=
 FORCE_UPDATE=false
 ```
@@ -87,11 +91,14 @@ FORCE_UPDATE=false
 | 键 | 必填 | 说明 |
 |---|---|---|
 | `DB_USER` / `DB_PASSWORD` / `DB_NAME` | 是 | 连不上库建表/启动都失败 |
-| `JWT_SECRET` | 是 | 缺了登录 token 能被伪造 |
-| `ADMIN_PASSWORD` | 建议 | 首次建 admin 账号的初始密码，缺了退回 `admin123` |
+| `JWT_SECRET` | 是 | 缺了登录 token / 签名 URL 都能被伪造；启用 admin/license 模块时服务拒绝启动 |
+| `ADMIN_PASSWORD` | 建议 | 首次建 admin 账号的初始密码；不配则 `init_db.py` 随机生成并打印一次 |
+| `DOWNLOAD_SHA256_*` | 建议 | 安装包 SHA-256；填了客户端下载后强校验 |
 | `REDIS_*` | 否 | 默认 `127.0.0.1:6379` 无密码 |
 | `OSS_*` | 否 | 不配则上传/产物走本地，不转存 OSS |
 | `LATEST_*` / `DOWNLOAD_URL_*` | 否 | 不配则客户端检查更新永远视为已最新 |
 | 其余媒体项 | 否 | 都有默认值 |
 
-> 账号本身固定 `admin`（seed 写死），没有 `ADMIN_USERNAME` 这个配置了。
+> 账号本身固定 `admin`，没有 `ADMIN_USERNAME` 这个配置了。
+>
+> ⚠️ 当前自建 API 仍按 HTTP 部署。授权、版本接口和更新包地址都会经过网络，公网使用前务必在 Nginx / Caddy 上启用 HTTPS；否则 `DOWNLOAD_SHA256_*` 也无法阻止中间人同时篡改版本接口。

@@ -4,7 +4,7 @@ from typing import Optional
 
 import bcrypt
 import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_session
+from app.ratelimit import InMemoryRateLimiter, client_ip
 from ..models import SysMenu, SysRole, SysRoleMenu, SysUser, SysUserRole
 from ..serialize import build_route_tree, ok
 
@@ -20,6 +21,11 @@ _bearer = HTTPBearer(auto_error=False)
 
 ACCESS_TTL = 86400       # 24h
 REFRESH_TTL = 604800     # 7d
+
+# 登录爆破防护：同一 IP / 同一用户名 10 分钟内最多 10 次尝试。
+_login_limiter = InMemoryRateLimiter()
+_LOGIN_LIMIT = 10
+_LOGIN_WINDOW_SECONDS = 600.0
 
 
 class LoginBody(BaseModel):
@@ -106,13 +112,20 @@ async def get_current_user(
 
 
 @router.post("/login")
-async def login(body: LoginBody, session: AsyncSession = Depends(get_session)):
+async def login(body: LoginBody, request: Request, session: AsyncSession = Depends(get_session)):
+    ip = client_ip(request)
+    ip_key = f"login:ip:{ip}"
+    # 只按 IP 限流：按用户名限流会让攻击者用 10 次错误密码把 admin 锁死 10 分钟（DoS）。
+    if not _login_limiter.allow(ip_key, limit=_LOGIN_LIMIT, window_seconds=_LOGIN_WINDOW_SECONDS):
+        return {"code": 10003, "message": "登录尝试过于频繁，请 10 分钟后再试", "data": None}
+
     user = await session.scalar(select(SysUser).where(SysUser.username == body.username))
     if not user or not bcrypt.checkpw(body.password.encode(), user.password_hash.encode()):
         return {"code": 10001, "message": "用户名或密码错误", "data": None}
     if user.status != 1:
         return {"code": 10002, "message": "账号已停用", "data": None}
 
+    _login_limiter.reset(ip_key)
     roles, permissions, _ = await _load_user_auth(session, user)
     access = _make_token({"user_id": user.id, "username": user.username, "type": "access"}, ACCESS_TTL)
     refresh = _make_token({"user_id": user.id, "type": "refresh"}, REFRESH_TTL)

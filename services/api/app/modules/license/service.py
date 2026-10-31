@@ -265,10 +265,23 @@ async def status(session: AsyncSession, code: str, device_fp: str | None) -> dic
     normalized = normalize_code(code)
     if not normalized:
         raise LicenseError(400, "MISSING_CODE")
+    # 设备列表包含其他设备的指纹，必须由已绑定设备发起，避免仅凭泄漏的卡密枚举/解绑。
+    if not device_fp:
+        raise LicenseError(400, "MISSING_PARAMS")
 
     lic = await _get_license(session, normalized)
     if lic is None:
         raise LicenseError(404, "NOT_FOUND")
+
+    current = await session.scalar(
+        select(DeviceBinding).where(
+            DeviceBinding.code == normalized,
+            DeviceBinding.device_fp == device_fp,
+            DeviceBinding.status == "active",
+        )
+    )
+    if current is None:
+        raise LicenseError(403, "DEVICE_NOT_BOUND")
 
     devices = (
         await session.scalars(
@@ -292,6 +305,16 @@ async def heartbeat(session: AsyncSession, code: str, device_fp: str, device_nam
     normalized = normalize_code(code)
     if not normalized or not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
+
+    lic = await _get_license(session, normalized)
+    if lic is None:
+        raise LicenseError(404, "NOT_FOUND")
+    if lic.status == "revoked":
+        raise LicenseError(403, "LICENSE_REVOKED", "该激活码已被吊销")
+    if lic.expire_at is not None and lic.expire_at <= int(
+        datetime.now(timezone.utc).timestamp() * 1000
+    ):
+        raise LicenseError(403, "LICENSE_EXPIRED", "该激活码已过期")
 
     result = await session.execute(
         update(DeviceBinding)
@@ -331,4 +354,11 @@ async def verify(session: AsyncSession, code: str, device_fp: str) -> dict[str, 
     if bound is None:
         return {"ok": True, "valid": False, "reason": "DEVICE_NOT_BOUND"}
 
-    return {"ok": True, "valid": lic.status != "revoked", "is_pro": True, "device_active": True}
+    valid = lic.status != "revoked"
+    return {
+        "ok": True,
+        "valid": valid,
+        "is_pro": valid,
+        "device_active": True,
+        "reason": None if valid else "LICENSE_REVOKED",
+    }

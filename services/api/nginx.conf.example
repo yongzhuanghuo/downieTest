@@ -1,0 +1,56 @@
+# 4KDownle API 反向代理 + HTTPS 示例（Nginx）
+#
+# 用法：
+#   sudo apt install -y nginx certbot python3-certbot-nginx
+#   sudo cp nginx.conf.example /etc/nginx/sites-available/4kdownle
+#   sudo ln -s /etc/nginx/sites-available/4kdownle /etc/nginx/sites-enabled/
+#   # 改 server_name 为自己的域名（需已解析到本机）
+#   sudo certbot --nginx -d api.example.com
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# 客户端构建时设置 API_BASE=https://api.example.com
+
+# 授权接口额外限流（进程内限流之外的第二道防线）
+limit_req_zone $binary_remote_addr zone=license:10m rate=30r/m;
+
+server {
+    listen 80;
+    server_name api.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    # certbot 会自动改写这两行；手动配置时换成实际证书路径
+    ssl_certificate     /etc/letsencrypt/live/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+
+    # 媒体上传最大 2 GB，与 MAX_UPLOAD_SIZE 保持一致
+    client_max_body_size 2g;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+
+    # 让 FastAPI 的 client_ip / 限流拿到真实来源
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    location /api/license/ {
+        limit_req zone=license burst=20 nodelay;
+        proxy_pass http://127.0.0.1:3000;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+    }
+}

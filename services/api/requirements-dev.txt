@@ -2,3 +2,4 @@
 # 支持表单本地自测：TestClient 需要 httpx，邮件链路用 aiosmtpd 接收
 httpx>=0.27
 aiosmtpd>=1.4
+pytest>=8.0
