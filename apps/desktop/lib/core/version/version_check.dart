@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../shared/routes/navigator_key.dart';
 import '../api/api_base.dart';
@@ -150,13 +149,6 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     }
   }
 
-  Future<void> _openBrowser() async {
-    final uri = Uri.parse(widget.info.url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      debugPrint('[更新] 打开下载链接失败: ${widget.info.url}');
-    }
-  }
-
   String _formatBytes(int bytes) {
     const units = ['B', 'KB', 'MB', 'GB'];
     double value = bytes.toDouble();
@@ -193,7 +185,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
               const SizedBox(height: 4),
-              const Text('可以改用浏览器下载安装包。', style: TextStyle(fontSize: 12)),
+              const Text('请稍后重试，或联系支持。', style: TextStyle(fontSize: 12)),
             ],
           ],
         ),
@@ -204,10 +196,6 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             onPressed: _installing ? null : () => Navigator.of(context).pop(),
             child: const Text('稍后'),
           ),
-        TextButton(
-          onPressed: _installing ? null : _openBrowser,
-          child: const Text('浏览器下载'),
-        ),
         FilledButton(
           onPressed: _installing ? null : _install,
           child: Text(_installing ? '正在更新…' : '下载并安装'),
