@@ -1,5 +1,17 @@
 # 更新日志
 
+## 2.0.36（2026-11-01）
+
+### YouTube / 登录提示
+
+- YouTube 风控（`Sign in to confirm you're not a bot`）失败时给出具体操作指引：用登录浏览器打开 YouTube，或在设置→浏览器扩展选择已登录 YouTube 的浏览器，不再只显示笼统的「需要登录」
+- 解析和下载两个阶段的 YouTube 提示统一
+
+### 构建 / Intel Mac
+
+- CI 新增 macOS x86_64 SABR yt-dlp 独立构建（macos-13），Intel Mac 不再因缺少 `yt-dlp_x86_64` 回退到官方 yt-dlp
+- x86_64 构建失败不阻断主流程，仍保留官方 universal yt-dlp 兜底
+
 ## 2.0.35（2026-10-31）
 
 ### YouTube / 下载引擎
