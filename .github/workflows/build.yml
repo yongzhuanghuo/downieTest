@@ -12,8 +12,38 @@ on:
 # 必须显式写 apps/desktop/ 前缀。
 
 jobs:
+  # ==================== macOS x86_64 SABR yt-dlp ====================
+  # macos-latest 是 arm64；Intel Mac 需要单独的 x86_64 SABR 二进制。
+  # macOS 13 runner 已下线，x86_64 用 macos-15-intel。
+  # 失败不阻断主构建：App 会回退官方 universal yt-dlp（没有 SABR）。
+  build-ytdlp-macos-x64:
+    runs-on: macos-15-intel
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 构建 x86_64 SABR yt-dlp
+        run: python tools/build_sabr_ytdlp.py --output dist/yt-dlp_x86_64
+
+      - name: 上传 x86_64 SABR yt-dlp
+        uses: actions/upload-artifact@v4
+        with:
+          name: ytdlp-macos-x64
+          path: apps/desktop/dist/yt-dlp_x86_64
+          retention-days: 7
+
   # ==================== macOS ====================
   build-macos:
+    needs: [build-ytdlp-macos-x64]
+    if: always()
     runs-on: macos-latest
     defaults:
       run:
@@ -45,6 +75,13 @@ jobs:
             https://github.com/eugeneware/ffmpeg-static/releases/latest/download/ffmpeg-darwin-arm64
           lipo -create /tmp/ffmpeg-x64 /tmp/ffmpeg-arm64 -output assets/bin/macos/ffmpeg
           chmod +x assets/bin/macos/ffmpeg
+
+      - name: 下载 x86_64 SABR yt-dlp（Intel Mac）
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ytdlp-macos-x64
+          path: apps/desktop/assets/bin/macos
 
       - name: 构建 SABR 版 yt-dlp（YouTube 1080p）
         # 失败不阻断构建：App 会回退到上面的官方 universal yt-dlp

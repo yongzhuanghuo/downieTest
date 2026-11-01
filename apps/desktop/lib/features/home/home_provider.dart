@@ -159,7 +159,9 @@ class ParseNotifier extends StateNotifier<ParseState> {
       final needLogin = isCookieError(e.message);
       state = ParseState(
         status: ParseStatus.error,
-        error: needLogin ? '该网站需要登录后才能解析' : _friendlyError(e.message),
+        error: needLogin
+            ? loginRequiredMessage(target)
+            : _friendlyError(e.message),
       );
       if (needLogin &&
           autoLogin &&

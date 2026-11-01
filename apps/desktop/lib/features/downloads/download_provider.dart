@@ -530,7 +530,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           if (e.requiresLogin) {
             await _apply(task.id, (t) => t.copyWith(
                   status: DownloadStatus.failed,
-                  error: '需要登录才能下载：${e.message}',
+                  error: isYouTubeUrl(task.url)
+                      ? 'YouTube 风控要求登录/验证：请在登录浏览器登录 YouTube，或使用浏览器 Cookie'
+                      : '需要登录才能下载：${e.message}',
                   retryCount: attempt,
                   speed: 0,
                 ));
@@ -585,7 +587,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           if (isCookieError(e.message)) {
             await _apply(task.id, (t) => t.copyWith(
                   status: DownloadStatus.failed,
-                  error: '需要登录才能下载：${e.message}',
+                  error: isYouTubeUrl(task.url)
+                      ? 'YouTube 风控要求登录/验证：请在登录浏览器登录 YouTube，或使用浏览器 Cookie'
+                      : '需要登录才能下载：${e.message}',
                   retryCount: attempt,
                   speed: 0,
                 ));
