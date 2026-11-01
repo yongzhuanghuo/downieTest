@@ -23,6 +23,27 @@ class YtDlpException implements Exception {
   String toString() => 'YtDlpException: $message';
 }
 
+/// 是否为 YouTube 链接（引擎层不依赖 features 层）。
+bool _isYouTubeUrl(String url) {
+  final lower = url.toLowerCase();
+  return lower.contains('youtube.com') || lower.contains('youtu.be');
+}
+
+/// YouTube 需要的额外 yt-dlp 参数（纯函数，便于测试）。
+///
+/// 2026 起 YouTube 用 n-sig 挑战过滤视频格式：没有 JS runtime + EJS 时
+/// `-F` 只剩 storyboard。`web_safari` 还能拿到不依赖 GVS PO Token 的
+/// HLS 格式，所以显式加入 client 列表。
+@visibleForTesting
+List<String> buildYouTubeArgs(String url, {String? nodePath}) {
+  if (!_isYouTubeUrl(url)) return const [];
+  return [
+    if (nodePath != null && nodePath.isNotEmpty)
+      ...['--js-runtimes', 'node:$nodePath'],
+    '--extractor-args', 'youtube:player_client=default,web_safari',
+  ];
+}
+
 /// yt-dlp 引擎封装
 ///
 /// 提供视频解析与下载能力。所有方法均通过子进程调用 yt-dlp 二进制。
@@ -118,6 +139,7 @@ class YtDlpRunner {
       '--no-warnings',
       '--no-playlist',
       if (proxy.isNotEmpty) ...['--proxy', proxy],
+      ...await _youtubeArgs(url),
       ..._cookieArgs(cookiePaths),
       url,
     ]);
@@ -183,6 +205,7 @@ class YtDlpRunner {
       '--no-warnings',
       '--yes-playlist',
       if (proxy.isNotEmpty) ...['--proxy', proxy],
+      ...await _youtubeArgs(url),
       ..._cookieArgs(cookiePaths),
       url,
     ]);
@@ -379,6 +402,7 @@ class YtDlpRunner {
         '--convert-thumbnails',
         'jpg',
       ],
+      ...await _youtubeArgs(url),
       ..._cookieArgs(cookiePaths),
       url,
     ];
@@ -508,6 +532,14 @@ class YtDlpRunner {
     ];
   }
 
+  /// YouTube 专用参数；Node 不存在时只加 extractor-args。
+  static Future<List<String>> _youtubeArgs(String url) async {
+    if (!_isYouTubeUrl(url)) return const [];
+    final nodePath = await BinaryLocator.getNodePath();
+    final hasNode = await File(nodePath).exists();
+    return buildYouTubeArgs(url, nodePath: hasNode ? nodePath : null);
+  }
+
   /// 从输出模板推导实际文件路径
   ///
   /// yt-dlp 模板 `xxx.%(ext)s` 下载 mp4 后变成 `xxx.mp4`
@@ -523,6 +555,7 @@ class YtDlpRunner {
       '--list-subs',
       '--no-warnings',
       '--no-playlist',
+      ...await _youtubeArgs(url),
       ..._cookieArgs(cookiePaths),
       url,
     ]);

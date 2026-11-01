@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -66,23 +67,41 @@ def _extract(tarball: Path, dest: Path) -> Path:
     return roots[0]
 
 
+def _ejs_version(source_dir: Path) -> str | None:
+    """从源码 pyproject.toml 读取 yt-dlp-ejs 的固定版本。
+
+    yt-dlp 2026 起必须靠 EJS 解 YouTube 的 n-sig；没有它只能拿到
+    storyboard 缩略图。版本必须与 yt-dlp 源码要求一致。
+    """
+    pyproject = source_dir / "pyproject.toml"
+    try:
+        text = pyproject.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    match = re.search(r'"yt-dlp-ejs==([0-9][^"]*)"', text)
+    return match.group(1) if match else None
+
+
 def _pip_install(python: str, source_dir: Path) -> None:
-    print("[sabr] 安装 PyInstaller / protobug / yt-dlp 源码", flush=True)
+    print("[sabr] 安装 PyInstaller / protobug / yt-dlp-ejs / yt-dlp 源码", flush=True)
     subprocess.run(
         [python, "-m", "pip", "install", "--quiet", "--upgrade", "pip"],
         check=True,
     )
+    packages = ["pyinstaller>=6.0", "protobug>=1.0.0"]
+    ejs_version = _ejs_version(source_dir)
+    if ejs_version:
+        packages.append(f"yt-dlp-ejs=={ejs_version}")
+        print(f"[sabr] yt-dlp-ejs 版本：{ejs_version}", flush=True)
+    else:
+        print(
+            "[sabr] 警告：未在 pyproject.toml 找到 yt-dlp-ejs pin，"
+            "构建出的 yt-dlp 可能只能拿到 YouTube storyboard",
+            flush=True,
+        )
+    packages.append(str(source_dir))
     subprocess.run(
-        [
-            python,
-            "-m",
-            "pip",
-            "install",
-            "--quiet",
-            "pyinstaller>=6.0",
-            "protobug>=1.0.0",
-            str(source_dir),
-        ],
+        [python, "-m", "pip", "install", "--quiet", *packages],
         check=True,
     )
 
@@ -90,7 +109,14 @@ def _pip_install(python: str, source_dir: Path) -> None:
 def _build(python: str, source_dir: Path) -> Path:
     print("[sabr] 运行 PyInstaller", flush=True)
     subprocess.run(
-        [python, "-m", "bundle.pyinstaller", "--onefile"],
+        [
+            python,
+            "-m",
+            "bundle.pyinstaller",
+            "--onefile",
+            # EJS 是可选数据包，显式收集避免 PyInstaller 漏掉
+            "--collect-submodules=yt_dlp_ejs",
+        ],
         cwd=source_dir,
         check=True,
     )
