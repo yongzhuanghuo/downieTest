@@ -33,7 +33,7 @@ class DownloadRow extends ConsumerWidget {
         task.status == DownloadStatus.merging;
 
     return SizedBox(
-      height: 132,
+      height: 96,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -53,7 +53,7 @@ class DownloadRow extends ConsumerWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+            padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -70,7 +70,7 @@ class DownloadRow extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                             style: AppTextStyles.rowTitle(Colors.white),
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 2),
                           Text(
                             _metaText(task),
                             maxLines: 1,
