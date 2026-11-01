@@ -2,7 +2,7 @@
 
 - **文档状态**：可执行规划 v1
 - **对标基线**：Downie 4 v4.13.3（`CFBundleVersion` 4000，`com.charliemonroe.Downie-4`）
-- **当前产品**：Downie6 v2.0.37+38（Flutter，macOS + Windows）
+- **当前产品**：Downie6 v2.0.38+39（Flutter，macOS + Windows）
 - **更新日期**：2026-10-31
 - **当前执行计划**：[downie-parity-plan.md](downie-parity-plan.md)
 - **站点覆盖全表**：[site-coverage.md](site-coverage.md)
@@ -16,7 +16,7 @@
 2. **做不到“源码级复刻”**：REA 目前只完成了 Mach-O、符号、字符串、资源层面的静态分析；Ghidra/Hopper 尚未安装，没有逐函数反编译，也拿不到原始 Swift 工程。
 3. **不支持 DRM 正片**：Netflix / Disney+ / Prime Video 等 Widevine/FairPlay/PlayReady 内容，Downie 自己也明确拒绝下载。这不是我们没做，而是不在范围。
 4. **786 个下载器类不能靠一次性交付**：正确目标是 Top 20–30 + 通用 WebView 嗅探 + 自定义集成 + yt-dlp 兜底，然后按失败率持续补站。
-5. **当前进度（2026-11-01，2.0.37）**：Downie 风格 UI、12 项偏好、UGE 1:1 布局、DMG/EXE 发布链、应用内更新（支持 SHA-256 校验）、抖音/B站/TikTok/快手/微博原生插件、通用网页提取、14 天服务端试用、反激活、6h 授权复验、管理端 RBAC/限流、暂停/继续、优先级、批量链接、播放列表展开、系统通知、浏览器书签/Chrome 扩展均已落地；Top 30 中大部分站点仍走 yt-dlp 且未逐站验证，自定义集成/主窗口搜索/AppleScript 等仍未做；签名/公证按用户决定不做。
+5. **当前进度（2026-11-01，2.0.38）**：Downie 风格 UI、12 项偏好、UGE 1:1 布局、DMG/EXE 发布链、应用内更新（支持 SHA-256 校验）、抖音/B站/TikTok/快手/微博原生插件、通用网页提取、14 天服务端试用、反激活、6h 授权复验、管理端 RBAC/限流、暂停/继续、优先级、批量链接、播放列表展开、系统通知、浏览器书签/Chrome 扩展均已落地；Top 30 中大部分站点仍走 yt-dlp 且未逐站验证，自定义集成/主窗口搜索/AppleScript 等仍未做；签名/公证按用户决定不做。
 
 ---
 
