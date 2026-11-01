@@ -1,5 +1,17 @@
 # 更新日志
 
+## 2.0.37（2026-11-01）
+
+### YouTube
+
+- 自建 SABR 版 yt-dlp 现在打包 `yt-dlp-ejs`（n-sig 挑战脚本），并给 yt-dlp 传入 App 内置的 Node runtime，修复 YouTube 返回「sign in to confirm you're not a bot」后只剩 storyboard、没有任何视频格式的问题
+- YouTube 的解析、下载、播放列表、字幕统一使用 `player_client=default,web_safari`，恢复 720p/1080p HLS 下载
+- 新增 yt-dlp 参数回归测试
+
+### 构建
+
+- `YTDLP_BUILD` 标记加入 `ejs`，老用户升级后自动替换已提取的旧 yt-dlp
+
 ## 2.0.36（2026-11-01）
 
 ### YouTube / 登录提示
