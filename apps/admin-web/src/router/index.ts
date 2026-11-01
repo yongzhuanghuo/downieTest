@@ -173,7 +173,9 @@ router.beforeEach((to: ToRouteType, _from) => {
         usePermissionStoreHook().wholeMenus.length === 0 &&
         to.path !== "/login"
       ) {
-        initRouter().then((router: Router) => {
+        // 必须返回 Promise 等动态路由注册完再放行，否则刷新会先渲染一个
+        // 未匹配的空白页面，后续 router.push 也未必能补回来。
+        return initRouter().then((router: Router) => {
           if (!useMultiTagsStoreHook().getMultiTagsCache) {
             const { path } = to;
             const route = findRouteByPath(
@@ -201,8 +203,14 @@ router.beforeEach((to: ToRouteType, _from) => {
               }
             }
           }
-          // 确保动态路由完全加入路由列表并且不影响静态路由（注意：动态路由刷新时router.beforeEach可能会触发两次，第一次触发动态路由还未完全添加，第二次动态路由才完全添加到路由列表，如果需要在router.beforeEach做一些判断可以在to.name存在的条件下去判断，这样就只会触发一次）
-          if (isAllEmpty(to.name)) router.push(to.fullPath);
+          // 动态路由已就绪；若当前地址仍无匹配，重新解析一次
+          if (isAllEmpty(to.name)) {
+            const matched = router.resolve(to.fullPath).matched.length > 0;
+            return matched
+              ? { path: to.fullPath, replace: true }
+              : { path: "/welcome" };
+          }
+          return toCorrectRoute();
         });
       }
       return toCorrectRoute();

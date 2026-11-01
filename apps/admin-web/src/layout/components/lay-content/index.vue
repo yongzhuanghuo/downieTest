@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n";
 import LayFrame from "../lay-frame/index.vue";
 import LayFooter from "../lay-footer/index.vue";
 import { useTags } from "@/layout/hooks/useTag";
 import { useGlobal, isNumber } from "@pureadmin/utils";
-import BackTopIcon from "@/assets/svg/back_top.svg?component";
 import { h, computed, Transition, defineComponent } from "vue";
 import { usePermissionStoreHook } from "@/store/modules/permission";
 
@@ -12,7 +10,6 @@ const props = defineProps({
   fixedHeader: Boolean
 });
 
-const { t } = useI18n();
 const { tagsStyle } = useTags();
 const { $storage, $config } = useGlobal<GlobalPropertiesApi>();
 
@@ -132,12 +129,6 @@ const transitionMain = defineComponent({
                 'flex-direction': 'column'
               }"
             >
-              <el-backtop
-                :title="t('buttons.pureBackTop')"
-                target=".app-main .el-scrollbar__wrap"
-              >
-                <BackTopIcon />
-              </el-backtop>
               <div class="grow">
                 <transitionMain :route="route">
                   <keep-alive

@@ -20,7 +20,15 @@ const stats = ref<any>({});
 const list = ref<any[]>([]);
 const total = ref(0);
 const loading = ref(false);
-const query = reactive({ search: "", status: "", type: "", page: 1, pageSize: 20 });
+const query = reactive({
+  search: "",
+  status: "",
+  type: "",
+  hasEmail: false,
+  hasDevices: false,
+  page: 1,
+  pageSize: 20
+});
 
 const genVisible = ref(false);
 const gen = reactive({
@@ -38,16 +46,57 @@ const resultCodes = ref<string[]>([]);
 const detailVisible = ref(false);
 const detail = ref<any>(null);
 
+type StatKey =
+  | "all"
+  | "unused"
+  | "activated"
+  | "revoked"
+  | "free"
+  | "perpetual"
+  | "with_email"
+  | "bound_devices";
+
 const statCards = computed(() => [
-  { label: "总激活码", value: stats.value.total ?? "-" },
-  { label: "未激活", value: stats.value.unused ?? "-" },
-  { label: "已激活", value: stats.value.activated ?? "-" },
-  { label: "已吊销", value: stats.value.revoked ?? "-" },
-  { label: "免费版", value: stats.value.free ?? "-" },
-  { label: "永久版", value: stats.value.perpetual ?? "-" },
-  { label: "已绑定邮箱", value: stats.value.with_email ?? "-" },
-  { label: "已绑定设备", value: stats.value.bound_devices ?? "-" }
+  { key: "all" as StatKey, label: "总激活码", value: stats.value.total ?? "-" },
+  { key: "unused" as StatKey, label: "未激活", value: stats.value.unused ?? "-" },
+  { key: "activated" as StatKey, label: "已激活", value: stats.value.activated ?? "-" },
+  { key: "revoked" as StatKey, label: "已吊销", value: stats.value.revoked ?? "-" },
+  { key: "free" as StatKey, label: "免费版", value: stats.value.free ?? "-" },
+  { key: "perpetual" as StatKey, label: "永久版", value: stats.value.perpetual ?? "-" },
+  { key: "with_email" as StatKey, label: "已绑定邮箱", value: stats.value.with_email ?? "-" },
+  { key: "bound_devices" as StatKey, label: "已绑定设备", value: stats.value.bound_devices ?? "-" }
 ]);
+
+const activeStat = computed<StatKey>(() => {
+  if (query.hasEmail) return "with_email";
+  if (query.hasDevices) return "bound_devices";
+  if (query.status) return query.status as StatKey;
+  if (query.type) return query.type as StatKey;
+  return "all";
+});
+
+function applyStat(key: StatKey) {
+  query.search = "";
+  query.status = "";
+  query.type = "";
+  query.hasEmail = false;
+  query.hasDevices = false;
+  if (key === "unused" || key === "activated" || key === "revoked") {
+    query.status = key;
+  } else if (key === "free" || key === "perpetual") {
+    query.type = key;
+  } else if (key === "with_email") {
+    query.hasEmail = true;
+  } else if (key === "bound_devices") {
+    query.hasDevices = true;
+  }
+  query.page = 1;
+  load();
+}
+
+function onStatClick(key: StatKey) {
+  applyStat(activeStat.value === key && key !== "all" ? "all" : key);
+}
 
 async function load() {
   loading.value = true;
@@ -56,6 +105,8 @@ async function load() {
     if (query.search) params.search = query.search;
     if (query.status) params.status = query.status;
     if (query.type) params.type = query.type;
+    if (query.hasEmail) params.has_email = true;
+    if (query.hasDevices) params.has_devices = true;
     const res: any = await getCardList(params);
     list.value = res.data.list;
     total.value = res.data.total;
@@ -83,9 +134,39 @@ async function onGenerate() {
   }
 }
 
-function onCopy() {
-  navigator.clipboard.writeText(resultCodes.value.join("\n"));
-  ElMessage.success("已复制");
+async function copyText(text: string): Promise<boolean> {
+  // 管理后台常以 http://IP 访问，不是安全上下文，navigator.clipboard 不可用
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // 落到 execCommand 兜底
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+  return ok;
+}
+
+async function onCopy() {
+  const text = resultCodes.value.join("\n");
+  if (!text) return;
+  if (await copyText(text)) {
+    ElMessage.success("已复制");
+  } else {
+    ElMessage.error("复制失败，请手动选择文本");
+  }
 }
 
 async function onDetail(code: string) {
@@ -133,6 +214,8 @@ async function onExport(scope: string) {
     if (query.search) params.search = query.search;
     if (query.status) params.status = query.status;
     if (query.type) params.type = query.type;
+    if (query.hasEmail) params.has_email = true;
+    if (query.hasDevices) params.has_devices = true;
   }
   if (scope === "page") Object.assign(params, { page: query.page, pageSize: query.pageSize });
   const res = await exportCards(params);
@@ -153,8 +236,12 @@ onMounted(() => {
 <template>
   <div>
     <el-row :gutter="16">
-      <el-col v-for="c in statCards" :key="c.label" :span="6">
-        <el-card class="mb-4 text-center">
+      <el-col v-for="c in statCards" :key="c.key" :span="6">
+        <el-card
+          class="mb-4 text-center stat-card"
+          :class="{ 'stat-card-active': activeStat === c.key }"
+          @click="onStatClick(c.key)"
+        >
           <div class="text-sm text-gray-500">{{ c.label }}</div>
           <div class="mt-2 text-2xl font-bold">{{ c.value }}</div>
         </el-card>
@@ -162,13 +249,31 @@ onMounted(() => {
     </el-row>
 
     <div class="mb-4 flex flex-wrap gap-3">
-      <el-input v-model="query.search" placeholder="搜索激活码/邮箱" clearable class="w-56" @input="query.page = 1; load()" />
-      <el-select v-model="query.status" placeholder="状态" clearable class="w-36" @change="query.page = 1; load()">
+      <el-input
+        v-model="query.search"
+        placeholder="搜索激活码/邮箱"
+        clearable
+        class="w-56"
+        @input="query.page = 1; query.hasEmail = false; query.hasDevices = false; load()"
+      />
+      <el-select
+        v-model="query.status"
+        placeholder="状态"
+        clearable
+        class="w-36"
+        @change="query.page = 1; query.hasEmail = false; query.hasDevices = false; load()"
+      >
         <el-option label="未激活" value="unused" />
         <el-option label="已激活" value="activated" />
         <el-option label="已吊销" value="revoked" />
       </el-select>
-      <el-select v-model="query.type" placeholder="类型" clearable class="w-36" @change="query.page = 1; load()">
+      <el-select
+        v-model="query.type"
+        placeholder="类型"
+        clearable
+        class="w-36"
+        @change="query.page = 1; query.hasEmail = false; query.hasDevices = false; load()"
+      >
         <el-option label="免费版" value="free" />
         <el-option label="永久版" value="perpetual" />
       </el-select>
@@ -268,3 +373,19 @@ onMounted(() => {
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.stat-card {
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  border-color: var(--el-color-primary-light-5);
+}
+
+.stat-card-active {
+  border-color: var(--el-color-primary);
+  box-shadow: inset 0 0 0 1px var(--el-color-primary);
+}
+</style>

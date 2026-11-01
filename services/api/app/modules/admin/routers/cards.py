@@ -26,6 +26,8 @@ class CardQuery(BaseModel):
     search: str = ""
     status: Optional[str] = None
     type: Optional[str] = None
+    has_email: bool = False
+    has_devices: bool = False
     page: int = 1
     pageSize: int = 20
 
@@ -113,6 +115,38 @@ async def _insert_one(
     raise RuntimeError("生成失败：多次撞码，请重试")
 
 
+def _card_conds(
+    search: str = "",
+    status: Optional[str] = None,
+    type: Optional[str] = None,
+    has_email: bool = False,
+    has_devices: bool = False,
+) -> list:
+    conds = []
+    if search:
+        term = search.strip()
+        conds.append(
+            or_(
+                License.code.like(f"%{term.upper()}%"),
+                License.email.like(f"%{term}%"),
+            )
+        )
+    if status in ("unused", "activated", "revoked"):
+        conds.append(License.status == status)
+    if type in ("free", "perpetual"):
+        conds.append(License.type == type)
+    if has_email:
+        conds.append(License.email.isnot(None))
+        conds.append(License.email != "")
+    if has_devices:
+        conds.append(
+            License.code.in_(
+                select(DeviceBinding.code).where(DeviceBinding.status == "active")
+            )
+        )
+    return conds
+
+
 @router.post("/card/stats", dependencies=[Depends(get_current_user)])
 async def card_stats(session: AsyncSession = Depends(get_session)):
     row = (
@@ -153,19 +187,7 @@ async def card_stats(session: AsyncSession = Depends(get_session)):
 
 @router.post("/card/list", dependencies=[Depends(get_current_user)])
 async def card_list(q: CardQuery, session: AsyncSession = Depends(get_session)):
-    conds = []
-    if q.search:
-        term = q.search.strip()
-        conds.append(
-            or_(
-                License.code.like(f"%{term.upper()}%"),
-                License.email.like(f"%{term}%"),
-            )
-        )
-    if q.status in ("unused", "activated", "revoked"):
-        conds.append(License.status == q.status)
-    if q.type in ("free", "perpetual"):
-        conds.append(License.type == q.type)
+    conds = _card_conds(q.search, q.status, q.type, q.has_email, q.has_devices)
 
     total = await session.scalar(select(func.count(License.code)).where(*conds)) or 0
     bound_sub = (
@@ -220,23 +242,13 @@ async def card_export(
     search: str = "",
     status: Optional[str] = None,
     type: Optional[str] = None,
+    has_email: bool = False,
+    has_devices: bool = False,
     page: Optional[int] = None,
     pageSize: Optional[int] = None,
     session: AsyncSession = Depends(get_session),
 ):
-    conds = []
-    if search:
-        term = search.strip()
-        conds.append(
-            or_(
-                License.code.like(f"%{term.upper()}%"),
-                License.email.like(f"%{term}%"),
-            )
-        )
-    if status in ("unused", "activated", "revoked"):
-        conds.append(License.status == status)
-    if type in ("free", "perpetual"):
-        conds.append(License.type == type)
+    conds = _card_conds(search, status, type, has_email, has_devices)
 
     stmt = select(License).where(*conds).order_by(License.created_at.desc())
     if page and pageSize:
