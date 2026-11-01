@@ -44,6 +44,23 @@ List<String> buildYouTubeArgs(String url, {String? nodePath}) {
   ];
 }
 
+/// 配置了浏览器 Cookie 时，YouTube 不再使用 WebView 保存的 cookie 文件。
+///
+/// 两者同时传给 yt-dlp 时，失效的 `youtube.txt` 会覆盖浏览器 Cookie，
+/// 导致明明浏览器已登录仍然报 bot check。
+@visibleForTesting
+List<String> filterCookiePathsForSite(
+  List<String> paths, {
+  required String url,
+  required String browser,
+}) {
+  if (browser.isEmpty || !_isYouTubeUrl(url)) return paths;
+  final youtubeCookie = '${Platform.pathSeparator}youtube.txt';
+  return paths
+      .where((p) => !p.toLowerCase().endsWith(youtubeCookie))
+      .toList();
+}
+
 /// yt-dlp 引擎封装
 ///
 /// 提供视频解析与下载能力。所有方法均通过子进程调用 yt-dlp 二进制。
@@ -140,7 +157,7 @@ class YtDlpRunner {
       '--no-playlist',
       if (proxy.isNotEmpty) ...['--proxy', proxy],
       ...await _youtubeArgs(url),
-      ..._cookieArgs(cookiePaths),
+      ..._cookieArgs(cookiePaths, url: url),
       url,
     ]);
 
@@ -206,7 +223,7 @@ class YtDlpRunner {
       '--yes-playlist',
       if (proxy.isNotEmpty) ...['--proxy', proxy],
       ...await _youtubeArgs(url),
-      ..._cookieArgs(cookiePaths),
+      ..._cookieArgs(cookiePaths, url: url),
       url,
     ]);
     if (result.exitCode != 0) {
@@ -403,7 +420,7 @@ class YtDlpRunner {
         'jpg',
       ],
       ...await _youtubeArgs(url),
-      ..._cookieArgs(cookiePaths),
+      ..._cookieArgs(cookiePaths, url: url),
       url,
     ];
 
@@ -524,10 +541,19 @@ class YtDlpRunner {
 
   /// 站点登录 cookie 参数：内置 WebView 登录保存的 Netscape 文件，
   /// 以及可选的浏览器原生 cookie（`--cookies-from-browser`）。
-  static List<String> _cookieArgs(List<String> paths) {
+  ///
+  /// YouTube 例外：WebView 保存的 `youtube.txt` 常是失效的游客 Cookie，
+  /// 和浏览器 Cookie 一起传时会覆盖后者，反而过不了风控。配置了浏览器
+  /// Cookie 时只信浏览器，跳过该文件。
+  static List<String> _cookieArgs(List<String> paths, {String url = ''}) {
     final browser = SettingsStorage.instance.current.cookiesFromBrowser;
+    final effectivePaths = filterCookiePathsForSite(
+      paths,
+      url: url,
+      browser: browser,
+    );
     return [
-      for (final cp in paths) ...['--cookies', cp],
+      for (final cp in effectivePaths) ...['--cookies', cp],
       if (browser.isNotEmpty) ...['--cookies-from-browser', browser],
     ];
   }
@@ -556,7 +582,7 @@ class YtDlpRunner {
       '--no-warnings',
       '--no-playlist',
       ...await _youtubeArgs(url),
-      ..._cookieArgs(cookiePaths),
+      ..._cookieArgs(cookiePaths, url: url),
       url,
     ]);
 

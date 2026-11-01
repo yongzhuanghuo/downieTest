@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:downie_test/core/engine/ytdlp_runner.dart';
@@ -40,6 +42,45 @@ void main() {
       final args = buildYouTubeArgs('https://youtu.be/4JoEWdV7tpQ');
       expect(args, contains('--extractor-args'));
       expect(args, isNot(contains('--js-runtimes')));
+    });
+  });
+
+  group('filterCookiePathsForSite', () {
+    final sep = Platform.pathSeparator;
+    final youtube = 'cookies${sep}youtube.txt';
+    final douyin = 'cookies${sep}douyin.txt';
+
+    test('YouTube 配置了浏览器 Cookie 时跳过 youtube.txt', () {
+      expect(
+        filterCookiePathsForSite(
+          [youtube, douyin],
+          url: 'https://youtu.be/4JoEWdV7tpQ',
+          browser: 'edge',
+        ),
+        [douyin],
+      );
+    });
+
+    test('未配置浏览器 Cookie 时保留 youtube.txt', () {
+      expect(
+        filterCookiePathsForSite(
+          [youtube, douyin],
+          url: 'https://youtu.be/4JoEWdV7tpQ',
+          browser: '',
+        ),
+        [youtube, douyin],
+      );
+    });
+
+    test('非 YouTube 站点不受影响', () {
+      expect(
+        filterCookiePathsForSite(
+          [youtube, douyin],
+          url: 'https://www.bilibili.com/video/BV1xx',
+          browser: 'edge',
+        ),
+        [youtube, douyin],
+      );
     });
   });
 }
