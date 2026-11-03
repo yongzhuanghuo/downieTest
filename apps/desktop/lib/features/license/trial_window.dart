@@ -74,7 +74,7 @@ class _TrialWindowState extends ConsumerState<TrialWindow> {
       return;
     }
     if (email.isEmpty) {
-      setState(() => _message = '请输入购买时使用的电子邮箱');
+      setState(() => _message = '请输入邮箱地址');
       return;
     }
     if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
@@ -320,7 +320,7 @@ class _TrialWindowState extends ConsumerState<TrialWindow> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '请填写购买时使用的电子邮箱和许可证代码，该邮箱会与许可证代码绑定。',
+                    '请填写您的电子邮箱和许可证代码，该邮箱会与许可证代码绑定。',
                     style: TextStyle(fontSize: 13, color: secondary),
                   ),
                 ],
@@ -337,7 +337,7 @@ class _TrialWindowState extends ConsumerState<TrialWindow> {
             keyboardType: TextInputType.emailAddress,
             style: const TextStyle(fontSize: 13),
             decoration: const InputDecoration(
-              hintText: '你自己的邮箱（购买时使用的）',
+              hintText: '您自己的邮箱',
             ),
           ),
         ),
@@ -345,7 +345,7 @@ class _TrialWindowState extends ConsumerState<TrialWindow> {
         Padding(
           padding: const EdgeInsets.only(left: 104),
           child: Text(
-            '请填写你自己的邮箱（购买时使用的邮箱），用于绑定授权和找回许可证代码。',
+            '请填写您自己的邮箱，用于绑定授权和找回许可证代码。',
             style: TextStyle(fontSize: 11, color: secondary),
           ),
         ),

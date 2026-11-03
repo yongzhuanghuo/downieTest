@@ -407,7 +407,7 @@ class _SupportDialogState extends State<SupportDialog> with WindowListener {
                               maxLines: 12,
                               style: const TextStyle(fontSize: 13, height: 1.45),
                               decoration: InputDecoration(
-                                hintText: '请描述你遇到的问题、期望结果，以及复现步骤…',
+                                hintText: '请描述您遇到的问题、期望结果，以及复现步骤…',
                                 errorText: _messageError,
                                 alignLabelWithHint: true,
                               ),

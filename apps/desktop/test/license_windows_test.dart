@@ -64,7 +64,7 @@ void main() {
 
     expect(find.text('电子邮箱'), findsOneWidget);
     expect(find.text('许可证代码'), findsOneWidget);
-    expect(find.textContaining('你自己的邮箱'), findsWidgets);
+    expect(find.textContaining('您自己的邮箱'), findsWidgets);
     expect(find.text('激活许可证'), findsOneWidget);
   });
 
