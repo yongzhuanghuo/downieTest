@@ -196,10 +196,12 @@ class FFmpegRunner {
     String? referer,
     String? cookie,
     String? userAgent,
+    String? proxy,
     void Function(DownloadProgress progress)? onProgress,
     bool Function()? shouldCancel,
   }) async {
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
+    final proxyValue = proxy?.trim() ?? '';
 
     final headers = <String>[
       if (referer != null && referer.isNotEmpty) 'Referer: $referer',
@@ -209,6 +211,9 @@ class FFmpegRunner {
     final args = <String>[
       '-y',
       '-nostdin',
+      '-hide_banner',
+      // ffmpeg 不会读取 macOS/Windows 的系统代理，必须显式传入。
+      if (proxyValue.isNotEmpty) ...['-http_proxy', proxyValue],
       if (headers.isNotEmpty) ...['-headers', '${headers.join('\r\n')}\r\n'],
       '-protocol_whitelist', 'file,http,https,tcp,tls,crypto',
       '-i', url,
@@ -217,7 +222,17 @@ class FFmpegRunner {
       outputPath,
     ];
 
-    final process = await Process.start(ffmpegPath, args);
+    final process = await Process.start(
+      ffmpegPath,
+      args,
+      environment: proxyValue.isNotEmpty
+          ? {
+              ...Platform.environment,
+              'http_proxy': proxyValue,
+              'https_proxy': proxyValue,
+            }
+          : null,
+    );
     var stderrText = '';
     double? duration;
     var cancelled = false;

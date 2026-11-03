@@ -270,12 +270,15 @@ Future<QuickAddResult> enqueueCapturedMedia(
   CapturedMedia media, {
   QuickAddOptions? options,
 }) async {
-  final host = Uri.tryParse(media.pageUrl)?.host ?? '';
+  final pageHost = Uri.tryParse(media.pageUrl)?.host ?? '';
+  final mediaHost = Uri.tryParse(media.url)?.host ?? pageHost;
   final info = VideoInfo(
-    url: media.pageUrl,
-    title: media.title.isEmpty ? host : media.title,
+    // 任务 URL 用直链本身，而不是页面 URL：同一页面里的多个直链
+    // 才不会被重复检测误判成同一个任务。
+    url: media.url,
+    title: media.title.isEmpty ? pageHost : media.title,
     duration: 0,
-    uploader: host,
+    uploader: mediaHost,
     thumbnail: '',
     extractor: 'GenericWeb',
     videoId: media.url.hashCode.abs().toString(),
@@ -286,6 +289,7 @@ Future<QuickAddResult> enqueueCapturedMedia(
           'kind': media.kind,
           'referer': media.referer,
           'cookie': media.cookie,
+          'userAgent': media.userAgent,
         }),
         label: '用户自定义提取 ${media.kind.toUpperCase()}',
         height: 0,

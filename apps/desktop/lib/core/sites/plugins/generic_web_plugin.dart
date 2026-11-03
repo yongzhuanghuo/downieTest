@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import '../../../data/models/video_info.dart';
 import '../../ffmpeg/ffmpeg_runner.dart';
+import '../../platform/system_proxy.dart';
+import '../../storage/settings_storage.dart';
 import '../site_plugin.dart';
 
 /// 判断嗅探到的 URL 属于哪种媒体类型。
@@ -70,13 +72,20 @@ class GenericWebPlugin extends SitePlugin {
       throw const SitePluginException('用户自定义视频提取地址为空', retryable: false);
     }
 
+    final configuredProxy = SettingsStorage.instance.current.proxy;
+    final proxy = configuredProxy.trim().isNotEmpty
+        ? SystemProxy.normalize(configuredProxy)
+        : await SystemProxy.detect();
+    final capturedUa = spec['userAgent']?.toString().trim() ?? '';
+
     try {
       return await FFmpegRunner.downloadUrl(
         url: url,
         outputPath: request.outputPath,
         referer: spec['referer']?.toString(),
         cookie: spec['cookie']?.toString(),
-        userAgent: _ua,
+        userAgent: capturedUa.isEmpty ? _ua : capturedUa,
+        proxy: proxy,
         onProgress: request.onProgress,
         shouldCancel: request.shouldCancel,
       );

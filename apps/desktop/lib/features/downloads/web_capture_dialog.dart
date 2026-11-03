@@ -32,6 +32,7 @@ class CapturedMedia {
   final String title;
   final String referer;
   final String cookie;
+  final String userAgent;
 
   const CapturedMedia({
     required this.url,
@@ -40,6 +41,7 @@ class CapturedMedia {
     required this.title,
     required this.referer,
     required this.cookie,
+    this.userAgent = '',
   });
 }
 
@@ -704,6 +706,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
       title: _title.isNotEmpty ? _title : host,
       referer: pageUrl,
       cookie: cookie,
+      userAgent: _currentUa(),
     );
   }
 
