@@ -1,11 +1,24 @@
+import 'package:downie_test/shared/widgets/window_panel.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:downie_test/app.dart';
-
 void main() {
-  testWidgets('App 启动测试', (WidgetTester tester) async {
-    await tester.pumpWidget(const DownloApp());
+  testWidgets('WindowPanel 无标题栏模式', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WindowPanel(
+            title: '关于',
+            width: 480,
+            height: 349,
+            showTitleBar: false,
+            child: const Text('感谢您的注册！'),
+          ),
+        ),
+      ),
+    );
 
-    expect(find.text('添加链接'), findsOneWidget);
+    expect(find.text('感谢您的注册！'), findsOneWidget);
+    expect(find.byTooltip('关闭'), findsOneWidget);
   });
 }

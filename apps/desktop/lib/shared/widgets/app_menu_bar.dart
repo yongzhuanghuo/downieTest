@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/storage/site_registry.dart';
+import '../../features/about/about_window.dart';
 import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/downloads/quick_add.dart';
@@ -16,7 +17,8 @@ import '../../features/downloads/site_login_dialog.dart';
 import '../../features/help/help_window.dart';
 import '../../features/help/support_dialog.dart';
 import '../../features/history/history_window.dart';
-import '../../features/license/license_window.dart';
+import '../../features/license/license_actions.dart';
+import '../../features/license/license_provider.dart';
 import '../../features/preferences/preferences_window.dart';
 import '../../core/version/version_check.dart';
 import '../branding/app_brand.dart';
@@ -42,12 +44,21 @@ class AppMenuBar extends ConsumerWidget {
   BuildContext? get _ctx => rootNavigatorKey.currentContext;
 
   List<PlatformMenuItem> _menus(WidgetRef ref) {
+    final isPro = ref.watch(isProProvider);
+    final trial = ref.watch(trialProvider).asData?.value;
+    final trialLabel = trial == null
+        ? '试用/授权…'
+        : trial.isActive
+            ? '试用剩余 ${trialDaysRemaining(trial)} 天…'
+            : '试用已结束…';
+
     return [
       PlatformMenu(
         label: AppBrand.name,
         menus: [
-          const PlatformProvidedMenuItem(
-            type: PlatformProvidedMenuItemType.about,
+          PlatformMenuItem(
+            label: '关于 ${AppBrand.name}',
+            onSelected: _openAbout,
           ),
           PlatformMenuItem(
             label: '设置…',
@@ -57,10 +68,33 @@ class AppMenuBar extends ConsumerWidget {
             ),
             onSelected: _openPreferences,
           ),
-          PlatformMenuItem(
-            label: '许可证…',
-            onSelected: _openLicense,
-          ),
+          if (isPro) ...[
+            PlatformMenuItem(
+              label: '显示许可证代码…',
+              onSelected: _openRegisteredLicense,
+            ),
+            PlatformMenuItem(
+              label: '设备管理…',
+              onSelected: _openDeviceManagement,
+            ),
+            PlatformMenuItem(
+              label: '停用用户许可证',
+              onSelected: () => _deactivate(ref),
+            ),
+          ] else ...[
+            PlatformMenuItem(
+              label: trialLabel,
+              onSelected: _openLicense,
+            ),
+            PlatformMenuItem(
+              label: '输入许可证代码…',
+              onSelected: _openActivation,
+            ),
+            PlatformMenuItem(
+              label: '恢复许可证代码…',
+              onSelected: _openRecovery,
+            ),
+          ],
           PlatformMenuItem(
             label: '检查更新…',
             onSelected: () => _checkUpdate(ref),
@@ -227,7 +261,37 @@ class AppMenuBar extends ConsumerWidget {
 
   void _openLicense() {
     final ctx = _ctx;
-    if (ctx != null) LicenseWindow.show(ctx);
+    if (ctx != null) unawaited(showLicenseFlow(ctx));
+  }
+
+  void _openActivation() {
+    final ctx = _ctx;
+    if (ctx != null) unawaited(showLicenseFlow(ctx, activation: true));
+  }
+
+  void _openRegisteredLicense() {
+    final ctx = _ctx;
+    if (ctx != null) unawaited(showRegisteredLicense(ctx));
+  }
+
+  void _openDeviceManagement() {
+    final ctx = _ctx;
+    if (ctx != null) unawaited(openDeviceManagement(ctx));
+  }
+
+  void _deactivate(WidgetRef ref) {
+    final ctx = _ctx;
+    if (ctx != null) unawaited(confirmAndDeactivateLicense(ctx, ref));
+  }
+
+  void _openRecovery() {
+    final ctx = _ctx;
+    if (ctx != null) unawaited(showRecoverLicenseDialog(ctx));
+  }
+
+  void _openAbout() {
+    final ctx = _ctx;
+    if (ctx != null) AboutWindow.show(ctx);
   }
 
   void _openUrls() {
@@ -302,9 +366,17 @@ class AppMenuBar extends ConsumerWidget {
   Future<void> _checkUpdate(WidgetRef ref) async {
     final ctx = _ctx;
     if (ctx == null) return;
-    final found = await refreshUpdateState(ref);
-    if (found && ctx.mounted) {
-      await showUpdateDialog(ref.read(updateInfoProvider)!);
+    try {
+      final found = await refreshUpdateState(ref);
+      if (!ctx.mounted) return;
+      if (found) {
+        await showUpdateDialog(ref.read(updateInfoProvider)!);
+      } else {
+        await showUpToDateDialog();
+      }
+    } catch (e) {
+      debugPrint('[更新] 菜单检查失败: $e');
+      await showUpdateCheckFailedDialog();
     }
   }
 }

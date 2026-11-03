@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,8 @@ import '../../features/downloads/quick_add.dart';
 import '../../features/downloads/web_capture_dialog.dart';
 import '../../features/help/help_window.dart';
 import '../../features/history/history_window.dart';
+import '../../features/license/license_actions.dart';
+import '../../features/license/license_provider.dart';
 import '../../features/preferences/preferences_window.dart';
 import '../../features/settings/settings_provider.dart';
 import '../routes/app_routes.dart';
@@ -31,6 +34,12 @@ class WindowStatusBar extends ConsumerWidget {
     final secondary =
         dark ? AppTokens.textSecondary : AppTokens.textSecondaryLight;
     final accent = dark ? AppTokens.accent : AppTokens.accentLight;
+
+    final isPro = ref.watch(isProProvider);
+    final trial = ref.watch(trialProvider).asData?.value;
+    final showTrial = !isPro && trial != null;
+    final trialExpired = trial != null && !trial.isActive;
+    final trialDays = trial != null ? trialDaysRemaining(trial) : 0;
 
     final tasks = ref.watch(downloadListProvider);
     final hasFinished = tasks.any((t) => t.isFinished);
@@ -63,21 +72,34 @@ class WindowStatusBar extends ConsumerWidget {
           children: [
             Align(
               alignment: Alignment.center,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => context.go(AppRoutes.downloads),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 150),
-                  child: Text(
-                    countLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: text,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 120),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => context.go(AppRoutes.downloads),
+                      child: Text(
+                        countLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: text,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (showTrial) ...[
+                      const SizedBox(width: AppSpacing.md),
+                      _TrialBadge(
+                        expired: trialExpired,
+                        days: trialDays,
+                        onTap: () => unawaited(showLicenseFlow(context)),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -175,6 +197,48 @@ class WindowStatusBar extends ConsumerWidget {
   }
 }
 
+class _TrialBadge extends StatelessWidget {
+  final bool expired;
+  final int days;
+  final VoidCallback onTap;
+
+  const _TrialBadge({
+    required this.expired,
+    required this.days,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final color = expired
+        ? (dark ? AppTokens.error : AppTokens.errorLight)
+        : (dark ? AppTokens.accent : AppTokens.accentLight);
+    return Tooltip(
+      message: '查看试用/授权',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            expired ? '试用已结束' : '试用剩余 $days 天',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StatusIcon extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -227,16 +291,12 @@ class _UpdateIconState extends ConsumerState<_UpdateIcon> {
       if (found) {
         await showUpdateDialog(ref.read(updateInfoProvider)!);
       } else {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('当前已是最新版本')));
+        await showUpToDateDialog();
       }
     } catch (e) {
       debugPrint('[更新] 手动检查失败: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('检查更新失败，请稍后重试')));
+        await showUpdateCheckFailedDialog();
       }
     } finally {
       if (mounted) setState(() => _checking = false);

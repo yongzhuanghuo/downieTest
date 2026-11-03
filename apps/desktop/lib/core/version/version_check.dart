@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../shared/branding/app_brand.dart';
 import '../../shared/routes/navigator_key.dart';
 import '../api/api_base.dart';
 import 'update_installer.dart';
@@ -68,22 +69,82 @@ Future<bool> refreshUpdateState(WidgetRef ref) async {
   return info != null;
 }
 
-/// 弹「发现新版本」窗口：应用内下载、安装并重启。
-Future<void> showUpdateDialog(UpdateInfo info) async {
+/// 已是最新版本时的 Downie 式提示。
+Future<void> showUpToDateDialog() async {
+  final ctx = rootNavigatorKey.currentContext;
+  if (ctx == null) return;
+
+  var version = '';
+  try {
+    version = (await PackageInfo.fromPlatform()).version;
+  } catch (_) {}
+  if (!ctx.mounted) return;
+
+  await showDialog<void>(
+    context: ctx,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('您使用的就是最新版！'),
+      content: Text(
+        version.isEmpty
+            ? '${AppBrand.name} 已经是当前的最新版本。'
+            : '${AppBrand.name} $version 是当前的最新版本。',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('好'),
+        ),
+      ],
+    ),
+  );
+}
+
+/// 检查更新失败时的提示。
+Future<void> showUpdateCheckFailedDialog() async {
   final ctx = rootNavigatorKey.currentContext;
   if (ctx == null) return;
 
   await showDialog<void>(
     context: ctx,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('检查更新失败。'),
+      content: const Text('请检查网络连接后重试。'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('好'),
+        ),
+      ],
+    ),
+  );
+}
+
+/// 弹「发现新版本」窗口：应用内下载、安装并重启。
+Future<void> showUpdateDialog(UpdateInfo info) async {
+  final ctx = rootNavigatorKey.currentContext;
+  if (ctx == null) return;
+
+  var currentVersion = '';
+  try {
+    currentVersion = (await PackageInfo.fromPlatform()).version;
+  } catch (_) {}
+  if (!ctx.mounted) return;
+
+  await showDialog<void>(
+    context: ctx,
     barrierDismissible: !info.force,
-    builder: (_) => _UpdateDialog(info: info),
+    builder: (_) => _UpdateDialog(
+      info: info,
+      currentVersion: currentVersion,
+    ),
   );
 }
 
 class _UpdateDialog extends StatefulWidget {
   final UpdateInfo info;
+  final String currentVersion;
 
-  const _UpdateDialog({required this.info});
+  const _UpdateDialog({required this.info, this.currentVersion = ''});
 
   @override
   State<_UpdateDialog> createState() => _UpdateDialogState();
@@ -171,6 +232,16 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (widget.currentVersion.isNotEmpty) ...[
+              Text(
+                '当前版本 ${widget.currentVersion} → 新版本 ${info.version}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             Text(info.changelog.isEmpty ? '有新版本可用。' : info.changelog),
             if (_installing) ...[
               const SizedBox(height: 20),

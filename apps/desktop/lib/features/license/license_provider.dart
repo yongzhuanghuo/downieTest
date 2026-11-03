@@ -21,6 +21,7 @@ class LicenseStorage {
   static const _keyLicense = 'license';
   static const _keyTrial = 'trial';
   static const _keyHeartbeat = 'lastHeartbeat';
+  static const _keyTrialReminderDay = 'trial_reminder_day';
 
   Box? _box;
   ActivatedLicense? _cached;
@@ -86,6 +87,14 @@ class LicenseStorage {
 
   Future<void> saveHeartbeat(int value) async {
     await _box?.put(_keyHeartbeat, value);
+  }
+
+  /// 上次自动弹试用窗口的日期（yyyy-MM-dd），用于每天只提醒一次。
+  String? get lastTrialReminderDay =>
+      _box?.get(_keyTrialReminderDay) as String?;
+
+  Future<void> saveTrialReminderDay(String day) async {
+    await _box?.put(_keyTrialReminderDay, day);
   }
 }
 
@@ -399,6 +408,7 @@ class TrialNotifier extends StateNotifier<AsyncValue<TrialInfo?>> {
   TrialNotifier() : super(const AsyncValue.loading());
 
   bool _started = false;
+  DateTime? _lastRefresh;
 
   Future<void> ensureStarted() async {
     if (_started) return;
@@ -426,6 +436,54 @@ class TrialNotifier extends StateNotifier<AsyncValue<TrialInfo?>> {
       _started = false;
     }
   }
+
+  /// 刷新试用状态。打开试用/授权窗口时调用。
+  /// 失败时保留已有数据，避免界面闪回 loading 或误判为过期。
+  Future<void> refresh() => _refresh(force: false);
+
+  /// 忽略节流，立即重新请求（用户点「重试」时用）。
+  Future<void> forceRefresh() => _refresh(force: true);
+
+  Future<void> _refresh({required bool force}) async {
+    final now = DateTime.now();
+    if (!force &&
+        _lastRefresh != null &&
+        now.difference(_lastRefresh!) < const Duration(seconds: 30)) {
+      return;
+    }
+    _lastRefresh = now;
+
+    final cached = LicenseStorage.instance.cachedTrial;
+    if (cached != null && state.asData?.value == null) {
+      state = AsyncValue.data(cached);
+    }
+    try {
+      final deviceFp = await DeviceFingerprint.get();
+      final info = await LicenseClient.instance.startTrial(
+        deviceFp: deviceFp,
+        platform: Platform.isMacOS ? 'macos' : 'windows',
+      );
+      if (info != null) {
+        await LicenseStorage.instance.saveTrial(info);
+        state = AsyncValue.data(info);
+      }
+    } catch (e) {
+      debugPrint('[Trial] 刷新试用状态失败: $e');
+    }
+  }
+}
+
+/// 按 trial_end 本地计算剩余天数，避免应用跨天开着时显示旧天数。
+int trialDaysRemaining(TrialInfo? info, {DateTime? now}) {
+  if (info == null) return 0;
+  if (info.trialEnd > 0) {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    final left =
+        info.trialEnd - (now ?? DateTime.now()).millisecondsSinceEpoch;
+    if (left <= 0) return 0;
+    return (left / msPerDay).ceil();
+  }
+  return info.daysRemaining;
 }
 
 final trialProvider =

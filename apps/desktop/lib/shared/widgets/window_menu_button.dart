@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -7,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/storage/site_registry.dart';
 import '../../core/version/version_check.dart';
+import '../../features/about/about_window.dart';
 import '../../features/downloads/add_urls_panel.dart';
 import '../../features/downloads/download_provider.dart';
 import '../../features/downloads/quick_add.dart';
@@ -15,7 +17,8 @@ import '../../features/downloads/web_capture_dialog.dart';
 import '../../features/help/help_window.dart';
 import '../../features/help/support_dialog.dart';
 import '../../features/history/history_window.dart';
-import '../../features/license/license_window.dart';
+import '../../features/license/license_actions.dart';
+import '../../features/license/license_provider.dart';
 import '../../features/preferences/preferences_window.dart';
 import '../branding/app_brand.dart';
 import '../theme/design_tokens.dart';
@@ -36,6 +39,13 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
 
   @override
   Widget build(BuildContext context) {
+    final isPro = ref.watch(isProProvider);
+    final trial = ref.watch(trialProvider).asData?.value;
+    final trialLabel = trial == null
+        ? '试用/授权…'
+        : trial.isActive
+            ? '试用剩余 ${trialDaysRemaining(trial)} 天…'
+            : '试用已结束…';
     final dark = Theme.of(context).brightness == Brightness.dark;
     final panel = dark ? AppTokens.panel : AppTokens.panelLight;
     final divider = dark ? AppTokens.divider : AppTokens.dividerLight;
@@ -146,17 +156,46 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
           onTap: () => HistoryWindow.show(context),
         ),
         const Divider(height: 8),
-        _item('关于 ${AppBrand.name}', icon: Icons.info_outline, onTap: _about),
         _item(
-          '显示许可证代码…',
-          icon: Icons.key_outlined,
-          onTap: () => LicenseWindow.show(context),
+          '关于 ${AppBrand.name}',
+          icon: Icons.info_outline,
+          onTap: () => AboutWindow.show(context),
         ),
-        _item(
-          '停用用户许可证',
-          icon: Icons.key_off_outlined,
-          onTap: () => LicenseWindow.show(context),
-        ),
+        if (isPro) ...[
+          _item(
+            '显示许可证代码…',
+            icon: Icons.key_outlined,
+            onTap: () => unawaited(showRegisteredLicense(context)),
+          ),
+          _item(
+            '设备管理…',
+            icon: Icons.devices,
+            onTap: () => unawaited(openDeviceManagement(context)),
+          ),
+          _item(
+            '停用用户许可证',
+            icon: Icons.key_off_outlined,
+            onTap: () =>
+                unawaited(confirmAndDeactivateLicense(context, ref)),
+          ),
+        ] else ...[
+          _item(
+            trialLabel,
+            icon: Icons.hourglass_bottom,
+            onTap: () => unawaited(showLicenseFlow(context)),
+          ),
+          _item(
+            '输入许可证代码…',
+            icon: Icons.key_outlined,
+            onTap: () =>
+                unawaited(showLicenseFlow(context, activation: true)),
+          ),
+          _item(
+            '恢复许可证代码…',
+            icon: Icons.help_outline,
+            onTap: () => unawaited(showRecoverLicenseDialog(context)),
+          ),
+        ],
         const Divider(height: 8),
         _item(
           '检查更新…',
@@ -326,45 +365,12 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
       if (found) {
         await showUpdateDialog(ref.read(updateInfoProvider)!);
       } else {
-        _hint('当前已是最新版本');
+        await showUpToDateDialog();
       }
     } catch (e) {
       debugPrint('[更新] 菜单检查失败: $e');
-      _hint('检查更新失败，请稍后重试');
+      await showUpdateCheckFailedDialog();
     }
-  }
-
-  Future<void> _about() async {
-    final theme = Theme.of(context);
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppBrand.name),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(AppBrand.tagline, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 12),
-            Text(
-              '支持邮箱：${AppBrand.supportEmail}',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '解析和下载在本地完成；只有授权校验、版本检查和主动发送的反馈会联网。',
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('好'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _hint(String message) {

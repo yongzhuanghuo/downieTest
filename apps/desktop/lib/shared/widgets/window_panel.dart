@@ -13,11 +13,13 @@ Future<T?> showWindowPanel<T>({
   required double height,
   required Widget child,
   Color barrierColor = Colors.transparent,
+  bool barrierDismissible = false,
+  bool showTitleBar = true,
 }) {
   return showGeneralDialog<T>(
     context: context,
-    barrierDismissible: false,
-    barrierLabel: title,
+    barrierDismissible: barrierDismissible,
+    barrierLabel: title.isEmpty ? '关闭' : title,
     barrierColor: barrierColor,
     transitionDuration: const Duration(milliseconds: 120),
     pageBuilder: (context, animation, secondaryAnimation) {
@@ -26,6 +28,7 @@ Future<T?> showWindowPanel<T>({
           title: title,
           width: width,
           height: height,
+          showTitleBar: showTitleBar,
           child: child,
         ),
       );
@@ -44,6 +47,7 @@ class WindowPanel extends StatelessWidget {
   final double width;
   final double height;
   final Widget child;
+  final bool showTitleBar;
 
   const WindowPanel({
     super.key,
@@ -51,6 +55,7 @@ class WindowPanel extends StatelessWidget {
     required this.width,
     required this.height,
     required this.child,
+    this.showTitleBar = true,
   });
 
   @override
@@ -81,37 +86,57 @@ class WindowPanel extends StatelessWidget {
           ],
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            Container(
-              height: 36,
-              color: titleBar,
-              padding: const EdgeInsets.only(left: 14, right: 4),
-              child: Row(
+        child: showTitleBar
+            ? Column(
                 children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.windowTitle(text),
+                  Container(
+                    height: 36,
+                    color: titleBar,
+                    padding: const EdgeInsets.only(left: 14, right: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.windowTitle(text),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          tooltip: '关闭',
+                          icon: Icon(Icons.close, size: 14, color: secondary),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 30,
+                            height: 30,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    tooltip: '关闭',
-                    icon: Icon(Icons.close, size: 14, color: secondary),
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 30, height: 30),
+                  Divider(height: 1, color: divider),
+                  Expanded(child: child),
+                ],
+              )
+            : Stack(
+                children: [
+                  Positioned.fill(child: child),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      tooltip: '关闭',
+                      icon: Icon(Icons.close, size: 15, color: secondary),
+                      padding: EdgeInsets.zero,
+                      constraints:
+                          const BoxConstraints.tightFor(width: 28, height: 28),
+                    ),
                   ),
                 ],
               ),
-            ),
-            Divider(height: 1, color: divider),
-            Expanded(child: child),
-          ],
-        ),
       ),
     );
   }

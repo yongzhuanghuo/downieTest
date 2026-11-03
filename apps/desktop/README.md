@@ -199,18 +199,19 @@ lib/
 │   │                              #   - 操作：打开文件、删除记录、清空历史
 │   │                              #   - 日期格式化：今天/昨天/N天前/年月日
 │   │
+│   ├── about/                    # 关于窗口
+│   │   └── about_window.dart     #   - 图标/名称/版本号/授权状态/支持/隐私
+│   │
 │   ├── license/                  # 许可证模块
-│   │   ├── license_provider.dart #   - LicenseStorage: Hive 持久化 + 每日配额
+│   │   ├── license_provider.dart #   - LicenseStorage: Hive 持久化 + 试用缓存/提醒日期
 │   │   │                          #   - LicenseNotifier: 激活/解绑/同步设备列表
-│   │   │                          #   - Provider: activatedLicenseProvider, isProProvider,
-│   │   │                          #     maxAllowedHeightProvider, todayUsedProvider,
-│   │   │                          #     todayRemainingProvider, isQuotaReachedProvider
+│   │   │                          #   - TrialNotifier: 14 天试用状态 + 打开窗口时刷新
 │   │   │
-│   │   └── license_card.dart     #   - LicenseCard: 许可证信息展示 + 设备管理
-│   │                              #   - showProUpgradeDialog(): PRO 升级对话框
-│   │                              #     · 功能对比表（画质/配额/设备/并发等）
-│   │                              #     · 激活码输入 + 激活按钮（加载状态防重复点击）
-│   │                              #   - 设备列表：同步/解绑（含确认对话框）
+│   │   ├── license_window.dart   #   - LicenseWindow.show(): 按授权状态分发
+│   │   ├── trial_window.dart     #   - TrialWindow: 试用大窗口 + 激活表单 + 找回说明
+│   │   ├── registered_window.dart#   - RegisteredWindow: 感谢注册 + 邮箱/许可证代码
+│   │   ├── device_dialog.dart    #   - DeviceDialog: 设备管理/解绑
+│   │   └── license_actions.dart  #   - showLicenseFlow / 反激活确认 / 菜单入口
 │   │
 │   └── settings/                 # 设置模块
 │       ├── settings_page.dart    #   - 下载设置：目录选择、并发数滑块、字幕开关

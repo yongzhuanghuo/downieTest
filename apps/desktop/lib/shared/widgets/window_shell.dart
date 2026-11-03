@@ -22,6 +22,7 @@ import '../../features/downloads/queue_search_panel.dart';
 import '../../features/downloads/quick_add.dart';
 import '../../features/history/history_window.dart';
 import '../../features/home/home_provider.dart';
+import '../../features/license/license_actions.dart';
 import '../../features/license/license_provider.dart';
 import '../../features/preferences/preferences_window.dart';
 import '../../features/settings/settings_provider.dart';
@@ -70,7 +71,7 @@ class _WindowShellState extends ConsumerState<WindowShell> {
         }
       });
     }
-    unawaited(ref.read(trialProvider.notifier).ensureStarted());
+    unawaited(_initTrial());
     unawaited(ref.read(licenseNotifierProvider.notifier).verifyCurrentDevice());
     // 长驻应用也要感知服务端吊销/过期，否则退款或撤销后一直保持 PRO。
     _licenseCheckTimer = Timer.periodic(
@@ -116,6 +117,36 @@ class _WindowShellState extends ConsumerState<WindowShell> {
         debugPrint('[更新] 版本检查失败（静默）: $e');
       }
     }());
+  }
+
+  /// 未授权时每天首次启动弹一次试用大窗口；已授权则完全跳过。
+  Future<void> _initTrial() async {
+    // 网络慢时不阻塞启动；试用标签会在请求完成后自行更新。
+    await ref
+        .read(trialProvider.notifier)
+        .ensureStarted()
+        .timeout(const Duration(seconds: 5), onTimeout: () {});
+    if (!mounted) return;
+
+    // 给首帧和可能存在的授权 URL 处理留出时间，避免弹窗叠在一起。
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted || ref.read(isProProvider)) return;
+
+    final trial = ref.read(trialProvider).asData?.value;
+    if (trial == null) return;
+
+    final today = _dayKey(DateTime.now());
+    if (LicenseStorage.instance.lastTrialReminderDay == today) return;
+    await LicenseStorage.instance.saveTrialReminderDay(today);
+    if (!mounted) return;
+    await showLicenseFlow(context);
+  }
+
+  String _dayKey(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   @override

@@ -16,6 +16,33 @@ void main() {
     expect(info.daysRemaining, 14);
   });
 
+  test('trialDaysRemaining uses trial_end instead of a stale cached value',
+      () {
+    final now = DateTime(2026, 11, 2, 12);
+    final info = TrialInfo(
+      status: 'active',
+      trialEnd: now
+          .add(const Duration(days: 3, hours: 1))
+          .millisecondsSinceEpoch,
+      daysRemaining: 99,
+      canDownload: true,
+    );
+    expect(trialDaysRemaining(info, now: now), 4);
+  });
+
+  test('trialDaysRemaining returns 0 after trial_end', () {
+    final now = DateTime(2026, 11, 2, 12);
+    final info = TrialInfo(
+      status: 'expired',
+      trialEnd: now
+          .subtract(const Duration(days: 1))
+          .millisecondsSinceEpoch,
+      daysRemaining: 5,
+      canDownload: true,
+    );
+    expect(trialDaysRemaining(info, now: now), 0);
+  });
+
   test('activation errors unwrap FastAPI detail payloads', () {
     final result = ActivateResult.fromJson({
       'detail': {
