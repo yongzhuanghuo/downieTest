@@ -161,10 +161,6 @@ class WebCaptureDialog extends ConsumerStatefulWidget {
 }
 
 class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
-  static const String _uaDesktop =
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
-      'AppleWebKit/537.36 (KHTML, like Gecko) '
-      'Chrome/126.0.0.0 Safari/537.36';
   static const String _uaSafari =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
       'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15';
@@ -193,7 +189,9 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
   bool _popupsEnabled = true;
   bool _compatibility = false;
   bool _mergeHls = true;
-  String _uaMode = 'chrome';
+  // macOS 的 WKWebView 必须用 Safari UA；伪装 Chrome UA 会让 TikTok
+  // 按 Chromium 路径渲染，页面可能只剩骨架、不初始化播放器。
+  String _uaMode = Platform.isMacOS ? 'safari' : 'chrome';
   String _pageUrl = '';
   String _title = '';
   bool _disposed = false;
@@ -456,7 +454,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
       case 'mobile':
         return _uaMobile;
       default:
-        return _uaDesktop;
+        return Platform.isMacOS ? _uaSafari : _uaChrome;
     }
   }
 
@@ -1416,6 +1414,7 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
         }
       },
       onLoadStop: (controller, url) {
+        debugPrint('[UGE] loadStop ${url?.toString()}');
         if (url != null) _syncAddress(url.toString());
         if (mounted) {
           setState(() {
@@ -1448,7 +1447,9 @@ class _WebCaptureDialogState extends ConsumerState<WebCaptureDialog> {
         }
       },
       onReceivedError: (controller, request, error) {
-        debugPrint('[UGE] 加载错误: ${error.description}');
+        debugPrint(
+          '[UGE] 加载错误 ${request.url}: ${error.type} ${error.description}',
+        );
       },
     );
   }
