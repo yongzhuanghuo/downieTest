@@ -1,5 +1,12 @@
 # 更新日志
 
+## 2.0.44（2026-11-04）
+
+### YouTube
+
+- 修复配置浏览器 Cookie 后仍提示「Sign in to confirm you're not a bot」：YouTube 使用浏览器 Cookie 时不再混用 `youtube.txt` / `douyin.txt` 等 Netscape cookie 文件，避免旧登录态覆盖浏览器登录态
+- 建议在「设置 → 浏览器扩展 → 读取浏览器登录状态」选择已登录 YouTube 的 Microsoft Edge / Chrome
+
 ## 2.0.43（2026-11-04）
 
 ### 用户自定义提取 / TikTok
