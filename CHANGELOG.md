@@ -1,5 +1,12 @@
 # 更新日志
 
+## 2.0.45（2026-11-04）
+
+### YouTube
+
+- 修复 YouTube 下载报「The uploader has not made this video available in your country」或「Requested format is not available」：yt-dlp 现在会像浏览器一样自动使用系统代理（应用内代理优先），避免解析和下载走不同出口
+- 地区限制/画质不可用错误改为中文提示
+
 ## 2.0.44（2026-11-04）
 
 ### YouTube
