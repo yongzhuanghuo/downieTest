@@ -215,7 +215,7 @@ class FFmpegRunner {
       // ffmpeg 不会读取 macOS/Windows 的系统代理，必须显式传入。
       if (proxyValue.isNotEmpty) ...['-http_proxy', proxyValue],
       if (headers.isNotEmpty) ...['-headers', '${headers.join('\r\n')}\r\n'],
-      '-protocol_whitelist', 'file,http,https,tcp,tls,crypto',
+      '-protocol_whitelist', 'file,http,https,tcp,tls,crypto,httpproxy',
       '-i', url,
       '-c', 'copy',
       '-movflags', '+faststart',
