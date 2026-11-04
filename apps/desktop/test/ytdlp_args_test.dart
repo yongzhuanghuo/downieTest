@@ -50,14 +50,14 @@ void main() {
     final youtube = 'cookies${sep}youtube.txt';
     final douyin = 'cookies${sep}douyin.txt';
 
-    test('YouTube 配置了浏览器 Cookie 时跳过 youtube.txt', () {
+    test('YouTube 配置了浏览器 Cookie 时不再混用任何 cookie 文件', () {
       expect(
         filterCookiePathsForSite(
           [youtube, douyin],
           url: 'https://youtu.be/4JoEWdV7tpQ',
           browser: 'edge',
         ),
-        [douyin],
+        isEmpty,
       );
     });
 

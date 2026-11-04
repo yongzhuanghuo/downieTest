@@ -44,10 +44,11 @@ List<String> buildYouTubeArgs(String url, {String? nodePath}) {
   ];
 }
 
-/// 配置了浏览器 Cookie 时，YouTube 不再使用 WebView 保存的 cookie 文件。
+/// 配置了浏览器 Cookie 时，YouTube 不再使用任何 Netscape cookie 文件。
 ///
-/// 两者同时传给 yt-dlp 时，失效的 `youtube.txt` 会覆盖浏览器 Cookie，
-/// 导致明明浏览器已登录仍然报 bot check。
+/// 只跳过 `youtube.txt` 不够：站点 cookie 文件（例如 `douyin.txt`）可能
+/// 混入旧的/跨域 YouTube cookie，和浏览器 Cookie 一起传给 yt-dlp 时会
+/// 覆盖浏览器登录态，导致明明浏览器已登录仍然报 bot check。
 @visibleForTesting
 List<String> filterCookiePathsForSite(
   List<String> paths, {
@@ -55,10 +56,7 @@ List<String> filterCookiePathsForSite(
   required String browser,
 }) {
   if (browser.isEmpty || !_isYouTubeUrl(url)) return paths;
-  final youtubeCookie = '${Platform.pathSeparator}youtube.txt';
-  return paths
-      .where((p) => !p.toLowerCase().endsWith(youtubeCookie))
-      .toList();
+  return const [];
 }
 
 /// yt-dlp 引擎封装
