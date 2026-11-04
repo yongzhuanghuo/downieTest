@@ -8,6 +8,7 @@ import '../../data/models/download_progress.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
 import '../platform/binary_locator.dart';
+import '../platform/system_proxy.dart';
 import '../storage/settings_storage.dart';
 import '../storage/site_cookies.dart';
 
@@ -147,7 +148,7 @@ class YtDlpRunner {
         debugPrint('[解析]   读 cookie 文件失败: $e');
       }
     }
-    final proxy = SettingsStorage.instance.current.proxy;
+    final proxy = await _resolveProxy();
     // 使用 --dump-json 输出单行 JSON
     final result = await _runCommand([
       '--dump-json',
@@ -213,7 +214,7 @@ class YtDlpRunner {
   /// 每个条目使用 `bv*+ba/b` 作为下载格式，由 yt-dlp 在下载时选最佳流。
   static Future<List<VideoInfo>> parsePlaylist(String url) async {
     final cookiePaths = await SiteCookies.allCookieFilePaths();
-    final proxy = SettingsStorage.instance.current.proxy;
+    final proxy = await _resolveProxy();
     final result = await _runCommand([
       '--flat-playlist',
       '--dump-json',
@@ -370,7 +371,8 @@ class YtDlpRunner {
     );
 
     final settings = SettingsStorage.instance.current;
-    final proxy = settings.proxy;
+    final proxy = await _resolveProxy();
+    debugPrint('[YtDlp] proxy: ${proxy.isEmpty ? 'direct' : proxy}');
     final effectiveConnections = connections > 0
         ? connections
         : settings.connectionsPerDownload;
@@ -957,13 +959,32 @@ class YtDlpRunner {
     }
   }
 
+  /// yt-dlp 的代理：优先应用内设置，其次系统代理。
+  ///
+  /// 系统代理本来就是给浏览器/WebView 用的；yt-dlp 是独立进程，不会
+  /// 自动读取 macOS/Windows 系统代理。留空时这里补上，避免明明浏览器
+  /// 能访问 YouTube、yt-dlp 却走另一个出口被地区限制。
+  static Future<String> _resolveProxy() async {
+    final configured = SettingsStorage.instance.current.proxy.trim();
+    if (configured.isNotEmpty) return SystemProxy.normalize(configured);
+    return await SystemProxy.detect() ?? '';
+  }
+
   /// 从错误输出提取可读错误信息
   static String _extractErrorMessage(String stderr) {
     final lines = stderr.split('\n');
     for (final line in lines.reversed) {
       final trimmed = line.trim();
       if (trimmed.startsWith('ERROR:')) {
-        return trimmed.substring(6).trim();
+        final message = trimmed.substring(6).trim();
+        if (message.contains('not available in your country') ||
+            message.contains('not made this video available in your country')) {
+          return '该视频在当前代理地区不可用，请切换代理节点/国家后重试';
+        }
+        if (message.contains('Requested format is not available')) {
+          return '所选画质在当前地区/客户端不可用，请切换代理节点或重新解析后选择其他画质';
+        }
+        return message;
       }
     }
     return stderr.length > 200 ? stderr.substring(stderr.length - 200) : stderr;

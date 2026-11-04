@@ -884,8 +884,8 @@ class _PreferencesWindowState extends ConsumerState<PreferencesWindow> {
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              '代理会传给 yt-dlp，用于解析和下载。留空表示不使用代理；'
-              '修改后对之后新发起的任务生效。',
+              '代理会传给 yt-dlp，用于解析和下载。留空时自动使用系统代理'
+              '（与浏览器一致）；修改后对之后新发起的任务生效。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
