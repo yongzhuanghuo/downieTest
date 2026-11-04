@@ -1,5 +1,12 @@
 # 更新日志
 
+## 2.0.43（2026-11-04）
+
+### 用户自定义提取 / TikTok
+
+- 修复使用代理下载 TikTok 直链时报 `Protocol 'httpproxy' not on whitelist` 的问题：ffmpeg 协议白名单加入 `httpproxy`
+- 2.0.42 的 Safari UA 修复让 TikTok 页面正常渲染并捕获直链；本次补上代理下载的最后一步
+
 ## 2.0.42（2026-11-04）
 
 ### 用户自定义提取 / TikTok
