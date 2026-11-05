@@ -36,6 +36,16 @@ class ParseState {
   bool get isError => status == ParseStatus.error;
 }
 
+/// 这些站点必须用「用户自定义视频提取」：页面是登录/JS 渲染的课程页，
+/// yt-dlp 只会干等十几秒再报 Unsupported URL。直接提示，和 Downie 一致。
+bool _needsCustomExtraction(String url) {
+  final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+  return host == 'xiaoeknow.com' ||
+      host.endsWith('.xiaoeknow.com') ||
+      host == 'xiaoe-tech.com' ||
+      host.endsWith('.xiaoe-tech.com');
+}
+
 /// 解析 Notifier
 class ParseNotifier extends StateNotifier<ParseState> {
   ParseNotifier() : super(const ParseState());
@@ -101,6 +111,15 @@ class ParseNotifier extends StateNotifier<ParseState> {
       state = ParseState(
         status: ParseStatus.success,
         videoInfo: cachedDouyin,
+      );
+      return;
+    }
+
+    if (_needsCustomExtraction(target)) {
+      debugPrint('[解析] 已知需要自定义提取: $target');
+      state = const ParseState(
+        status: ParseStatus.error,
+        error: '该站点不支持直接解析，请点击「用户自定义视频提取」打开页面',
       );
       return;
     }
@@ -254,7 +273,7 @@ String? extractFirstUrl(String text) {
 final _bareVideoPattern = RegExp(
   '(?<![\\w.])((?:v\\.douyin\\.com|www\\.douyin\\.com/video|'
   'www\\.iesdouyin\\.com/share/video|b23\\.tv|v\\.kuaishou\\.com|'
-  'xhslink\\.com|www\\.xiaohongshu\\.com/explore|weibo\\.com/tv|'
+  'xhslink\\.(?:com|cn)|www\\.xiaohongshu\\.com/explore|weibo\\.com/tv|'
   'm\\.weibo\\.cn/detail)/'
   '[^\\s\\u3000-\\u303f\\u4e00-\\u9fff\\uff00-\\uffef]*)',
   caseSensitive: false,
@@ -285,6 +304,9 @@ bool _looksLikeVideoHost(String url) {
       host.endsWith('kuaishou.com') ||
       host.endsWith('xiaohongshu.com') ||
       host == 'xhslink.com' ||
+      host.endsWith('.xhslink.com') ||
+      host == 'xhslink.cn' ||
+      host.endsWith('.xhslink.cn') ||
       host.endsWith('weibo.com') ||
       host.endsWith('weibo.cn');
 }

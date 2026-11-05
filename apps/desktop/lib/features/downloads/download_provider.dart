@@ -46,19 +46,41 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   /// 测试用：不读数据库、不启动调度器。
   @visibleForTesting
   DownloadListNotifier.test(this._ref, List<DownloadTask> initial)
-      : super(initial);
+    : super(initial);
 
   final Ref _ref;
   final DownloadsDao _dao = DownloadsDao.instance;
   final Set<String> _cancelled = {};
   final Set<String> _paused = {};
   final Set<String> _activeIds = {}; // 正在执行中的任务 ID（避免并发重复启动）
+  final Map<String, Timer> _restartTimers = {};
   bool _initialized = false;
   bool _manualStartAll = false;
 
   /// 当前并发上限（实时从设置读取）
-  int get _maxConcurrent =>
-      SettingsStorage.instance.current.maxConcurrent;
+  int get _maxConcurrent => SettingsStorage.instance.current.maxConcurrent;
+
+  void _cancelRestart(String id) {
+    _restartTimers.remove(id)?.cancel();
+  }
+
+  /// 下载中改了选项后稍等片刻再重下，让用户能连续勾字幕+封面。
+  void _scheduleRestart(String id) {
+    _cancelRestart(id);
+    _restartTimers[id] = Timer(const Duration(milliseconds: 900), () {
+      _restartTimers.remove(id);
+      unawaited(restart(id));
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final timer in _restartTimers.values) {
+      timer.cancel();
+    }
+    _restartTimers.clear();
+    super.dispose();
+  }
 
   // ==================== 初始化（加载DB + 恢复未完成任务） ====================
 
@@ -81,10 +103,12 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     final all = await _dao.findAll();
     if (SettingsStorage.instance.current.clearMissingHistory) {
       final missing = all
-          .where((t) =>
-              t.status == DownloadStatus.completed &&
-              t.outputPath != null &&
-              !File(t.outputPath!).existsSync())
+          .where(
+            (t) =>
+                t.status == DownloadStatus.completed &&
+                t.outputPath != null &&
+                !File(t.outputPath!).existsSync(),
+          )
           .toList();
       if (missing.isNotEmpty) {
         for (final t in missing) {
@@ -113,10 +137,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         needResets.add(reset);
       } else if (t.status == DownloadStatus.loading ||
           t.status == DownloadStatus.preparing) {
-        needResets.add(t.copyWith(
-          status: DownloadStatus.failed,
-          error: '上次添加未完成解析，请重新添加',
-        ));
+        needResets.add(
+          t.copyWith(status: DownloadStatus.failed, error: '上次添加未完成解析，请重新添加'),
+        );
       }
     }
     if (needResets.isNotEmpty) {
@@ -144,9 +167,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         !SettingsStorage.instance.current.autoStartDownloads) {
       return;
     }
-    final pending = state
-        .where((t) => t.isPending)
-        .toList()
+    final pending = state.where((t) => t.isPending).toList()
       ..sort((a, b) {
         final byPriority = b.priority.index.compareTo(a.priority.index);
         return byPriority != 0
@@ -207,11 +228,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   }) async {
     await _apply(
       id,
-      (t) => t.copyWith(
-        status: status,
-        title: title,
-        error: error ?? t.error,
-      ),
+      (t) => t.copyWith(status: status, title: title, error: error ?? t.error),
     );
   }
 
@@ -302,7 +319,8 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       state = [task, ...state];
     } else {
       state = [
-        for (final t in state) if (t.id == task.id) task else t,
+        for (final t in state)
+          if (t.id == task.id) task else t,
       ];
     }
 
@@ -324,18 +342,22 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     }
   }
 
-  /// 是否下载字幕（等待中/失败/取消的任务可改）
+  /// 是否下载字幕（除加载/解析阶段外都可改；下载中改会重新下载）
   Future<void> setDownloadSubtitles(String id, bool value) async {
     final task = _find(id);
     if (task == null || !task.canConfigure) return;
+    final restart = task.needsRestartForOptionChange;
     await _apply(id, (t) => t.copyWith(downloadSubtitles: value));
+    if (restart) _scheduleRestart(id);
   }
 
-  /// 是否保存缩略图（等待中/失败/取消的任务可改）
+  /// 是否保存缩略图（除加载/解析阶段外都可改；下载中改会重新下载）
   Future<void> setDownloadCover(String id, bool value) async {
     final task = _find(id);
     if (task == null || !task.canConfigure) return;
+    final restart = task.needsRestartForOptionChange;
     await _apply(id, (t) => t.copyWith(downloadCover: value));
+    if (restart) _scheduleRestart(id);
   }
 
   /// 修改下载完成后的处理方式（下载中也可改，完成时读取最新值）
@@ -419,10 +441,11 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     return null;
   }
 
-  /// 在任务开始前切换画质/格式
+  /// 切换画质/格式（下载中切换会按新画质重新下载）
   Future<void> setFormat(String id, FormatOption format) async {
     final task = _find(id);
     if (task == null || !task.canConfigure) return;
+    final restart = task.needsRestartForOptionChange;
     await _apply(
       id,
       (t) => t.copyWith(
@@ -431,9 +454,52 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         height: format.height,
         ext: format.ext,
         audioOnly: format.audioOnly,
+        discardPartial: true,
         fileSize: format.fileSize ?? t.fileSize,
       ),
     );
+    if (restart) _scheduleRestart(id);
+  }
+
+  /// 用当前选项重新下载。运行中的任务先取消，等旧执行退出后再排队。
+  Future<void> restart(String id) async {
+    _cancelRestart(id);
+    final task = _find(id);
+    if (task == null) return;
+    if (task.status == DownloadStatus.loading ||
+        task.status == DownloadStatus.preparing) {
+      return;
+    }
+
+    if (task.isRunning || task.isPaused) {
+      _paused.remove(id);
+      _cancelled.add(id);
+      final deadline = DateTime.now().add(const Duration(seconds: 30));
+      while (_activeIds.contains(id) && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      if (_activeIds.contains(id)) {
+        debugPrint('[DownloadList] 重启等待超时，旧任务仍在运行: $id');
+        return;
+      }
+    }
+
+    _cancelled.remove(id);
+    _paused.remove(id);
+    await _apply(
+      id,
+      (x) => x.copyWith(
+        status: DownloadStatus.pending,
+        retryCount: 0,
+        error: null,
+        speed: 0,
+        downloadedBytes: 0,
+        progress: null,
+        startedAt: null,
+        completedAt: null,
+      ),
+    );
+    unawaited(_scheduler(force: true));
   }
 
   // ==================== 执行单个任务（含重试/续传/取消） ====================
@@ -457,7 +523,8 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         targetDir = '$outputDir/${site.isEmpty ? 'Other' : site}';
         await Directory(targetDir).create(recursive: true);
       }
-      if (settings.subfolderByPlaylist && task.playlistTitle.trim().isNotEmpty) {
+      if (settings.subfolderByPlaylist &&
+          task.playlistTitle.trim().isNotEmpty) {
         final playlist = sanitizePathSegment(task.playlistTitle);
         if (playlist.isNotEmpty) {
           targetDir = '$targetDir/$playlist';
@@ -471,6 +538,15 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         url: task.url,
       );
       outputTemplate = '$targetDir/$baseName.${task.ext}';
+      // 切换画质后旧 .part 是另一种编码，续传会拼坏文件，先丢弃。
+      if (task.discardPartial) {
+        try {
+          await File('$outputTemplate.part').delete();
+        } catch (_) {}
+        await _apply(task.id, (t) => t.copyWith(discardPartial: false));
+      }
+      // 已完成的任务按新选项重下时，不覆盖旧文件；有 .part 则保留路径续传。
+      outputTemplate = await _uniqueOutputPath(outputTemplate);
       try {
         final dataDir = await SettingsStorage.getStorageDir();
         taskLogPath = '${dataDir.path}/logs/task_${task.id}.log';
@@ -486,12 +562,15 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
         }
 
         // 更新状态：下载中 + 重试次数
-        await _apply(task.id, (t) => t.copyWith(
-              status: DownloadStatus.downloading,
-              retryCount: attempt,
-              startedAt: t.startedAt ?? DateTime.now(),
-              error: null,
-            ));
+        await _apply(
+          task.id,
+          (t) => t.copyWith(
+            status: DownloadStatus.downloading,
+            retryCount: attempt,
+            startedAt: t.startedAt ?? DateTime.now(),
+            error: null,
+          ),
+        );
 
         try {
           final String result;
@@ -506,12 +585,14 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
               '[plugin] ${plugin.id} url=${task.url} '
               'format=${task.formatId}',
             );
-            result = await plugin.download(PluginDownloadRequest(
-              task: task,
-              outputPath: outputTemplate!,
-              onProgress: (p) => _applyProgress(task.id, p),
-              shouldCancel: () => _cancelled.contains(task.id),
-            ));
+            result = await plugin.download(
+              PluginDownloadRequest(
+                task: task,
+                outputPath: outputTemplate!,
+                onProgress: (p) => _applyProgress(task.id, p),
+                shouldCancel: () => _cancelled.contains(task.id),
+              ),
+            );
             await _appendTaskLog(taskLogPath, '[plugin] success -> $result');
           } else {
             result = await YtDlpRunner.download(
@@ -534,8 +615,11 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           }
           // 成功：按最新选择执行后处理
           final current = _find(task.id) ?? task;
-          final resultPath =
-              await _applyPostprocessing(task.id, current, result);
+          final resultPath = await _applyPostprocessing(
+            task.id,
+            current,
+            result,
+          );
           if (_cancelled.contains(task.id)) {
             await _markStopped(task.id);
             return;
@@ -544,18 +628,21 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           try {
             finalSize = await File(resultPath).length();
           } catch (_) {}
-          await _apply(task.id, (t) => t.copyWith(
-                status: DownloadStatus.completed,
-                outputPath: resultPath,
-                fileSize: finalSize > 0 ? finalSize : t.fileSize,
-                completedAt: DateTime.now(),
+          await _apply(
+            task.id,
+            (t) => t.copyWith(
+              status: DownloadStatus.completed,
+              outputPath: resultPath,
+              fileSize: finalSize > 0 ? finalSize : t.fileSize,
+              completedAt: DateTime.now(),
+              speed: 0,
+              progress: const DownloadProgress(
+                downloadedBytes: 0,
                 speed: 0,
-                progress: const DownloadProgress(
-                  downloadedBytes: 0,
-                  speed: 0,
-                  stage: DownloadStage.downloading,
-                ),
-              ));
+                stage: DownloadStage.downloading,
+              ),
+            ),
+          );
           unawaited(SystemNotifications.downloadComplete(current.title));
           if (Platform.isMacOS &&
               SettingsStorage.instance.current.addToAppleMedia) {
@@ -578,14 +665,17 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           }
           // 需要登录：直接弹登录浏览器；登录成功后自动重试
           if (e.requiresLogin) {
-            await _apply(task.id, (t) => t.copyWith(
-                  status: DownloadStatus.failed,
-                  error: isYouTubeUrl(task.url)
-                      ? 'YouTube 风控要求登录/验证：请在登录浏览器登录 YouTube，或使用浏览器 Cookie'
-                      : '需要登录才能下载：${e.message}',
-                  retryCount: attempt,
-                  speed: 0,
-                ));
+            await _apply(
+              task.id,
+              (t) => t.copyWith(
+                status: DownloadStatus.failed,
+                error: isYouTubeUrl(task.url)
+                    ? 'YouTube 风控要求登录/验证：请在登录浏览器登录 YouTube，或使用浏览器 Cookie'
+                    : '需要登录才能下载：${e.message}',
+                retryCount: attempt,
+                speed: 0,
+              ),
+            );
             final dialogSettings = SettingsStorage.instance.current;
             if (!dialogSettings.disableLoginDialogs &&
                 !dialogSettings.automatedMode) {
@@ -596,33 +686,46 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           }
           // 不可重试（如抖音直链签名失效）
           if (!e.retryable) {
-            await _apply(task.id, (t) => t.copyWith(
-                  status: DownloadStatus.failed,
-                  error: e.message,
-                  retryCount: attempt,
-                  speed: 0,
-                ));
+            await _apply(
+              task.id,
+              (t) => t.copyWith(
+                status: DownloadStatus.failed,
+                error: e.message,
+                retryCount: attempt,
+                speed: 0,
+              ),
+            );
             return;
           }
           // 可重试：与 yt-dlp 相同的指数退避
           attempt++;
           if (attempt >= _kMaxRetry || _cancelled.contains(task.id)) {
-            await _apply(task.id, (t) => t.copyWith(
-                  status: DownloadStatus.failed,
-                  error: '重试${attempt}次均失败: ${e.message}',
-                  retryCount: attempt,
-                  speed: 0,
-                ));
-            return;
-          }
-          final delay = Duration(milliseconds: _kRetryBaseMs * (1 << (attempt - 1)));
-          debugPrint('[DownloadList] ${task.id} 第${attempt}次失败，${delay.inMilliseconds}ms后重试: ${e.message}');
-          await _apply(task.id, (t) => t.copyWith(
-                status: DownloadStatus.pending,
-                error: '第${attempt}次失败，${delay.inSeconds}s后重试...',
+            await _apply(
+              task.id,
+              (t) => t.copyWith(
+                status: DownloadStatus.failed,
+                error: '重试${attempt}次均失败: ${e.message}',
                 retryCount: attempt,
                 speed: 0,
-              ));
+              ),
+            );
+            return;
+          }
+          final delay = Duration(
+            milliseconds: _kRetryBaseMs * (1 << (attempt - 1)),
+          );
+          debugPrint(
+            '[DownloadList] ${task.id} 第${attempt}次失败，${delay.inMilliseconds}ms后重试: ${e.message}',
+          );
+          await _apply(
+            task.id,
+            (t) => t.copyWith(
+              status: DownloadStatus.pending,
+              error: '第${attempt}次失败，${delay.inSeconds}s后重试...',
+              retryCount: attempt,
+              speed: 0,
+            ),
+          );
           await Future.delayed(delay);
           if (_cancelled.contains(task.id)) {
             await _markStopped(task.id);
@@ -635,14 +738,17 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           }
           // 需要登录/cookie：不重试，直接提示登录对应站点
           if (isCookieError(e.message)) {
-            await _apply(task.id, (t) => t.copyWith(
-                  status: DownloadStatus.failed,
-                  error: isYouTubeUrl(task.url)
-                      ? 'YouTube 风控要求登录/验证：请在登录浏览器登录 YouTube，或使用浏览器 Cookie'
-                      : '需要登录才能下载：${e.message}',
-                  retryCount: attempt,
-                  speed: 0,
-                ));
+            await _apply(
+              task.id,
+              (t) => t.copyWith(
+                status: DownloadStatus.failed,
+                error: isYouTubeUrl(task.url)
+                    ? 'YouTube 风控要求登录/验证：请在登录浏览器登录 YouTube，或使用浏览器 Cookie'
+                    : '需要登录才能下载：${e.message}',
+                retryCount: attempt,
+                speed: 0,
+              ),
+            );
             final dialogSettings = SettingsStorage.instance.current;
             if (!dialogSettings.disableLoginDialogs &&
                 !dialogSettings.automatedMode) {
@@ -653,23 +759,33 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           }
           attempt++;
           if (attempt >= _kMaxRetry || _cancelled.contains(task.id)) {
-            await _apply(task.id, (t) => t.copyWith(
-                  status: DownloadStatus.failed,
-                  error: '重试${attempt}次均失败: ${e.message}',
-                  retryCount: attempt,
-                  speed: 0,
-                ));
+            await _apply(
+              task.id,
+              (t) => t.copyWith(
+                status: DownloadStatus.failed,
+                error: '重试${attempt}次均失败: ${e.message}',
+                retryCount: attempt,
+                speed: 0,
+              ),
+            );
             return;
           }
           // 退避等待
-          final delay = Duration(milliseconds: _kRetryBaseMs * (1 << (attempt - 1)));
-          debugPrint('[DownloadList] ${task.id} 第${attempt}次失败，${delay.inMilliseconds}ms后重试: ${e.message}');
-          await _apply(task.id, (t) => t.copyWith(
-                status: DownloadStatus.pending,
-                error: '第${attempt}次失败，${delay.inSeconds}s后重试...',
-                retryCount: attempt,
-                speed: 0,
-              ));
+          final delay = Duration(
+            milliseconds: _kRetryBaseMs * (1 << (attempt - 1)),
+          );
+          debugPrint(
+            '[DownloadList] ${task.id} 第${attempt}次失败，${delay.inMilliseconds}ms后重试: ${e.message}',
+          );
+          await _apply(
+            task.id,
+            (t) => t.copyWith(
+              status: DownloadStatus.pending,
+              error: '第${attempt}次失败，${delay.inSeconds}s后重试...',
+              retryCount: attempt,
+              speed: 0,
+            ),
+          );
           await Future.delayed(delay);
           if (_cancelled.contains(task.id)) {
             await _markStopped(task.id);
@@ -681,11 +797,14 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
             await _markStopped(task.id);
             return;
           }
-          await _apply(task.id, (t) => t.copyWith(
-                status: DownloadStatus.failed,
-                error: e.toString(),
-                speed: 0,
-              ));
+          await _apply(
+            task.id,
+            (t) => t.copyWith(
+              status: DownloadStatus.failed,
+              error: e.toString(),
+              speed: 0,
+            ),
+          );
           return;
         }
       }
@@ -713,19 +832,26 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   /// macOS：把完成文件导入 Music / TV。失败只记录日志，不影响下载结果。
   Future<void> _addToAppleMedia(String path, DownloadTask task) async {
     final settings = SettingsStorage.instance.current;
-    final isAudio = task.audioOnly ||
-        const {'mp3', 'm4a', 'opus', 'flac', 'wav', 'aac'}
-            .contains(_extensionOf(path));
+    final isAudio =
+        task.audioOnly ||
+        const {
+          'mp3',
+          'm4a',
+          'opus',
+          'flac',
+          'wav',
+          'aac',
+        }.contains(_extensionOf(path));
     final kind = settings.appleMediaKind == 0
         ? (isAudio ? 1 : 2)
         : settings.appleMediaKind;
     final app = kind == 1 ? 'Music' : 'TV';
     final escaped = path.replaceAll('\\', r'\\').replaceAll('"', r'\"');
     try {
-      final result = await Process.run(
-        'osascript',
-        ['-e', 'tell application "$app" to add POSIX file "$escaped"'],
-      );
+      final result = await Process.run('osascript', [
+        '-e',
+        'tell application "$app" to add POSIX file "$escaped"',
+      ]);
       if (result.exitCode != 0) {
         debugPrint('[AppleMedia] 导入 $app 失败: ${result.stderr}');
       }
@@ -786,46 +912,54 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   Future<void> pause(String id) async {
     final t = _find(id);
     if (t == null || t.isFinished || t.isPaused) return;
+    _cancelRestart(id);
     _paused.add(id);
     _cancelled.add(id);
     if (t.status == DownloadStatus.pending) {
-      await _apply(id, (x) => x.copyWith(
-            status: DownloadStatus.paused,
-            speed: 0,
-          ));
+      await _apply(
+        id,
+        (x) => x.copyWith(status: DownloadStatus.paused, speed: 0),
+      );
       return;
     }
-    await _apply(id, (x) => x.copyWith(
-          status: DownloadStatus.paused,
-          speed: 0,
-        ));
+    await _apply(
+      id,
+      (x) => x.copyWith(status: DownloadStatus.paused, speed: 0),
+    );
   }
 
   /// 继续已暂停的任务
   Future<void> resume(String id) async {
     final t = _find(id);
     if (t == null || !t.isPaused) return;
+    _cancelRestart(id);
     _paused.remove(id);
     _cancelled.remove(id);
-    await _apply(id, (x) => x.copyWith(
-          status: DownloadStatus.pending,
-          speed: 0,
-          error: null,
-          completedAt: null,
-        ));
+    await _apply(
+      id,
+      (x) => x.copyWith(
+        status: DownloadStatus.pending,
+        speed: 0,
+        error: null,
+        completedAt: null,
+      ),
+    );
     unawaited(_scheduler(force: true));
   }
 
   /// 取消下载
   void cancel(String id) {
+    _cancelRestart(id);
     _paused.remove(id);
     _cancelled.add(id);
     final t = _find(id);
     if (t != null && !t.isFinished) {
-      unawaited(_apply(id, (x) => x.copyWith(
-            status: DownloadStatus.cancelled,
-            speed: 0,
-          )));
+      unawaited(
+        _apply(
+          id,
+          (x) => x.copyWith(status: DownloadStatus.cancelled, speed: 0),
+        ),
+      );
     }
   }
 
@@ -834,23 +968,28 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     final t = _find(id);
     if (t == null) return;
     if (!t.isFailed && t.status != DownloadStatus.cancelled) return;
+    _cancelRestart(id);
     _paused.remove(id);
     _cancelled.remove(id);
-    await _apply(id, (x) => x.copyWith(
-          status: DownloadStatus.pending,
-          retryCount: 0,
-          error: null,
-          speed: 0,
-          downloadedBytes: 0,
-          progress: null,
-          startedAt: null,
-          completedAt: null,
-        ));
+    await _apply(
+      id,
+      (x) => x.copyWith(
+        status: DownloadStatus.pending,
+        retryCount: 0,
+        error: null,
+        speed: 0,
+        downloadedBytes: 0,
+        progress: null,
+        startedAt: null,
+        completedAt: null,
+      ),
+    );
     unawaited(_scheduler(force: true));
   }
 
   /// 删除任务（内存 + DB）
   Future<void> remove(String id) async {
+    _cancelRestart(id);
     _cancelled.add(id);
     _paused.remove(id);
     await _dao.deleteById(id);
@@ -893,10 +1032,7 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
   /// 清空未激活任务（等待中、暂停、已完成、失败、取消）。
   /// 正在下载的任务保留。
   Future<void> clearInactive() async {
-    final ids = state
-        .where((t) => !t.isRunning)
-        .map((t) => t.id)
-        .toSet();
+    final ids = state.where((t) => !t.isRunning).map((t) => t.id).toSet();
     if (ids.isEmpty) return;
     for (final id in ids) {
       _cancelled.add(id);
@@ -930,7 +1066,9 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       if (Platform.isMacOS) {
         await Process.run('open', ['-R', path]);
       } else if (Platform.isWindows) {
-        await Process.run('explorer', ['/select,${path.replaceAll('/', '\\')}']);
+        await Process.run('explorer', [
+          '/select,${path.replaceAll('/', '\\')}',
+        ]);
       }
     } catch (e) {
       debugPrint('[DownloadList] 打开文件夹失败: $e');
@@ -949,40 +1087,49 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     final before = _find(id);
     if (before == null) return;
     final after = fn(before);
-    state = [for (final t in state) if (t.id == id) after else t];
+    state = [
+      for (final t in state)
+        if (t.id == id) after else t,
+    ];
     await _dao.updateProgress(after);
   }
 
   Future<void> _applyProgress(String id, DownloadProgress p) async {
     if (_paused.contains(id) || _cancelled.contains(id)) return;
     final isMerging = p.stage == DownloadStage.merging;
-    await _apply(id, (t) => t.copyWith(
-          status: isMerging ? DownloadStatus.merging : DownloadStatus.downloading,
-          progress: p,
-          downloadedBytes: p.downloadedBytes,
-          speed: p.speed.toInt(),
-          fileSize: (p.totalBytes ?? 0) > 0 ? (p.totalBytes ?? 0) : t.fileSize,
-        ));
+    await _apply(
+      id,
+      (t) => t.copyWith(
+        status: isMerging ? DownloadStatus.merging : DownloadStatus.downloading,
+        progress: p,
+        downloadedBytes: p.downloadedBytes,
+        speed: p.speed.toInt(),
+        fileSize: (p.totalBytes ?? 0) > 0 ? (p.totalBytes ?? 0) : t.fileSize,
+      ),
+    );
   }
 
   /// 下载被取消检查器终止后，根据是否暂停决定落成暂停还是取消。
   Future<void> _markStopped(String id) async {
     if (_paused.contains(id)) {
-      await _apply(id, (t) => t.copyWith(
-            status: DownloadStatus.paused,
-            speed: 0,
-          ));
+      await _apply(
+        id,
+        (t) => t.copyWith(status: DownloadStatus.paused, speed: 0),
+      );
       return;
     }
     await _finishStatus(id, DownloadStatus.cancelled);
   }
 
   Future<void> _finishStatus(String id, DownloadStatus s) async {
-    await _apply(id, (t) => t.copyWith(
-          status: s,
-          speed: 0,
-          completedAt: s == DownloadStatus.cancelled ? DateTime.now() : null,
-        ));
+    await _apply(
+      id,
+      (t) => t.copyWith(
+        status: s,
+        speed: 0,
+        completedAt: s == DownloadStatus.cancelled ? DateTime.now() : null,
+      ),
+    );
   }
 
   Future<String> _applyPostprocessing(
@@ -999,15 +1146,18 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     if (task.postprocessing == PostprocessingMode.audio) {
       if (ext == 'mp3' || ext == 'm4a') return inputPath;
       final output = _replaceExtension(inputPath, 'mp3');
-      await _apply(id, (t) => t.copyWith(
-            status: DownloadStatus.merging,
-            progress: const DownloadProgress(
-              downloadedBytes: 0,
-              speed: 0,
-              stage: DownloadStage.postProcessing,
-              detail: '转换为 MP3',
-            ),
-          ));
+      await _apply(
+        id,
+        (t) => t.copyWith(
+          status: DownloadStatus.merging,
+          progress: const DownloadProgress(
+            downloadedBytes: 0,
+            speed: 0,
+            stage: DownloadStage.postProcessing,
+            detail: '转换为 MP3',
+          ),
+        ),
+      );
       final converted = await FFmpegRunner.convertToMp3(
         inputPath: inputPath,
         outputPath: output,
@@ -1015,25 +1165,27 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
       if (SettingsStorage.instance.current.deleteOriginalAfterConversion) {
         await _deleteQuietly(inputPath);
       }
-      await _apply(id, (t) => t.copyWith(
-            ext: 'mp3',
-            formatLabel: 'MP3',
-            audioOnly: true,
-          ));
+      await _apply(
+        id,
+        (t) => t.copyWith(ext: 'mp3', formatLabel: 'MP3', audioOnly: true),
+      );
       return converted;
     }
 
     if (ext == 'mp4') return inputPath;
     final output = _replaceExtension(inputPath, 'mp4');
-    await _apply(id, (t) => t.copyWith(
-          status: DownloadStatus.merging,
-          progress: const DownloadProgress(
-            downloadedBytes: 0,
-            speed: 0,
-            stage: DownloadStage.postProcessing,
-            detail: '转换为 MP4',
-          ),
-        ));
+    await _apply(
+      id,
+      (t) => t.copyWith(
+        status: DownloadStatus.merging,
+        progress: const DownloadProgress(
+          downloadedBytes: 0,
+          speed: 0,
+          stage: DownloadStage.postProcessing,
+          detail: '转换为 MP4',
+        ),
+      ),
+    );
     final converted = await FFmpegRunner.convertToMp4(
       inputPath: inputPath,
       outputPath: output,
@@ -1041,11 +1193,10 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     if (SettingsStorage.instance.current.deleteOriginalAfterConversion) {
       await _deleteQuietly(inputPath);
     }
-    await _apply(id, (t) => t.copyWith(
-          ext: 'mp4',
-          formatLabel: 'MP4',
-          audioOnly: false,
-        ));
+    await _apply(
+      id,
+      (t) => t.copyWith(ext: 'mp4', formatLabel: 'MP4', audioOnly: false),
+    );
     return converted;
   }
 
@@ -1060,15 +1211,18 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     if (!File(script).existsSync()) {
       throw Exception('自定义后处理脚本不存在：$script');
     }
-    await _apply(id, (t) => t.copyWith(
-          status: DownloadStatus.merging,
-          progress: const DownloadProgress(
-            downloadedBytes: 0,
-            speed: 0,
-            stage: DownloadStage.postProcessing,
-            detail: '运行自定义后处理',
-          ),
-        ));
+    await _apply(
+      id,
+      (t) => t.copyWith(
+        status: DownloadStatus.merging,
+        progress: const DownloadProgress(
+          downloadedBytes: 0,
+          speed: 0,
+          stage: DownloadStage.postProcessing,
+          detail: '运行自定义后处理',
+        ),
+      ),
+    );
 
     ProcessResult result;
     if (Platform.isWindows) {
@@ -1083,11 +1237,11 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
           inputPath,
         ]);
       } else {
-        result = await Process.run(
-          'cmd',
-          ['/c', script, inputPath],
-          runInShell: true,
-        );
+        result = await Process.run('cmd', [
+          '/c',
+          script,
+          inputPath,
+        ], runInShell: true);
       }
     } else {
       result = await Process.run('/bin/sh', [script, inputPath]);
@@ -1156,11 +1310,29 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     if (dot <= slash) return '$path.$ext';
     return '${path.substring(0, dot)}.$ext';
   }
+
+  /// 目标文件已存在时换一个 `名字 (2).ext`，避免重下覆盖旧文件。
+  /// 有 `.part` 时保持原路径，继续断点续传。
+  Future<String> _uniqueOutputPath(String path) async {
+    if (await File('$path.part').exists()) return path;
+    if (!await File(path).exists()) return path;
+    final slash = path.lastIndexOf(RegExp(r'[\\/]'));
+    final dot = path.lastIndexOf('.');
+    final hasExt = dot > slash;
+    final base = hasExt ? path.substring(0, dot) : path;
+    final ext = hasExt ? path.substring(dot) : '';
+    for (var i = 2; i < 100; i++) {
+      final candidate = '$base ($i)$ext';
+      if (!await File(candidate).exists()) return candidate;
+    }
+    return '$base (${DateTime.now().millisecondsSinceEpoch})$ext';
+  }
 }
 
 final downloadListProvider =
     StateNotifierProvider<DownloadListNotifier, List<DownloadTask>>(
-        (ref) => DownloadListNotifier(ref));
+      (ref) => DownloadListNotifier(ref),
+    );
 
 /// 只返回正在进行中的任务（用于展示角标数字）
 final pendingCountProvider = Provider<int>((ref) {

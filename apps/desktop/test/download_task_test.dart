@@ -3,18 +3,18 @@ import 'package:downie_test/data/models/format_option.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 DownloadTask _task() => DownloadTask(
-      id: '1',
-      url: 'https://example.com/v',
-      title: 'Demo',
-      thumbnail: '',
-      extractor: 'GenericWeb',
-      formatId: 'hls',
-      formatLabel: 'HLS',
-      height: 1080,
-      ext: 'mp4',
-      audioOnly: false,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(1),
-    );
+  id: '1',
+  url: 'https://example.com/v',
+  title: 'Demo',
+  thumbnail: '',
+  extractor: 'GenericWeb',
+  formatId: 'hls',
+  formatLabel: 'HLS',
+  height: 1080,
+  ext: 'mp4',
+  audioOnly: false,
+  createdAt: DateTime.fromMillisecondsSinceEpoch(1),
+);
 
 void main() {
   test('postprocessing and formats survive map round-trip', () {
@@ -103,10 +103,7 @@ void main() {
 
   test('per-task destination survives map round-trip', () {
     final task = _task().copyWith(destinationDir: '/tmp/videos');
-    expect(
-      DownloadTask.fromMap(task.toMap()).destinationDir,
-      '/tmp/videos',
-    );
+    expect(DownloadTask.fromMap(task.toMap()).destinationDir, '/tmp/videos');
   });
 
   test('playlist title survives map round-trip', () {
@@ -143,11 +140,15 @@ void main() {
     expect(paused.statusText, '已暂停');
   });
 
-  test('only pending/failed/cancelled tasks can change format options', () {
+  test('options can be changed in every stage except loading/preparing', () {
     for (final status in [
       DownloadStatus.pending,
+      DownloadStatus.downloading,
+      DownloadStatus.merging,
+      DownloadStatus.paused,
       DownloadStatus.failed,
       DownloadStatus.cancelled,
+      DownloadStatus.completed,
     ]) {
       expect(
         _task().copyWith(status: status).canConfigure,
@@ -155,16 +156,37 @@ void main() {
         reason: status.name,
       );
     }
+    for (final status in [DownloadStatus.loading, DownloadStatus.preparing]) {
+      expect(
+        _task().copyWith(status: status).canConfigure,
+        isFalse,
+        reason: status.name,
+      );
+    }
+  });
+
+  test('running/completed option changes trigger a re-download', () {
     for (final status in [
       DownloadStatus.downloading,
       DownloadStatus.merging,
       DownloadStatus.paused,
       DownloadStatus.completed,
+    ]) {
+      expect(
+        _task().copyWith(status: status).needsRestartForOptionChange,
+        isTrue,
+        reason: status.name,
+      );
+    }
+    for (final status in [
+      DownloadStatus.pending,
+      DownloadStatus.failed,
+      DownloadStatus.cancelled,
       DownloadStatus.loading,
       DownloadStatus.preparing,
     ]) {
       expect(
-        _task().copyWith(status: status).canConfigure,
+        _task().copyWith(status: status).needsRestartForOptionChange,
         isFalse,
         reason: status.name,
       );

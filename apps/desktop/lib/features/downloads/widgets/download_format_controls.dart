@@ -93,7 +93,9 @@ class DownloadFormatControls extends StatelessWidget {
         ? task.formatLabel
         : (task.audioOnly ? 'AUDIO' : task.ext.toUpperCase());
 
-    if (!task.canConfigure) return DownloadPill(label);
+    if (!task.canConfigure) {
+      return Tooltip(message: '解析完成后可修改', child: DownloadPill(label));
+    }
 
     // 老任务恢复后格式列表可能为空：给一次重新解析的入口。
     if (formats.isEmpty) {
@@ -150,7 +152,7 @@ class DownloadFormatControls extends StatelessWidget {
         : (value ? Colors.white : Colors.white70);
 
     return Tooltip(
-      message: tooltip,
+      message: enabled ? tooltip : '解析完成后可修改',
       child: InkWell(
         onTap: enabled ? () => onChanged(!value) : null,
         borderRadius: BorderRadius.circular(4),

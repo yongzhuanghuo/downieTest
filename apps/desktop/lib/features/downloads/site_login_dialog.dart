@@ -295,9 +295,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
             _saving = false;
             _loginDetected = false;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('没有抓到任何 Cookie，请等页面加载完或先登录再点完成')),
-          );
+          _showHint('没有抓到任何 Cookie，请等页面加载完或先登录再点完成');
           _startLoginPolling();
         }
         return;
@@ -348,9 +346,7 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('保存 Cookie 失败：$e')));
+        _showHint('保存 Cookie 失败：$e');
       }
     }
   }
@@ -399,15 +395,35 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     });
   }
 
+  void _showHint(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   /// 抓取站点主域 + 额外域名的 cookie。
   ///
   /// YouTube 的登录态分散在 `.youtube.com` 和 `.google.com`，只读原视频
   /// URL（youtu.be）会漏掉登录 cookie；这里对每个域名都取一次再合并。
+  ///
+  /// 手机分享短链（xhslink.cn）会跳转到 xiaohongshu.com；因此还要按
+  /// 当前页面 URL 抓一次，否则登录后只能看到短链域名的 0 条 Cookie。
   Future<List<Cookie>> _collectCookies() async {
     final manager = CookieManager.instance(
       webViewEnvironment: widget.environment,
     );
     final urls = <String>{_loginUrl};
+    final current = _currentPageUrl.trim();
+    if (current.startsWith('http://') || current.startsWith('https://')) {
+      urls.add(current);
+    }
     for (final raw in widget.site.allCookieDomains) {
       final bare = (raw.startsWith('.') ? raw.substring(1) : raw).toLowerCase();
       urls.add('https://www.$bare/');
@@ -415,7 +431,9 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     final merged = <String, Cookie>{};
     for (final url in urls) {
       try {
-        final all = await manager.getCookies(url: WebUri(url));
+        final all = await manager
+            .getCookies(url: WebUri(url))
+            .timeout(const Duration(seconds: 5));
         for (final c in _filterSiteCookies(all)) {
           merged['${c.name}|${c.domain}|${c.path}'] = c;
         }
@@ -433,6 +451,14 @@ class _SiteLoginDialogState extends State<SiteLoginDialog> {
     final targets = widget.site.allCookieDomains
         .map((d) => (d.startsWith('.') ? d.substring(1) : d).toLowerCase())
         .toList();
+    // 短链跳转后的实际页面域名（如 xiaohongshu.com）也要算进目标域。
+    final currentHost = Uri.tryParse(_currentPageUrl)?.host.toLowerCase() ?? '';
+    if (currentHost.isNotEmpty) {
+      final bare = currentHost.startsWith('www.')
+          ? currentHost.substring(4)
+          : currentHost;
+      if (bare.isNotEmpty) targets.add(bare);
+    }
     return cookies.where((c) {
       final d = (c.domain ?? '').toLowerCase();
       if (d.isEmpty) return false;

@@ -63,7 +63,7 @@ const List<SiteConfig> kLoginSites = [
   SiteConfig(
     id: 'xiaohongshu',
     name: '小红书',
-    domains: ['xiaohongshu.com'],
+    domains: ['xiaohongshu.com', 'xhslink.com', 'xhslink.cn'],
     loginUrl: 'https://www.xiaohongshu.com',
     cookieDomain: '.xiaohongshu.com',
   ),

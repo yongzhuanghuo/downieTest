@@ -169,7 +169,36 @@ void main() {
       expect(cover, isTrue);
     });
 
-    testWidgets('completed task cannot change resolution or download extras', (
+    testWidgets('downloading task can change resolution and extras', (
+      tester,
+    ) async {
+      FormatOption? selected;
+      bool? subtitles;
+      bool? cover;
+      await tester.pumpWidget(
+        _app(
+          _task(status: DownloadStatus.downloading),
+          onFormatSelected: (value) => selected = value,
+          onSubtitlesChanged: (value) => subtitles = value,
+          onCoverChanged: (value) => cover = value,
+        ),
+      );
+
+      await tester.tap(find.text('1080p MP4'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(CheckedPopupMenuItem<FormatOption>, '720p WEBM'),
+      );
+      await tester.pumpAndSettle();
+      expect(selected?.formatId, 'v720');
+
+      await tester.tap(find.text('字幕'));
+      await tester.tap(find.text('封面'));
+      expect(subtitles, isTrue);
+      expect(cover, isTrue);
+    });
+
+    testWidgets('completed task can also change resolution and extras', (
       tester,
     ) async {
       var changed = false;
@@ -184,11 +213,11 @@ void main() {
 
       await tester.tap(find.text('1080p MP4'));
       await tester.pumpAndSettle();
-      expect(find.text('720p WEBM'), findsNothing);
+      expect(find.text('720p WEBM'), findsOneWidget);
 
       await tester.tap(find.text('字幕'));
       await tester.tap(find.text('封面'));
-      expect(changed, isFalse);
+      expect(changed, isTrue);
     });
 
     testWidgets('task without formats still allows subtitle/cover changes', (

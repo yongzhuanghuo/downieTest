@@ -17,6 +17,9 @@ String loginRequiredMessage(String url) {
   if (lower.contains('tiktok.com/shortdrama/')) {
     return 'TikTok 短剧需要登录后观看：请在登录窗口登录 TikTok，再重试解析';
   }
+  if (lower.contains('xiaohongshu.com') || lower.contains('xhslink.')) {
+    return '小红书需要登录后才能解析：请在登录窗口登录小红书，再重试';
+  }
   if (isYouTubeUrl(url)) {
     return 'YouTube 风控要求登录/验证：请用登录浏览器登录 YouTube，'
         '或在设置→浏览器扩展选择已登录 YouTube 的浏览器 Cookie';

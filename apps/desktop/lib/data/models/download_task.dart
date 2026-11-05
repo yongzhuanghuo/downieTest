@@ -41,15 +41,15 @@ extension DownloadPriorityX on DownloadPriority {
 
 /// 下载任务状态
 enum DownloadStatus {
-  pending,    // 等待中（队列里）
+  pending, // 等待中（队列里）
   downloading,
   merging,
   completed,
   failed,
   cancelled,
   paused,
-  loading,    // 已加入队列，正在获取页面信息（Downie: 加载中）
-  preparing,  // 正在解析/准备格式（Downie: 准备中...）
+  loading, // 已加入队列，正在获取页面信息（Downie: 加载中）
+  preparing, // 正在解析/准备格式（Downie: 准备中...）
 }
 
 /// 下载任务
@@ -96,6 +96,9 @@ class DownloadTask {
 
   /// 是否纯音频
   final bool audioOnly;
+
+  /// 仅内存：下次开始时删除旧的 `.part`（切换画质后避免续传错格式）。
+  final bool discardPartial;
 
   /// 是否在下载时同时导出字幕
   final bool downloadSubtitles;
@@ -163,6 +166,7 @@ class DownloadTask {
     required this.height,
     required this.ext,
     required this.audioOnly,
+    this.discardPartial = false,
     this.downloadSubtitles = false,
     this.downloadCover = false,
     this.throttleKbps = 0,
@@ -197,6 +201,7 @@ class DownloadTask {
     int? height,
     String? ext,
     bool? audioOnly,
+    bool? discardPartial,
     List<FormatOption>? availableFormats,
     PostprocessingMode? postprocessing,
     DownloadPriority? priority,
@@ -230,6 +235,7 @@ class DownloadTask {
       height: height ?? this.height,
       ext: ext ?? this.ext,
       audioOnly: audioOnly ?? this.audioOnly,
+      discardPartial: discardPartial ?? this.discardPartial,
       downloadSubtitles: downloadSubtitles ?? this.downloadSubtitles,
       downloadCover: downloadCover ?? this.downloadCover,
       throttleKbps: throttleKbps ?? this.throttleKbps,
@@ -267,11 +273,19 @@ class DownloadTask {
 
   /// 是否还能在下载卡片上修改画质/字幕/封面。
   ///
-  /// 等待中可直接生效；失败/取消的任务改完后重试会用新选项。
+  /// 除了极短的加载/解析阶段，任何阶段都允许改；下载中改会重新下载。
   bool get canConfigure =>
-      status == DownloadStatus.pending ||
-      status == DownloadStatus.failed ||
-      status == DownloadStatus.cancelled;
+      status != DownloadStatus.loading && status != DownloadStatus.preparing;
+
+  /// 修改选项后是否需要重新开始下载。
+  ///
+  /// 等待中/失败/取消的任务只更新选项，由调度器或用户手动重试；
+  /// 下载中/合并中/暂停/已完成的任务直接按新选项重下。
+  bool get needsRestartForOptionChange =>
+      status == DownloadStatus.downloading ||
+      status == DownloadStatus.merging ||
+      status == DownloadStatus.paused ||
+      status == DownloadStatus.completed;
   bool get isRunning =>
       status == DownloadStatus.pending ||
       status == DownloadStatus.downloading ||
@@ -365,14 +379,17 @@ class DownloadTask {
       ),
       height: (map['height'] as num?)?.toInt() ?? 0,
       ext: (map['ext'] as String?) ?? 'mp4',
-      downloadSubtitles: ((map['download_subtitles'] as num?)?.toInt() ?? 0) == 1,
+      downloadSubtitles:
+          ((map['download_subtitles'] as num?)?.toInt() ?? 0) == 1,
       downloadCover: ((map['download_cover'] as num?)?.toInt() ?? 0) == 1,
       throttleKbps: (map['throttle_kbps'] as num?)?.toInt() ?? 0,
       connections: (map['connections'] as num?)?.toInt() ?? 0,
       destinationDir: (map['destination_dir'] as String?) ?? '',
       playlistTitle: (map['playlist_title'] as String?) ?? '',
-      audioOnly: (map['height'] as num?)?.toInt() == 0 &&
-          (map['format_label'] as String?)?.toLowerCase().contains('音频') == true,
+      audioOnly:
+          (map['height'] as num?)?.toInt() == 0 &&
+          (map['format_label'] as String?)?.toLowerCase().contains('音频') ==
+              true,
       status: DownloadStatus.values[(map['status'] as int?) ?? 0],
       fileSize: (map['file_size'] as num?)?.toInt() ?? 0,
       downloadedBytes: (map['downloaded_bytes'] as num?)?.toInt() ?? 0,

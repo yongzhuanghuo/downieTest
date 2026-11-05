@@ -4,6 +4,7 @@ import 'plugins/generic_web_plugin.dart';
 import 'plugins/kuaishou_plugin.dart';
 import 'plugins/tiktok_plugin.dart';
 import 'plugins/weibo_plugin.dart';
+import 'plugins/xiaohongshu_plugin.dart';
 import 'site_plugin.dart';
 
 /// 站点插件注册表。
@@ -12,7 +13,7 @@ import 'site_plugin.dart';
 /// 没有命中的 URL 走 yt-dlp 兜底。
 class PluginRegistry {
   PluginRegistry._(List<SitePlugin> plugins)
-      : _plugins = List<SitePlugin>.unmodifiable(plugins);
+    : _plugins = List<SitePlugin>.unmodifiable(plugins);
 
   static final PluginRegistry instance = PluginRegistry._(<SitePlugin>[
     DouyinPlugin(),
@@ -21,6 +22,7 @@ class PluginRegistry {
     TikTokPlugin(),
     KuaishouPlugin(),
     WeiboPlugin(),
+    XiaohongshuPlugin(),
     GenericWebPlugin(),
     // 后续：YouTubePlugin / InstagramPlugin / XPlugin
   ]);

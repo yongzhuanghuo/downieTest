@@ -4,50 +4,54 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('extractUrls', () {
     test('extracts URL from douyin share text', () {
-      const text = '7.68 复制打开抖音，看看【某某】的作品 '
+      const text =
+          '7.68 复制打开抖音，看看【某某】的作品 '
           'https://v.douyin.com/iAbCdEf/ 复制此链接，打开Dou音搜索';
       expect(extractUrls(text), ['https://v.douyin.com/iAbCdEf/']);
     });
 
     test('extracts multiple URLs in order and dedupes', () {
-      const text = 'https://example.com/1\n'
+      const text =
+          'https://example.com/1\n'
           'https://example.com/2，https://example.com/1';
-      expect(
-        extractUrls(text),
-        ['https://example.com/1', 'https://example.com/2'],
-      );
+      expect(extractUrls(text), [
+        'https://example.com/1',
+        'https://example.com/2',
+      ]);
     });
 
     test('strips full-width and half-width trailing punctuation', () {
-      const text = '（https://example.com/a） https://example.com/b。'
+      const text =
+          '（https://example.com/a） https://example.com/b。'
           'https://example.com/c,';
-      expect(
-        extractUrls(text),
-        [
-          'https://example.com/a',
-          'https://example.com/b',
-          'https://example.com/c',
-        ],
-      );
+      expect(extractUrls(text), [
+        'https://example.com/a',
+        'https://example.com/b',
+        'https://example.com/c',
+      ]);
     });
 
     test('extracts scheme-less douyin/bilibili share links', () {
-      const text = '4.64 复制打开抖音，看看这个视频 v.douyin.com/iAbCdEf/ '
+      const text =
+          '4.64 复制打开抖音，看看这个视频 v.douyin.com/iAbCdEf/ '
           '复制此链接';
-      expect(
-        extractVideoUrls(text),
-        ['https://v.douyin.com/iAbCdEf/'],
-      );
+      expect(extractVideoUrls(text), ['https://v.douyin.com/iAbCdEf/']);
       expect(firstVideoUrl(text), 'https://v.douyin.com/iAbCdEf/');
 
-      expect(
-        extractVideoUrls('B站视频 b23.tv/abc123 好看'),
-        ['https://b23.tv/abc123'],
-      );
-      expect(
-        extractVideoUrls('www.douyin.com/video/7300000000000000000'),
-        ['https://www.douyin.com/video/7300000000000000000'],
-      );
+      expect(extractVideoUrls('B站视频 b23.tv/abc123 好看'), [
+        'https://b23.tv/abc123',
+      ]);
+      expect(extractVideoUrls('www.douyin.com/video/7300000000000000000'), [
+        'https://www.douyin.com/video/7300000000000000000',
+      ]);
+    });
+
+    test('extracts xiaohongshu mobile share link', () {
+      const text =
+          '绝望周末系列～ https://xhslink.cn/o/8zFRpFVTFqx '
+          '先复制这段内容，再进入【小红书】即可阅读笔记。';
+      expect(extractUrls(text), ['https://xhslink.cn/o/8zFRpFVTFqx']);
+      expect(firstVideoUrl(text), 'https://xhslink.cn/o/8zFRpFVTFqx');
     });
 
     test('wholeHttpUrl keeps Chinese characters in the path', () {
