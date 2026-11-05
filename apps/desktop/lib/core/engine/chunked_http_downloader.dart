@@ -123,8 +123,12 @@ class ChunkedHttpDownloader {
           );
           if (cancelled) throw const DownloadCancelledException();
           await writeLock.run(() async {
-            await raf!.setPosition(chunk.start);
-            await raf.writeFrom(bytes);
+            final file = raf;
+            if (file == null) {
+              throw const ChunkedDownloadException('分块写入失败：文件未打开');
+            }
+            await file.setPosition(chunk.start);
+            await file.writeFrom(bytes);
           });
           downloaded += bytes.length;
           report();
