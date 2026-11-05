@@ -17,19 +17,48 @@ DownloadTask _task() => DownloadTask(
     );
 
 void main() {
-  test('postprocessing survives map round-trip', () {
+  test('postprocessing and formats survive map round-trip', () {
     final task = _task().copyWith(
       postprocessing: PostprocessingMode.audio,
       availableFormats: const [
-        FormatOption(formatId: 'a', label: '720p', height: 720, ext: 'mp4'),
+        FormatOption(
+          formatId: 'a',
+          label: '720p',
+          height: 720,
+          ext: 'mp4',
+          fileSize: 1024,
+          needsMerge: true,
+          fps: 30,
+        ),
       ],
     );
     final map = task.toMap();
     expect(map['postprocessing'], 'audio');
+    expect(map['available_formats'], isNotNull);
 
     final restored = DownloadTask.fromMap(map);
     expect(restored.postprocessing, PostprocessingMode.audio);
-    expect(restored.availableFormats, isEmpty); // 格式列表不持久化
+    expect(restored.availableFormats, hasLength(1));
+    expect(restored.availableFormats.single.formatId, 'a');
+    expect(restored.availableFormats.single.label, '720p');
+    expect(restored.availableFormats.single.height, 720);
+    expect(restored.availableFormats.single.fileSize, 1024);
+    expect(restored.availableFormats.single.needsMerge, isTrue);
+    expect(restored.availableFormats.single.fps, 30);
+  });
+
+  test('empty format list is stored as NULL', () {
+    expect(_task().toMap()['available_formats'], isNull);
+    expect(_task().availableFormatsJson, isNull);
+  });
+
+  test('corrupt persisted format list falls back to empty', () {
+    final map = _task().toMap();
+    map['available_formats'] = '{not-json';
+    expect(DownloadTask.fromMap(map).availableFormats, isEmpty);
+
+    map['available_formats'] = '{"not":"a list"}';
+    expect(DownloadTask.fromMap(map).availableFormats, isEmpty);
   });
 
   test('duration survives map round-trip', () {
@@ -112,6 +141,34 @@ void main() {
     expect(paused.isRunning, isFalse);
     expect(paused.isFinished, isFalse);
     expect(paused.statusText, '已暂停');
+  });
+
+  test('only pending/failed/cancelled tasks can change format options', () {
+    for (final status in [
+      DownloadStatus.pending,
+      DownloadStatus.failed,
+      DownloadStatus.cancelled,
+    ]) {
+      expect(
+        _task().copyWith(status: status).canConfigure,
+        isTrue,
+        reason: status.name,
+      );
+    }
+    for (final status in [
+      DownloadStatus.downloading,
+      DownloadStatus.merging,
+      DownloadStatus.paused,
+      DownloadStatus.completed,
+      DownloadStatus.loading,
+      DownloadStatus.preparing,
+    ]) {
+      expect(
+        _task().copyWith(status: status).canConfigure,
+        isFalse,
+        reason: status.name,
+      );
+    }
   });
 
   test('rename title', () {

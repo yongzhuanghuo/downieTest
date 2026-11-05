@@ -90,6 +90,36 @@ class FFmpegRunner {
     return outputPath;
   }
 
+  /// 无损合并音视频（`-c copy`），用于直链分块下载后的封装。
+  ///
+  /// 与 [mergeVideoAudio] 不同，这里不把音频转成 AAC，避免二次编码和音质损失。
+  /// 容器由 [outputPath] 的扩展名决定：mp4/webm 都支持直接 copy 对应编码。
+  static Future<String> mergeCopy({
+    required String videoPath,
+    required String audioPath,
+    required String outputPath,
+  }) async {
+    final ffmpegPath = await BinaryLocator.getFFmpegPath();
+    final args = <String>[
+      '-y',
+      '-i', videoPath,
+      '-i', audioPath,
+      '-c', 'copy',
+      '-map', '0:v:0',
+      '-map', '1:a:0',
+      outputPath,
+    ];
+
+    final result = await Process.run(ffmpegPath, args);
+    if (result.exitCode != 0) {
+      throw FFmpegException(
+        '合并失败: ${result.stderr}',
+        exitCode: result.exitCode,
+      );
+    }
+    return outputPath;
+  }
+
   /// 转换音频为 MP3
   ///
   /// [inputPath] 输入文件（任何音视频格式）

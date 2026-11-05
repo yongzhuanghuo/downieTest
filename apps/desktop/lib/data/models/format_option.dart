@@ -46,6 +46,22 @@ class FormatOption {
     this.fps,
   });
 
+  /// 从持久化 JSON 恢复（容错：缺字段用默认值）。
+  factory FormatOption.fromJson(Map<String, dynamic> json) {
+    return FormatOption(
+      formatId: json['formatId']?.toString() ?? '',
+      label: json['label']?.toString() ?? '',
+      height: (json['height'] as num?)?.toInt() ?? 0,
+      ext: json['ext']?.toString() ?? 'mp4',
+      audioOnly: json['audioOnly'] as bool? ?? false,
+      fileSize: (json['fileSize'] as num?)?.toInt(),
+      needsMerge: json['needsMerge'] as bool? ?? false,
+      vbr: (json['vbr'] as num?)?.toInt(),
+      abr: (json['abr'] as num?)?.toInt(),
+      fps: (json['fps'] as num?)?.toInt(),
+    );
+  }
+
   /// 画质等级标签（用于 UI）
   String get qualityTag {
     if (audioOnly) return 'MP3';

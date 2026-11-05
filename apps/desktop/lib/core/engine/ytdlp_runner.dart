@@ -7,10 +7,12 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/download_progress.dart';
 import '../../data/models/format_option.dart';
 import '../../data/models/video_info.dart';
+import '../ffmpeg/ffmpeg_runner.dart';
 import '../platform/binary_locator.dart';
 import '../platform/system_proxy.dart';
 import '../storage/settings_storage.dart';
 import '../storage/site_cookies.dart';
+import 'chunked_http_downloader.dart';
 
 /// yt-dlp 解析异常
 class YtDlpException implements Exception {
@@ -28,6 +30,17 @@ class YtDlpException implements Exception {
 bool _isYouTubeUrl(String url) {
   final lower = url.toLowerCase();
   return lower.contains('youtube.com') || lower.contains('youtu.be');
+}
+
+/// 实际生效的 HTTP 分块大小（MB，0=不分块）。
+///
+/// YouTube 的直链下载会被服务器按连接限速，表现为下载几十秒后速度骤降。
+/// Downie 对 YouTube 固定用 10 MiB 分块来绕开这种限速（普通 HTTP 用 2 MB）。
+/// 这里只对 YouTube 自动启用；用户显式设置了分块大小时以用户设置为准。
+@visibleForTesting
+int effectiveHttpChunkSizeMb(String url, int configuredMb) {
+  if (configuredMb > 0) return configuredMb;
+  return _isYouTubeUrl(url) ? 10 : 0;
 }
 
 /// YouTube 需要的额外 yt-dlp 参数（纯函数，便于测试）。
@@ -324,6 +337,11 @@ class YtDlpRunner {
     int throttleKbps = 0,
     int connections = 0,
     String? logPath,
+    String? referer,
+    String? userAgent,
+    String? cookieHeader,
+    bool passCookies = true,
+    bool forceNativeFragments = false,
   }) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
@@ -364,8 +382,12 @@ class YtDlpRunner {
       }
     }
 
-    // 站点登录 cookie：把所有已登录站点的 cookies.txt 都传给 yt-dlp（按域名自动匹配）
-    final cookiePaths = await SiteCookies.allCookieFilePaths();
+    // 站点登录 cookie：把所有已登录站点的 cookies.txt 都传给 yt-dlp（按域名自动匹配）。
+    // 自定义提取已经带了页面原生 Cookie 时不再叠加站点/浏览器 Cookie，
+    // 否则两套登录态会互相覆盖。
+    final cookiePaths = passCookies
+        ? await SiteCookies.allCookieFilePaths()
+        : const <String>[];
     debugPrint(
       '[YtDlp] 下载使用 cookie: ${cookiePaths.isEmpty ? '无' : cookiePaths.join(', ')}',
     );
@@ -377,6 +399,44 @@ class YtDlpRunner {
         ? connections
         : settings.connectionsPerDownload;
     final subtitleLangs = settings.subtitleLangs.replaceAll(RegExp(r'\s+'), '');
+    final chunkSizeMb = effectiveHttpChunkSizeMb(url, settings.chunkSizeMb);
+
+    // YouTube 的整文件直链优先走多连接 Range 下载；HLS/DASH 分片、
+    // 字幕/封面/重编码等仍交给 yt-dlp 子进程。
+    if (_isYouTubeUrl(url) &&
+        !audioOnly &&
+        !downloadSubtitles &&
+        !downloadCover &&
+        !settings.forceReencode &&
+        !settings.saveMetadataJson) {
+      try {
+        final chunked = await _tryChunkedYouTubeDownload(
+          url: url,
+          formatId: formatId,
+          outputPath: outputPath,
+          onProgress: onProgress,
+          shouldCancel: () => shouldCancel?.call() ?? false,
+          proxy: proxy,
+          connections: effectiveConnections,
+          chunkSizeMb: chunkSizeMb,
+          logPath: logPath,
+        );
+        if (chunked != null) {
+          debugPrint('[YtDlp] YouTube 分块直链下载完成: $chunked');
+          return chunked;
+        }
+      } on DownloadCancelledException {
+        throw const YtDlpException('已取消');
+      } on FFmpegException catch (e) {
+        // 已经下载完再回退会白白重下一遍；合并失败直接报错。
+        throw YtDlpException('分块下载完成但合并失败：${e.message}');
+      } on ChunkedDownloadException catch (e) {
+        debugPrint('[YtDlp] YouTube 分块直链失败，回退 yt-dlp: $e');
+      } catch (e) {
+        debugPrint('[YtDlp] YouTube 分块直链异常，回退 yt-dlp: $e');
+      }
+    }
+
     final args = <String>[
       '--newline', // 每行一个进度，便于解析
       '--no-warnings',
@@ -385,14 +445,26 @@ class YtDlpRunner {
       '-f', formatId,
       '-o', outputPath,
       '--ffmpeg-location', actualFfmpegPath,
+      // 自定义提取的 HLS/DASH：强制用原生分片下载器，--concurrent-fragments 才生效。
+      // 默认的 ffmpeg HLS 下载是单连接顺序拉流，会慢一个数量级。
+      if (forceNativeFragments) ...['--downloader', 'dash,m3u8:native'],
+      if (referer != null && referer.trim().isNotEmpty) ...[
+        '--referer',
+        referer.trim(),
+      ],
+      if (userAgent != null && userAgent.trim().isNotEmpty) ...[
+        '--user-agent',
+        userAgent.trim(),
+      ],
+      if (cookieHeader != null && cookieHeader.trim().isNotEmpty) ...[
+        '--add-header',
+        'Cookie: ${cookieHeader.trim()}',
+      ],
       if (effectiveConnections > 1) ...[
         '--concurrent-fragments',
         '$effectiveConnections',
       ],
-      if (settings.chunkSizeMb > 0) ...[
-        '--http-chunk-size',
-        '${settings.chunkSizeMb}M',
-      ],
+      if (chunkSizeMb > 0) ...['--http-chunk-size', '${chunkSizeMb}M'],
       if ((throttleKbps > 0 ? throttleKbps : settings.throttleKbps) > 0) ...[
         '--limit-rate',
         '${throttleKbps > 0 ? throttleKbps : settings.throttleKbps}K',
@@ -420,7 +492,7 @@ class YtDlpRunner {
         'jpg',
       ],
       ...await _youtubeArgs(url),
-      ..._cookieArgs(cookiePaths, url: url),
+      if (passCookies) ..._cookieArgs(cookiePaths, url: url),
       url,
     ];
 
@@ -449,7 +521,7 @@ class YtDlpRunner {
         .transform(const LineSplitter())
         .listen((line) {
           stdoutBuffer.writeln(line);
-          final progress = _parseProgressLine(line);
+          final progress = parseProgressLine(line);
           if (progress != null) {
             onProgress(progress);
           }
@@ -564,6 +636,308 @@ class YtDlpRunner {
     final nodePath = await BinaryLocator.getNodePath();
     final hasNode = await File(nodePath).exists();
     return buildYouTubeArgs(url, nodePath: hasNode ? nodePath : null);
+  }
+
+  /// 尝试用多连接 Range 下载 YouTube 的直链格式。
+  ///
+  /// YouTube 有大量格式是整文件 HTTPS 直链（不是 DASH/HLS 分片），yt-dlp 只会
+  /// 用一条连接顺序下载，`--concurrent-fragments` 对它无效；CDN 又会按连接
+  /// 限速。这里先取到直链和请求头，再用 [ChunkedHttpDownloader] 4 连接并发下载，
+  /// 视频/音频两路也同时下载。
+  ///
+  /// 任何条件不满足（HLS/DASH 分片、SABR、容器/编码不匹配、服务器不支持
+  /// Range）都返回 null，由调用方回退到现有 yt-dlp 下载。
+  static Future<String?> _tryChunkedYouTubeDownload({
+    required String url,
+    required String formatId,
+    required String outputPath,
+    required void Function(DownloadProgress) onProgress,
+    required bool Function() shouldCancel,
+    required String proxy,
+    required int connections,
+    required int chunkSizeMb,
+    String? logPath,
+  }) async {
+    if (formatId.isEmpty || formatId == 'best' || formatId.contains('*')) {
+      return null;
+    }
+
+    final cookiePaths = await SiteCookies.allCookieFilePaths();
+    final probe = await _runCommand([
+      '--dump-json',
+      '--no-warnings',
+      '--no-playlist',
+      if (proxy.isNotEmpty) ...['--proxy', proxy],
+      '-f', formatId,
+      ...await _youtubeArgs(url),
+      ..._cookieArgs(cookiePaths, url: url),
+      url,
+    ]);
+    if (probe.exitCode != 0) return null;
+
+    Map<String, dynamic> json;
+    try {
+      final text = probe.stdout.trim();
+      if (text.isEmpty) return null;
+      json = jsonDecode(text.split('\n').last) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+
+    final streams = _resolveDirectStreams(json, formatId, outputPath);
+    if (streams == null) return null;
+    final video = streams.where((s) => s.isVideo).toList();
+    final audio = streams.where((s) => s.isAudio).toList();
+
+    await _appendLog(
+      logPath,
+      '[chunked] formats=${streams.map((s) => '${s.ext}/${s.isVideo ? 'v' : 'a'}').join('+')} '
+      'conn=$connections chunk=${chunkSizeMb}MB',
+    );
+
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final videoTmp = streams.length == 2 ? '$outputPath.v.$stamp.tmp' : '';
+    final audioTmp = streams.length == 2 ? '$outputPath.a.$stamp.tmp' : '';
+
+    var videoBytes = 0;
+    var audioBytes = 0;
+    var videoSpeed = 0.0;
+    var audioSpeed = 0.0;
+    final totalBytes = streams.fold<int>(
+      0,
+      (sum, s) => sum + (s.fileSize ?? 0),
+    );
+    final knownTotal = streams.every((s) => s.fileSize != null);
+
+    void report(double speed) {
+      final done = videoBytes + audioBytes;
+      onProgress(DownloadProgress(
+        downloadedBytes: done,
+        totalBytes: knownTotal ? totalBytes : null,
+        speed: speed,
+        percent: knownTotal && totalBytes > 0
+            ? (done / totalBytes).clamp(0.0, 1.0)
+            : null,
+        stage: DownloadStage.downloading,
+        detail: streams.length == 2 ? '分块下载音视频' : '分块下载',
+      ));
+    }
+
+    try {
+      if (streams.length == 1) {
+        await ChunkedHttpDownloader.download(
+          url: streams.single.url,
+          outputPath: outputPath,
+          headers: streams.single.headers,
+          connections: connections,
+          chunkSizeBytes: chunkSizeMb * 1024 * 1024,
+          proxy: proxy,
+          shouldCancel: shouldCancel,
+          onProgress: (downloaded, total, speed) {
+            videoBytes = downloaded;
+            report(speed);
+          },
+        );
+      } else {
+        final videoStream = video.single;
+        final audioStream = audio.single;
+        await Future.wait([
+          ChunkedHttpDownloader.download(
+            url: videoStream.url,
+            outputPath: videoTmp,
+            headers: videoStream.headers,
+            connections: connections,
+            chunkSizeBytes: chunkSizeMb * 1024 * 1024,
+            proxy: proxy,
+            shouldCancel: shouldCancel,
+            onProgress: (downloaded, total, speed) {
+              videoBytes = downloaded;
+              videoSpeed = speed;
+              report(videoSpeed + audioSpeed);
+            },
+          ),
+          ChunkedHttpDownloader.download(
+            url: audioStream.url,
+            outputPath: audioTmp,
+            headers: audioStream.headers,
+            connections: connections,
+            chunkSizeBytes: chunkSizeMb * 1024 * 1024,
+            proxy: proxy,
+            shouldCancel: shouldCancel,
+            onProgress: (downloaded, total, speed) {
+              audioBytes = downloaded;
+              audioSpeed = speed;
+              report(videoSpeed + audioSpeed);
+            },
+          ),
+        ]);
+        onProgress(DownloadProgress(
+          downloadedBytes: knownTotal ? totalBytes : videoBytes + audioBytes,
+          totalBytes: knownTotal ? totalBytes : null,
+          speed: 0,
+          percent: 1,
+          stage: DownloadStage.merging,
+          detail: '合并音视频流',
+        ));
+        await FFmpegRunner.mergeCopy(
+          videoPath: videoTmp,
+          audioPath: audioTmp,
+          outputPath: outputPath,
+        );
+      }
+      await _appendLog(logPath, '[chunked] success -> $outputPath');
+      return outputPath;
+    } finally {
+      for (final path in [videoTmp, audioTmp]) {
+        if (path.isEmpty) continue;
+        try {
+          final f = File(path);
+          if (await f.exists()) await f.delete();
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// 纯逻辑：判断一份 yt-dlp JSON 能否走多连接直链下载。
+  @visibleForTesting
+  static bool canDirectDownload(
+    Map<String, dynamic> json,
+    String formatId,
+    String outputPath,
+  ) {
+    return _resolveDirectStreams(json, formatId, outputPath) != null;
+  }
+
+  static List<_DirectStream>? _resolveDirectStreams(
+    Map<String, dynamic> json,
+    String formatId,
+    String outputPath,
+  ) {
+    final selected = _selectedFormats(json, formatId);
+    if (selected == null || selected.isEmpty || selected.length > 2) {
+      return null;
+    }
+
+    final streams = <_DirectStream>[];
+    for (final f in selected) {
+      final stream = _directStreamFromJson(f);
+      if (stream == null) return null;
+      streams.add(stream);
+    }
+
+    final video = streams.where((s) => s.isVideo).toList();
+    final audio = streams.where((s) => s.isAudio).toList();
+    if (streams.length == 1) {
+      if (_matchingContainer(streams.single.ext, null, outputPath) == null) {
+        return null;
+      }
+    } else if (video.length == 1 && audio.length == 1) {
+      if (_matchingContainer(video.single.ext, audio.single.ext, outputPath) ==
+          null) {
+        return null;
+      }
+    } else {
+      return null;
+    }
+    return streams;
+  }
+
+  static List<Map<String, dynamic>>? _selectedFormats(
+    Map<String, dynamic> json,
+    String formatId,
+  ) {
+    final requested = json['requested_formats'];
+    final raw = (requested is List && requested.isNotEmpty)
+        ? requested
+        : (json['formats'] as List?) ?? const [];
+    final byId = <String, Map<String, dynamic>>{};
+    final byBase = <String, Map<String, dynamic>>{};
+    for (final f in raw.whereType<Map>()) {
+      final id = f['format_id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      final copy = Map<String, dynamic>.from(f);
+      byId[id] = copy;
+      byBase[id.split('-').first] = copy;
+    }
+
+    final result = <Map<String, dynamic>>[];
+    for (final part in formatId.split('+')) {
+      final found = byId[part] ?? byBase[part.split('-').first];
+      if (found == null) return null;
+      result.add(found);
+    }
+    return result;
+  }
+
+  static _DirectStream? _directStreamFromJson(Map<String, dynamic> json) {
+    final protocol = json['protocol']?.toString() ?? '';
+    if (!protocol.startsWith('http')) return null;
+    final fragments = json['fragments'];
+    if (fragments is List && fragments.isNotEmpty) return null;
+    final streamUrl = json['url']?.toString() ?? '';
+    if (streamUrl.isEmpty) return null;
+
+    final headers = <String, String>{};
+    final rawHeaders = json['http_headers'];
+    if (rawHeaders is Map) {
+      rawHeaders.forEach((key, value) {
+        if (key is String && value is String) headers[key] = value;
+      });
+    }
+    headers.putIfAbsent(
+      'User-Agent',
+      () =>
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    );
+    headers.putIfAbsent('Referer', () => 'https://www.youtube.com/');
+
+    final vcodec = json['vcodec']?.toString() ?? 'none';
+    final acodec = json['acodec']?.toString() ?? 'none';
+    final isVideo = vcodec != 'none' && vcodec.isNotEmpty;
+    final isAudio = acodec != 'none' && acodec.isNotEmpty;
+    if (!isVideo && !isAudio) return null;
+
+    final size =
+        (json['filesize'] as num?)?.toInt() ??
+        (json['filesize_approx'] as num?)?.toInt();
+    return _DirectStream(
+      url: streamUrl,
+      headers: headers,
+      ext: json['ext']?.toString() ?? '',
+      isVideo: isVideo,
+      isAudio: isAudio,
+      fileSize: size,
+    );
+  }
+
+  /// 直链下载后能否直接无损封装进目标容器。
+  static String? _matchingContainer(
+    String videoExt,
+    String? audioExt,
+    String outputPath,
+  ) {
+    final target = outputPath.split('.').last.toLowerCase();
+    final v = videoExt.toLowerCase();
+    if (audioExt == null) {
+      if (v == target || (v == 'm4a' && target == 'mp4')) return target;
+      return null;
+    }
+    final a = audioExt.toLowerCase();
+    final mp4Pair = (v == 'mp4' || v == 'm4v') && (a == 'm4a' || a == 'mp4');
+    final webmPair = v == 'webm' && a == 'webm';
+    if (mp4Pair && target == 'mp4') return 'mp4';
+    if (webmPair && target == 'webm') return 'webm';
+    return null;
+  }
+
+  static Future<void> _appendLog(String? path, String line) async {
+    if (path == null || path.isEmpty) return;
+    try {
+      final file = File(path);
+      await file.parent.create(recursive: true);
+      await file.writeAsString('$line\n', mode: FileMode.append);
+    } catch (_) {}
   }
 
   /// 从输出模板推导实际文件路径
@@ -893,10 +1267,15 @@ class YtDlpRunner {
 
   /// 解析 yt-dlp 进度行
   /// 示例行: [download]  50.0% of 100.00MiB at 5.00MiB/s ETA 00:10
-  static DownloadProgress? _parseProgressLine(String line) {
-    // 匹配下载进度行
+  @visibleForTesting
+  static DownloadProgress? parseProgressLine(String line) {
+    // 匹配下载进度行。HLS 原生下载器的行会带 "~"（估算大小）和
+    // "(frag x/y)" 后缀，ETA 也可能是 Unknown；最后的汇总行则没有 at/ETA。
     final progressRegex = RegExp(
-      r'\[download\]\s+([\d.]+)%\s+of\s+([\d.]+)(KiB|MiB|GiB)\s+at\s+([\d.]+)(KiB|MiB|GiB)/s\s+ETA\s+(\d+:\d+)',
+      r'\[download\]\s+([\d.]+)%\s+of\s+~?\s*([\d.]+)(B|KiB|MiB|GiB)'
+      r'(?:\s+in\s+[\d:]+)?'
+      r'(?:\s+at\s+([\d.]+)(B|KiB|MiB|GiB)/s)?'
+      r'(?:\s+ETA\s+(\d+:\d+|Unknown))?',
     );
     final match = progressRegex.firstMatch(line);
     if (match == null) {
@@ -924,22 +1303,36 @@ class YtDlpRunner {
     final percent = double.parse(match.group(1)!) / 100;
     final sizeValue = double.parse(match.group(2)!);
     final sizeUnit = match.group(3)!;
-    final speedValue = double.parse(match.group(4)!);
-    final speedUnit = match.group(5)!;
-    final etaStr = match.group(6)!;
+    final speedValue = match.group(4);
+    final speedUnit = match.group(5);
+    final etaStr = match.group(6);
 
     final totalBytes = _unitToBytes(sizeValue, sizeUnit);
-    final speed = _unitToBytes(speedValue, speedUnit).toDouble();
-    final etaParts = etaStr.split(':');
-    final eta = int.parse(etaParts[0]) * 60 + int.parse(etaParts[1]);
+    final speed = (speedValue != null && speedUnit != null)
+        ? _unitToBytes(double.parse(speedValue), speedUnit).toDouble()
+        : 0.0;
+    int? eta;
+    if (etaStr != null && etaStr != 'Unknown') {
+      final etaParts = etaStr.split(':');
+      eta = int.parse(etaParts[0]) * 60 + int.parse(etaParts[1]);
+    }
 
-    final downloadedBytes = (totalBytes * percent).toInt();
+    // 分片下载器开头会先报 "100% of ~1KiB (frag 0/23)"，按分片数算进度更稳。
+    final fragMatch = RegExp(r'\(frag\s+(\d+)/(\d+)\)').firstMatch(line);
+    var percentValue = percent;
+    if (fragMatch != null) {
+      final done = int.tryParse(fragMatch.group(1)!) ?? 0;
+      final total = int.tryParse(fragMatch.group(2)!) ?? 0;
+      if (total > 0) percentValue = (done / total).clamp(0.0, 1.0);
+    }
+
+    final downloadedBytes = (totalBytes * percentValue).toInt();
 
     return DownloadProgress(
       downloadedBytes: downloadedBytes,
       totalBytes: totalBytes,
       speed: speed,
-      percent: percent,
+      percent: percentValue,
       eta: eta,
       stage: DownloadStage.downloading,
     );
@@ -1019,4 +1412,23 @@ class YtDlpRunner {
     // 降级：从模板推导（替换 %(ext)s 为 mp4）
     return template.replaceAll('%(ext)s', 'mp4');
   }
+}
+
+/// 一条可直接 HTTP Range 下载的媒体流。
+class _DirectStream {
+  final String url;
+  final Map<String, String> headers;
+  final String ext;
+  final bool isVideo;
+  final bool isAudio;
+  final int? fileSize;
+
+  const _DirectStream({
+    required this.url,
+    required this.headers,
+    required this.ext,
+    required this.isVideo,
+    required this.isAudio,
+    required this.fileSize,
+  });
 }

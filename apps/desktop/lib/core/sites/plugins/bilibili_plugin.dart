@@ -7,7 +7,9 @@ import 'package:http/http.dart' as http;
 import '../../../data/models/download_progress.dart';
 import '../../../data/models/format_option.dart';
 import '../../../data/models/video_info.dart';
+import '../../engine/chunked_http_downloader.dart';
 import '../../ffmpeg/ffmpeg_runner.dart';
+import '../../storage/settings_storage.dart';
 import '../../storage/site_cookies.dart';
 import '../bilibili/bilibili_wbi.dart';
 import '../site_plugin.dart';
@@ -800,6 +802,44 @@ class BilibiliPlugin extends SitePlugin {
     final candidates = <String>[url, if (backupUrl.isNotEmpty) backupUrl];
     SitePluginException? lastError;
     for (final candidate in candidates) {
+      // 先试多连接 Range 下载；CDN 按单连接限速时能快数倍。
+      try {
+        final settings = SettingsStorage.instance.current;
+        final chunkMb = settings.chunkSizeMb > 0 ? settings.chunkSizeMb : 2;
+        await ChunkedHttpDownloader.download(
+          url: candidate,
+          outputPath: path,
+          headers: {
+            'User-Agent': _ua,
+            'Referer': _referer,
+            if (cookie.isNotEmpty) 'Cookie': cookie,
+          },
+          connections: settings.connectionsPerDownload,
+          chunkSizeBytes: chunkMb * 1024 * 1024,
+          shouldCancel: shouldCancel,
+          onProgress: (downloaded, total, speed) {
+            onProgress(DownloadProgress(
+              downloadedBytes: downloaded,
+              totalBytes: total,
+              speed: speed,
+              percent: total != null && total > 0
+                  ? (downloaded / total).clamp(0.0, 1.0)
+                  : null,
+              stage: stage,
+            ));
+          },
+        );
+        return;
+      } on DownloadCancelledException {
+        throw const SitePluginException('已取消', retryable: false);
+      } on ChunkedDownloadException catch (e) {
+        lastError = SitePluginException(
+          'B 站分块下载失败: ${e.message}',
+          retryable: true,
+        );
+        // 继续用单连接下载同一个地址。
+      }
+
       final client = http.Client();
       try {
         final req = http.Request('GET', Uri.parse(candidate));

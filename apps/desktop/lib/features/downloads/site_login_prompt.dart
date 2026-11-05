@@ -13,6 +13,10 @@ bool isYouTubeUrl(String url) {
 /// YouTube 的 `Sign in to confirm you're not a bot` 不是普通站点登录，
 /// 而是反爬验证；提示用户用登录浏览器或浏览器 Cookie，而不是误以为站点不支持。
 String loginRequiredMessage(String url) {
+  final lower = url.toLowerCase();
+  if (lower.contains('tiktok.com/shortdrama/')) {
+    return 'TikTok 短剧需要登录后观看：请在登录窗口登录 TikTok，再重试解析';
+  }
   if (isYouTubeUrl(url)) {
     return 'YouTube 风控要求登录/验证：请用登录浏览器登录 YouTube，'
         '或在设置→浏览器扩展选择已登录 YouTube 的浏览器 Cookie';

@@ -9,12 +9,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../help/support_dialog.dart';
 
 import '../../../data/models/download_task.dart';
-import '../../../data/models/format_option.dart';
 import '../../../shared/branding/app_brand.dart';
 import '../../../shared/theme/design_tokens.dart';
 import '../../settings/settings_provider.dart';
 import '../download_provider.dart';
 import '../task_debug_dialog.dart';
+import 'download_format_controls.dart';
 
 /// 全宽下载行：缩略图 banner + 标题/状态/操作覆盖层。
 ///
@@ -23,6 +23,11 @@ class DownloadRow extends ConsumerWidget {
   final DownloadTask task;
 
   const DownloadRow({super.key, required this.task});
+
+  /// 卡片高度只有 96，图标按钮默认 48px 的点击区会把两行撑爆。
+  static final ButtonStyle _compactIconStyle = IconButton.styleFrom(
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -86,6 +91,7 @@ class DownloadRow extends ConsumerWidget {
                           : () => notifier.remove(task.id),
                       tooltip:
                           (task.isRunning || task.isPaused) ? '取消下载' : '移除',
+                      style: _compactIconStyle,
                       icon: const Icon(Icons.close, size: 14),
                       color: Colors.white70,
                       padding: EdgeInsets.zero,
@@ -120,6 +126,7 @@ class DownloadRow extends ConsumerWidget {
                       IconButton(
                         onPressed: () => notifier.resume(task.id),
                         tooltip: '继续下载',
+                        style: _compactIconStyle,
                         icon: const Icon(Icons.play_arrow, size: 16),
                         color: Colors.white70,
                         padding: EdgeInsets.zero,
@@ -132,6 +139,7 @@ class DownloadRow extends ConsumerWidget {
                       IconButton(
                         onPressed: () => notifier.pause(task.id),
                         tooltip: '暂停下载',
+                        style: _compactIconStyle,
                         icon: const Icon(Icons.pause, size: 14),
                         color: Colors.white70,
                         padding: EdgeInsets.zero,
@@ -157,6 +165,7 @@ class DownloadRow extends ConsumerWidget {
                       IconButton(
                         onPressed: () => notifier.retry(task.id),
                         tooltip: '重试',
+                        style: _compactIconStyle,
                         icon: const Icon(Icons.refresh, size: 14),
                         color: Colors.white70,
                         padding: EdgeInsets.zero,
@@ -168,7 +177,29 @@ class DownloadRow extends ConsumerWidget {
                     const SizedBox(width: 4),
                     _postprocessingMenu(notifier, task),
                     const SizedBox(width: 4),
-                    _formatMenu(notifier, task),
+                    DownloadFormatControls(
+                      task: task,
+                      onFormatSelected: (format) =>
+                          notifier.setFormat(task.id, format),
+                      onSubtitlesChanged: (value) =>
+                          notifier.setDownloadSubtitles(task.id, value),
+                      onCoverChanged: (value) =>
+                          notifier.setDownloadCover(task.id, value),
+                      onRefreshFormats: () async {
+                        final messenger = ScaffoldMessenger.maybeOf(context);
+                        messenger?.showSnackBar(
+                          const SnackBar(content: Text('正在获取可用分辨率…')),
+                        );
+                        final error = await notifier.refreshFormats(task.id);
+                        if (!context.mounted) return;
+                        messenger?.hideCurrentSnackBar();
+                        messenger?.showSnackBar(
+                          SnackBar(
+                            content: Text(error ?? '已获取可用分辨率，请重新选择'),
+                          ),
+                        );
+                      },
+                    ),
                     const SizedBox(width: 4),
                     _taskMenu(context, notifier, task),
                   ],
@@ -240,64 +271,7 @@ class DownloadRow extends ConsumerWidget {
         for (final mode in PostprocessingMode.values)
           PopupMenuItem(value: mode, child: Text(mode.label)),
       ],
-      child: _pill(task.postprocessing.label, chevron: enabled),
-    );
-  }
-
-  Widget _formatMenu(
-    DownloadListNotifier notifier,
-    DownloadTask task,
-  ) {
-    final formats = task.availableFormats;
-    final canChange = task.status == DownloadStatus.pending && formats.isNotEmpty;
-    final label = task.formatLabel.isEmpty
-        ? (task.audioOnly ? 'AUDIO' : task.ext.toUpperCase())
-        : task.formatLabel;
-    if (!canChange) return _pill(label);
-
-    return PopupMenuButton<FormatOption>(
-      tooltip: '画质',
-      onSelected: (format) => notifier.setFormat(task.id, format),
-      itemBuilder: (context) => [
-        for (final format in formats)
-          PopupMenuItem(
-            value: format,
-            child: Text(
-              '${format.label}'
-              '${format.fileSize == null ? '' : ' · ${format.fileSizeText}'}',
-            ),
-          ),
-      ],
-      child: _pill(label, chevron: true),
-    );
-  }
-
-  Widget _pill(String label, {bool chevron = false}) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 150),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: Colors.white70),
-            ),
-          ),
-          if (chevron) ...[
-            const SizedBox(width: 2),
-            const Icon(Icons.expand_more, size: 11, color: Colors.white54),
-          ],
-        ],
-      ),
+      child: DownloadPill(task.postprocessing.label, chevron: enabled),
     );
   }
 

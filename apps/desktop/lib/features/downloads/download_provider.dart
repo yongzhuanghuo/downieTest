@@ -43,6 +43,11 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     _init();
   }
 
+  /// 测试用：不读数据库、不启动调度器。
+  @visibleForTesting
+  DownloadListNotifier.test(this._ref, List<DownloadTask> initial)
+      : super(initial);
+
   final Ref _ref;
   final DownloadsDao _dao = DownloadsDao.instance;
   final Set<String> _cancelled = {};
@@ -319,17 +324,17 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     }
   }
 
-  /// 等待中的任务是否下载字幕
+  /// 是否下载字幕（等待中/失败/取消的任务可改）
   Future<void> setDownloadSubtitles(String id, bool value) async {
     final task = _find(id);
-    if (task == null || task.status != DownloadStatus.pending) return;
+    if (task == null || !task.canConfigure) return;
     await _apply(id, (t) => t.copyWith(downloadSubtitles: value));
   }
 
-  /// 等待中的任务是否保存缩略图
+  /// 是否保存缩略图（等待中/失败/取消的任务可改）
   Future<void> setDownloadCover(String id, bool value) async {
     final task = _find(id);
-    if (task == null || task.status != DownloadStatus.pending) return;
+    if (task == null || !task.canConfigure) return;
     await _apply(id, (t) => t.copyWith(downloadCover: value));
   }
 
@@ -369,10 +374,55 @@ class DownloadListNotifier extends StateNotifier<List<DownloadTask>> {
     await _apply(id, (t) => t.copyWith(title: value));
   }
 
+  /// 重新解析链接，补齐可切换的格式列表。
+  ///
+  /// 老版本任务/从 DB 恢复的任务没有持久化格式列表，卡片下拉框会为空；
+  /// 用户点「重新获取分辨率」时走这里。返回 null 表示成功。
+  Future<String?> refreshFormats(String id) async {
+    final task = _find(id);
+    if (task == null || !task.canConfigure) return null;
+
+    VideoInfo? info;
+    final plugin = PluginRegistry.instance.find(task.url);
+    if (plugin != null) {
+      try {
+        info = await plugin.parse(task.url);
+      } catch (e) {
+        debugPrint('[DownloadList] 重新解析格式失败(${plugin.id}): $e');
+      }
+    }
+    if (info == null || info.formats.isEmpty) {
+      try {
+        info = await YtDlpRunner.parse(task.url);
+      } catch (e) {
+        debugPrint('[DownloadList] 重新解析格式失败(yt-dlp): $e');
+        return '获取分辨率失败，请稍后重试';
+      }
+    }
+
+    final resolved = info;
+    if (resolved.formats.isEmpty) return '没有可用分辨率';
+    final current = _find(id);
+    if (current == null || !current.canConfigure) return null;
+
+    await _apply(
+      id,
+      (t) => t.copyWith(
+        availableFormats: resolved.formats,
+        title: t.title.isEmpty ? resolved.title : t.title,
+        duration: t.duration == 0 ? resolved.duration : t.duration,
+        thumbnail: t.thumbnail.isEmpty ? resolved.thumbnail : t.thumbnail,
+      ),
+    );
+    final updated = _find(id);
+    if (updated != null) await _dao.updateFormats(updated);
+    return null;
+  }
+
   /// 在任务开始前切换画质/格式
   Future<void> setFormat(String id, FormatOption format) async {
     final task = _find(id);
-    if (task == null || task.status != DownloadStatus.pending) return;
+    if (task == null || !task.canConfigure) return;
     await _apply(
       id,
       (t) => t.copyWith(

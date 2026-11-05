@@ -118,7 +118,7 @@ class ParseNotifier extends StateNotifier<ParseState> {
           state = ParseState(
             status: ParseStatus.error,
             error: e.requiresLogin
-                ? '该网站需要登录后才能解析'
+                ? loginRequiredMessage(target)
                 : '${plugin.displayName}解析失败，请重试',
           );
           if (e.requiresLogin &&

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import 'download_progress.dart';
@@ -262,6 +264,14 @@ class DownloadTask {
   bool get isLoading => status == DownloadStatus.loading;
   bool get isPreparing => status == DownloadStatus.preparing;
   bool get isDownloading => status == DownloadStatus.downloading;
+
+  /// 是否还能在下载卡片上修改画质/字幕/封面。
+  ///
+  /// 等待中可直接生效；失败/取消的任务改完后重试会用新选项。
+  bool get canConfigure =>
+      status == DownloadStatus.pending ||
+      status == DownloadStatus.failed ||
+      status == DownloadStatus.cancelled;
   bool get isRunning =>
       status == DownloadStatus.pending ||
       status == DownloadStatus.downloading ||
@@ -313,6 +323,27 @@ class DownloadTask {
 
   // ==================== SQLite 序列化 ====================
 
+  /// 可切换格式的 JSON（空列表存 NULL，避免给老任务写无意义数据）。
+  String? get availableFormatsJson {
+    if (availableFormats.isEmpty) return null;
+    return jsonEncode(availableFormats.map((f) => f.toJson()).toList());
+  }
+
+  static List<FormatOption> _decodeFormats(String? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return [
+        for (final item in decoded)
+          if (item is Map)
+            FormatOption.fromJson(Map<String, dynamic>.from(item)),
+      ].where((f) => f.formatId.isNotEmpty).toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
+  }
+
   factory DownloadTask.fromMap(Map<String, dynamic> map) {
     return DownloadTask(
       id: map['id'] as String,
@@ -323,6 +354,7 @@ class DownloadTask {
       extractor: (map['source'] as String?) ?? 'Unknown',
       formatId: map['format_id'] as String,
       formatLabel: (map['format_label'] as String?) ?? '',
+      availableFormats: _decodeFormats(map['available_formats'] as String?),
       postprocessing: PostprocessingMode.values.firstWhere(
         (mode) => mode.name == map['postprocessing'],
         orElse: () => PostprocessingMode.none,
@@ -367,6 +399,7 @@ class DownloadTask {
       'thumb_url': thumbnail,
       'format_id': formatId,
       'format_label': formatLabel,
+      'available_formats': availableFormatsJson,
       'postprocessing': postprocessing.name,
       'priority': priority.index,
       'height': height,

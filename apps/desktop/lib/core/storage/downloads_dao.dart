@@ -72,6 +72,17 @@ class DownloadsDao {
     );
   }
 
+  /// 只更新可切换格式列表（避免每次进度回调都重新序列化）
+  Future<void> updateFormats(DownloadTask task) async {
+    final db = await _db;
+    await db.update(
+      'downloads',
+      {'available_formats': task.availableFormatsJson},
+      where: 'id = ?',
+      whereArgs: [task.id],
+    );
+  }
+
   // ==================== R ====================
 
   /// 查询单个任务

@@ -6,7 +6,9 @@ import 'package:http/http.dart' as http;
 
 import '../../data/models/download_progress.dart';
 import '../ffmpeg/ffmpeg_runner.dart';
+import '../storage/settings_storage.dart';
 import '../storage/site_cookies.dart';
+import 'chunked_http_downloader.dart';
 
 /// 抖音直链下载异常
 class DouyinDownloadException implements Exception {
@@ -43,6 +45,45 @@ class DouyinDownloader {
   }) async {
     debugPrint('[抖音下载] 开始: $url');
     final cookie = await SiteCookies.loadCookieHeader(cookieSiteId);
+
+    // 直链支持 Range 时用多连接下载；失败回退到原来的单连接逻辑。
+    // 注入 client 的测试路径不参与，避免真实网络请求。
+    if (client == null) {
+      try {
+        final settings = SettingsStorage.instance.current;
+        final chunkMb = settings.chunkSizeMb > 0 ? settings.chunkSizeMb : 2;
+        await ChunkedHttpDownloader.download(
+          url: url,
+          outputPath: outputPath,
+          headers: {
+            'User-Agent': ua,
+            'Referer': referer,
+            if (cookie.isNotEmpty) 'Cookie': cookie,
+          },
+          connections: settings.connectionsPerDownload,
+          chunkSizeBytes: chunkMb * 1024 * 1024,
+          shouldCancel: shouldCancel,
+          onProgress: (downloaded, total, speed) {
+            onProgress(DownloadProgress(
+              downloadedBytes: downloaded,
+              totalBytes: total,
+              speed: speed,
+              percent: total != null && total > 0
+                  ? (downloaded / total).clamp(0.0, 1.0)
+                  : null,
+              stage: DownloadStage.downloading,
+            ));
+          },
+        );
+        debugPrint('[抖音下载] 分块下载完成: $outputPath');
+        return outputPath;
+      } on DownloadCancelledException {
+        throw const DouyinDownloadException('已取消');
+      } on ChunkedDownloadException catch (e) {
+        debugPrint('[抖音下载] 分块下载失败，回退单连接: ${e.message}');
+      }
+    }
+
     final ownsClient = client == null;
     final effectiveClient = client ?? http.Client();
     try {
