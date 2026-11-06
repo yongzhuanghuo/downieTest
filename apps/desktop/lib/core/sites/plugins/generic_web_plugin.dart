@@ -104,6 +104,9 @@ class GenericWebPlugin extends SitePlugin {
     final hlsConnections = configuredConnections < 16
         ? 16
         : configuredConnections;
+    // 小鹅通 CDN 在国内；系统代理通常是给 YouTube 用的。走代理反而可能
+    // 被 TLS 拦截/绕路（Windows 上已出现 HandshakeException），优先直连。
+    final hlsProxy = _isDomesticHlsHost(url) ? null : proxy;
 
     // HLS：Dart 多连接拉分片 + 本地 ffmpeg 解密。
     //
@@ -117,7 +120,7 @@ class GenericWebPlugin extends SitePlugin {
           url: url,
           headers: headers,
           connections: hlsConnections,
-          proxy: proxy,
+          proxy: hlsProxy,
           shouldCancel: request.shouldCancel,
           onProgress: (done, total, bytes, speed) {
             request.onProgress(DownloadProgress(
@@ -151,6 +154,9 @@ class GenericWebPlugin extends SitePlugin {
         }
       } on HlsCancelledException {
         throw const SitePluginException('已取消', retryable: false);
+      } on HlsTlsException catch (e) {
+        // 直连重试也失败：交给 yt-dlp（它的代理/TLS 实现不同）。
+        debugPrint('[GenericWeb] HLS TLS 失败，回退 yt-dlp: ${e.message}');
       } on HlsUnsupportedException catch (e) {
         debugPrint('[GenericWeb] HLS 不支持，回退 yt-dlp: ${e.message}');
       } on HlsDownloadException catch (e) {
@@ -252,6 +258,14 @@ class GenericWebPlugin extends SitePlugin {
     } on FFmpegException catch (e) {
       throw SitePluginException(e.message, retryable: false);
     }
+  }
+
+  bool _isDomesticHlsHost(String url) {
+    final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+    return host == 'xiaoeknow.com' ||
+        host.endsWith('.xiaoeknow.com') ||
+        host == 'xiaoe-tech.com' ||
+        host.endsWith('.xiaoe-tech.com');
   }
 
   Future<String?> _taskLogPath(String taskId) async {

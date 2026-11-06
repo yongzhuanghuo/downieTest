@@ -56,6 +56,45 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settin
     );
   });
 
+  test('parse Windows proxy keeps SOCKS-only proxies as socks5', () {
+    const enable = '''
+    ProxyEnable    REG_DWORD    0x1
+''';
+    const server = '''
+    ProxyServer    REG_SZ    socks=127.0.0.1:7890
+''';
+    expect(
+      SystemProxy.parseWindowsProxy(enable, server),
+      'socks5://127.0.0.1:7890',
+    );
+  });
+
+  test('parse Windows proxy prefers HTTP entries over SOCKS', () {
+    const enable = '''
+    ProxyEnable    REG_DWORD    0x1
+''';
+    const server = '''
+    ProxyServer    REG_SZ    socks=127.0.0.1:7890;http=127.0.0.1:7891
+''';
+    expect(
+      SystemProxy.parseWindowsProxy(enable, server),
+      'http://127.0.0.1:7891',
+    );
+  });
+
+  test('parse Windows proxy accepts a bare host:port', () {
+    const enable = '''
+    ProxyEnable    REG_DWORD    0x1
+''';
+    const server = '''
+    ProxyServer    REG_SZ    127.0.0.1:7890
+''';
+    expect(
+      SystemProxy.parseWindowsProxy(enable, server),
+      'http://127.0.0.1:7890',
+    );
+  });
+
   test('normalize adds a scheme', () {
     expect(
       SystemProxy.normalize('127.0.0.1:7897'),

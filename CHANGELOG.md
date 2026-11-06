@@ -1,5 +1,13 @@
 # 更新日志
 
+## 2.0.49（2026-11-06）
+
+### Windows / 代理
+
+- 修复 Windows 自定义 HLS 下载报 `HandshakeException: Handshake error in client`：正确解析系统 `socks=` 代理，TLS 握手失败时自动改直连重试，仍失败再回退 yt-dlp
+- 小鹅通 CDN 默认直连，不再走系统代理（系统代理通常给 YouTube 用，走代理可能被 TLS 拦截或绕路）
+- Windows 代理解析支持 `http=` / `https=` / `socks=` / 裸 `host:port` 的混合格式
+
 ## 2.0.48（2026-11-06）
 
 ### 用户自定义提取 / HLS 下载

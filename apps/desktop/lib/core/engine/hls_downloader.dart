@@ -25,6 +25,12 @@ class HlsCancelledException extends HlsDownloadException {
   const HlsCancelledException() : super('已取消');
 }
 
+/// TLS 握手失败（常见于系统代理不支持 CONNECT / 做了 TLS 拦截）。
+/// 调用方应先尝试直连重试，仍失败再回退 yt-dlp。
+class HlsTlsException extends HlsDownloadException {
+  const HlsTlsException(super.message);
+}
+
 /// 已下载分片数、总分片数、已下载字节、瞬时速度（字节/秒）。
 typedef HlsProgressCallback =
     void Function(
@@ -67,6 +73,38 @@ class HlsDownloader {
   HlsDownloader._();
 
   static Future<HlsDownloadResult> download({
+    required String url,
+    Map<String, String> headers = const {},
+    int connections = 16,
+    String? proxy,
+    HlsProgressCallback? onProgress,
+    bool Function()? shouldCancel,
+  }) async {
+    final hasProxy = proxy != null && proxy.trim().isNotEmpty;
+    try {
+      return await _downloadOnce(
+        url: url,
+        headers: headers,
+        connections: connections,
+        proxy: proxy,
+        onProgress: onProgress,
+        shouldCancel: shouldCancel,
+      );
+    } on HlsTlsException {
+      if (!hasProxy) rethrow;
+      // Windows 上常见的系统代理/TLS 拦截问题：改直连再试一次。
+      return _downloadOnce(
+        url: url,
+        headers: headers,
+        connections: connections,
+        proxy: null,
+        onProgress: onProgress,
+        shouldCancel: shouldCancel,
+      );
+    }
+  }
+
+  static Future<HlsDownloadResult> _downloadOnce({
     required String url,
     Map<String, String> headers = const {},
     int connections = 16,
@@ -281,19 +319,23 @@ class HlsDownloader {
     Map<String, String> headers,
     bool Function()? shouldCancel,
   ) async {
-    final req = await client.getUrl(uri);
-    _applyHeaders(req, headers);
-    req.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
-    final resp = await req.close().timeout(const Duration(seconds: 30));
-    if (resp.statusCode != HttpStatus.ok) {
-      await resp.drain<void>();
-      throw HlsDownloadException('清单 HTTP ${resp.statusCode}');
+    try {
+      final req = await client.getUrl(uri);
+      _applyHeaders(req, headers);
+      req.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
+      final resp = await req.close().timeout(const Duration(seconds: 30));
+      if (resp.statusCode != HttpStatus.ok) {
+        await resp.drain<void>();
+        throw HlsDownloadException('清单 HTTP ${resp.statusCode}');
+      }
+      if (shouldCancel?.call() ?? false) {
+        await resp.drain<void>();
+        throw const HlsCancelledException();
+      }
+      return utf8.decodeStream(resp.timeout(const Duration(seconds: 60)));
+    } on HandshakeException catch (e) {
+      throw HlsTlsException('清单 ${uri.host} TLS 握手失败: $e');
     }
-    if (shouldCancel?.call() ?? false) {
-      await resp.drain<void>();
-      throw const HlsCancelledException();
-    }
-    return utf8.decodeStream(resp.timeout(const Duration(seconds: 60)));
   }
 
   /// 下载二进制（key），返回字节数。
@@ -304,24 +346,28 @@ class HlsDownloader {
     Map<String, String> headers,
     bool Function()? shouldCancel,
   ) async {
-    final req = await client.getUrl(uri);
-    _applyHeaders(req, headers);
-    req.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
-    final resp = await req.close().timeout(const Duration(seconds: 30));
-    if (resp.statusCode != 200 && resp.statusCode != 206) {
-      await resp.drain<void>();
-      throw HlsDownloadException('key HTTP ${resp.statusCode}');
-    }
-    final builder = BytesBuilder(copy: false);
-    await for (final part in resp.timeout(const Duration(seconds: 60))) {
-      if (shouldCancel?.call() ?? false) {
-        throw const HlsCancelledException();
+    try {
+      final req = await client.getUrl(uri);
+      _applyHeaders(req, headers);
+      req.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
+      final resp = await req.close().timeout(const Duration(seconds: 30));
+      if (resp.statusCode != 200 && resp.statusCode != 206) {
+        await resp.drain<void>();
+        throw HlsDownloadException('key HTTP ${resp.statusCode}');
       }
-      builder.add(part);
+      final builder = BytesBuilder(copy: false);
+      await for (final part in resp.timeout(const Duration(seconds: 60))) {
+        if (shouldCancel?.call() ?? false) {
+          throw const HlsCancelledException();
+        }
+        builder.add(part);
+      }
+      final bytes = builder.takeBytes();
+      await file.writeAsBytes(bytes, flush: true);
+      return bytes.length;
+    } on HandshakeException catch (e) {
+      throw HlsTlsException('key ${uri.host} TLS 握手失败: $e');
     }
-    final bytes = builder.takeBytes();
-    await file.writeAsBytes(bytes, flush: true);
-    return bytes.length;
   }
 
   /// 下载分片到文件，带重试；返回字节数。
@@ -363,6 +409,9 @@ class HlsDownloader {
         return bytes;
       } on HlsCancelledException {
         rethrow;
+      } on HandshakeException catch (e) {
+        // 重试也过不了 TLS 握手；交给上层决定是否改直连。
+        throw HlsTlsException('分片 ${uri.host} TLS 握手失败: $e');
       } catch (e) {
         lastError = e;
         try {

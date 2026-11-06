@@ -64,10 +64,32 @@ class SystemProxy {
     final raw = match?.group(1)?.trim() ?? '';
     if (raw.isEmpty) return null;
 
-    // ProxyServer 可能是 host:port，也可能是 http=host:port;https=host:port。
-    final https = RegExp(r'https=([^;]+)').firstMatch(raw)?.group(1);
-    final http = RegExp(r'http=([^;]+)').firstMatch(raw)?.group(1);
-    final value = (https ?? http ?? raw).trim();
+    // ProxyServer 可能是：
+    //   host:port
+    //   http=host:port;https=host:port
+    //   socks=host:port（Clash 等只开 SOCKS 时）
+    // Dart HttpClient 不支持 SOCKS，HLS/分块下载会据此回退 yt-dlp/ffmpeg。
+    String? entry(String name) {
+      final match = RegExp(
+        '(?:^|;)\\s*$name=([^;]+)',
+        caseSensitive: false,
+      ).firstMatch(raw);
+      return match?.group(1)?.trim();
+    }
+
+    final https = entry('https');
+    final http = entry('http');
+    final socks = entry('socks') ?? entry('socks5');
+    if (https != null && https.isNotEmpty) {
+      return https.contains('://') ? https : 'http://$https';
+    }
+    if (http != null && http.isNotEmpty) {
+      return http.contains('://') ? http : 'http://$http';
+    }
+    if (socks != null && socks.isNotEmpty) {
+      return socks.contains('://') ? socks : 'socks5://$socks';
+    }
+    final value = raw.trim();
     if (value.isEmpty) return null;
     return value.contains('://') ? value : 'http://$value';
   }
