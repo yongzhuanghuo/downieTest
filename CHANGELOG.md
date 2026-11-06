@@ -1,5 +1,12 @@
 # 更新日志
 
+## 2.0.50（2026-11-06）
+
+### YouTube
+
+- 修复 YouTube 全部报「解析超时（15s）」：2.0.48 给未知站点加的 15 秒硬超时把 YouTube 也框住了，而浏览器 Cookie 提取（Edge 实测约 19s）+ 多个 player 配置请求 + n-sig/EJS 求解实测要 50～60 秒。现在 YouTube 单独放宽到 90 秒，其他站点仍保持 15 秒快速失败
+- 修复解析失败的占位任务点「重试」时 formatId 为空、直接报 `Requested format is not available`：空格式现在回退到最佳画质 `bv*+ba/b`
+
 ## 2.0.49（2026-11-06）
 
 ### Windows / 代理

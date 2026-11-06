@@ -165,6 +165,13 @@ class YtDlpRunner {
     // 使用 --dump-json 输出单行 JSON。
     // 不支持的长尾页面会卡到网络超时；这里最多等 15 秒，让 UI 尽快
     // 提示「用户自定义提取」，而不是一直转圈。
+    //
+    // YouTube 例外：浏览器 Cookie 提取（Edge 实测约 19s）、多个 player
+    // 配置请求、n-sig/EJS 求解叠加后实测要 50～60s。15 秒硬超时会让
+    // YouTube 每次都报「解析超时」，所以单独放宽到 90 秒。
+    final timeout = _isYouTubeUrl(url)
+        ? const Duration(seconds: 90)
+        : const Duration(seconds: 15);
     final result = await _runCommand(
       [
         '--dump-json',
@@ -176,7 +183,7 @@ class YtDlpRunner {
         ..._cookieArgs(cookiePaths, url: url),
         url,
       ],
-      timeout: const Duration(seconds: 15),
+      timeout: timeout,
     );
 
     if (result.exitCode != 0) {
@@ -352,13 +359,17 @@ class YtDlpRunner {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
     final ffmpegPath = await BinaryLocator.getFFmpegPath();
 
+    // 占位任务解析失败后点「重试」时 formatId 仍为空，yt-dlp 会直接报
+    // "Requested format is not available"；回退到最佳画质，别让用户卡死。
+    final effectiveFormatId = formatId.trim().isEmpty ? 'bv*+ba/b' : formatId;
+
     debugPrint('[YtDlp] ytDlpPath: $ytDlpPath');
     debugPrint('[YtDlp] ffmpegPath: $ffmpegPath');
-    debugPrint('[YtDlp] formatId: $formatId');
+    debugPrint('[YtDlp] formatId: $effectiveFormatId');
 
     // 验证 ffmpeg 可执行（合并音视频流必需）
     String actualFfmpegPath = ffmpegPath;
-    if (formatId.contains('+')) {
+    if (effectiveFormatId.contains('+')) {
       bool ffOk = false;
       try {
         final ffCheck = Process.runSync(ffmpegPath, ['-version']);
@@ -418,7 +429,7 @@ class YtDlpRunner {
       try {
         final chunked = await _tryChunkedYouTubeDownload(
           url: url,
-          formatId: formatId,
+          formatId: effectiveFormatId,
           outputPath: outputPath,
           onProgress: onProgress,
           shouldCancel: () => shouldCancel?.call() ?? false,
@@ -449,7 +460,7 @@ class YtDlpRunner {
       '--no-playlist',
       '--socket-timeout', '15',
       if (proxy.isNotEmpty) ...['--proxy', proxy],
-      '-f', formatId,
+      '-f', effectiveFormatId,
       '-o', outputPath,
       '--ffmpeg-location', actualFfmpegPath,
       // 自定义提取的 HLS/DASH：强制用原生分片下载器，--concurrent-fragments 才生效。
@@ -589,7 +600,7 @@ class YtDlpRunner {
     }
 
     // 检查合并是否发生（formatId 含 + 表示需要合并音视频流）
-    final needsMerge = formatId.contains('+');
+    final needsMerge = effectiveFormatId.contains('+');
     final hasMergeLine =
         fullStdout.contains('Merging formats into') ||
         fullStderr.contains('Merging formats into');
