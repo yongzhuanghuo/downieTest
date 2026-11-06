@@ -187,6 +187,18 @@ class YtDlpRunner {
     );
 
     if (result.exitCode != 0) {
+      // YouTube 的 --dump-json 阶段报 Requested format is not available，
+      // 说明播放器响应里一个可下载格式都没有（常见于风控/未登录，只剩
+      // storyboard）。映射成登录提示，让 UI 弹登录窗口，而不是误导成
+      // 「所选画质不可用」。
+      if (_isYouTubeUrl(url) &&
+          result.stderr.contains('Requested format is not available')) {
+        throw YtDlpException(
+          '解析失败: YouTube 未返回可下载格式，需要登录/验证',
+          exitCode: result.exitCode,
+          stderr: result.stderr,
+        );
+      }
       throw YtDlpException(
         '解析失败: ${_extractErrorMessage(result.stderr)}',
         exitCode: result.exitCode,
@@ -592,6 +604,33 @@ class YtDlpRunner {
     }
 
     if (exitCode != 0) {
+      // 解析时选中的格式可能在下一次 player 请求里消失（例如 140-drc
+      // 这类实验性音轨）。自动退回最佳画质再试一次，避免用户只能手动
+      // 重新解析；bv*+ba/b 再失败就正常报错，不会递归。
+      if (fullStderr.contains('Requested format is not available') &&
+          effectiveFormatId != 'bv*+ba/b') {
+        debugPrint(
+          '[YtDlp] 格式 $effectiveFormatId 不可用，回退 bv*+ba/b 重试',
+        );
+        return download(
+          url: url,
+          formatId: 'bv*+ba/b',
+          outputPath: outputPath,
+          onProgress: onProgress,
+          shouldCancel: shouldCancel,
+          audioOnly: audioOnly,
+          downloadSubtitles: downloadSubtitles,
+          downloadCover: downloadCover,
+          throttleKbps: throttleKbps,
+          connections: connections,
+          logPath: logPath,
+          referer: referer,
+          userAgent: userAgent,
+          cookieHeader: cookieHeader,
+          passCookies: passCookies,
+          forceNativeFragments: forceNativeFragments,
+        );
+      }
       throw YtDlpException(
         '下载失败: ${_extractErrorMessage(fullStderr)}',
         exitCode: exitCode,
@@ -1127,8 +1166,15 @@ class YtDlpRunner {
       }
     }
 
-    // 按音频质量排序（码率越高越好）
+    // 按音频质量排序（码率越高越好）。
+    // -drc 是实验性动态范围压缩音轨，不同 player client 下时有时无；
+    // 配对时优先普通音轨，避免生成下载时可能消失的 formatId。
     audioStreams.sort((a, b) {
+      final idA = a['format_id']?.toString() ?? '';
+      final idB = b['format_id']?.toString() ?? '';
+      final drcA = idA.contains('-drc');
+      final drcB = idB.contains('-drc');
+      if (drcA != drcB) return drcA ? 1 : -1;
       final abrA = (a['abr'] as num?)?.toInt() ?? 0;
       final abrB = (b['abr'] as num?)?.toInt() ?? 0;
       return abrB.compareTo(abrA);
