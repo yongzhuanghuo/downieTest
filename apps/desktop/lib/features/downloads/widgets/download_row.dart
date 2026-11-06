@@ -103,11 +103,22 @@ class DownloadRow extends ConsumerWidget {
                 const Spacer(),
                 Row(
                   children: [
-                    Icon(
-                      _statusIcon(task),
-                      size: 14,
-                      color: _statusColor(task),
-                    ),
+                    if (task.status == DownloadStatus.loading ||
+                        task.status == DownloadStatus.preparing)
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.6,
+                          color: Colors.white70,
+                        ),
+                      )
+                    else
+                      Icon(
+                        _statusIcon(task),
+                        size: 14,
+                        color: _statusColor(task),
+                      ),
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(

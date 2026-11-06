@@ -162,11 +162,15 @@ class ParseNotifier extends StateNotifier<ParseState> {
       }
     }
 
-    // 通用 HTML 提取：在 yt-dlp 之前找 og:video / video / JSON-LD / m3u8
-    final htmlInfo = await GenericHtmlExtractor.tryParse(target);
-    if (htmlInfo != null) {
-      state = ParseState(status: ParseStatus.success, videoInfo: htmlInfo);
-      return;
+    // 通用 HTML 提取：在 yt-dlp 之前找 og:video / video / JSON-LD / m3u8。
+    // YouTube 页面没有 og:video，这一步只会白等 12 秒超时，直接交给
+    // yt-dlp 的专用提取器。
+    if (!isYouTubeUrl(target)) {
+      final htmlInfo = await GenericHtmlExtractor.tryParse(target);
+      if (htmlInfo != null) {
+        state = ParseState(status: ParseStatus.success, videoInfo: htmlInfo);
+        return;
+      }
     }
 
     try {
