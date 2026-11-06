@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../../data/models/download_progress.dart';
 import '../../../data/models/video_info.dart';
 import '../../engine/chunked_http_downloader.dart';
+import '../../engine/hls_downloader.dart';
 import '../../engine/ytdlp_runner.dart';
 import '../../ffmpeg/ffmpeg_runner.dart';
 import '../../platform/system_proxy.dart';
@@ -87,13 +88,76 @@ class GenericWebPlugin extends SitePlugin {
     final kind = spec['kind']?.toString() ?? '';
     final userAgent = capturedUa.isEmpty ? _ua : capturedUa;
 
-    // HLS/DASH 交给 yt-dlp 原生分片下载器：它按 --concurrent-fragments 并发拉
-    // 分片，而 ffmpeg 的 demuxer 是单连接顺序下载，长视频会慢数倍。
-    // 失败时退回 ffmpeg，保持旧行为。
     final lowerUrl = url.toLowerCase();
     final isHls = kind == 'hls' || lowerUrl.contains('.m3u8');
     final isDash = kind == 'dash' || lowerUrl.contains('.mpd');
-    if (isHls || isDash) {
+    final headers = <String, String>{
+      if (referer != null && referer.isNotEmpty) 'Referer': referer,
+      'User-Agent': userAgent,
+      if (cookie != null && cookie.isNotEmpty) 'Cookie': cookie,
+    };
+    final settings = SettingsStorage.instance.current;
+    // HLS 分片小，CDN 通常按连接限速；16 连接起步（用户设更高则跟随）。
+    final configuredConnections = request.task.connections > 0
+        ? request.task.connections
+        : settings.connectionsPerDownload;
+    final hlsConnections = configuredConnections < 16
+        ? 16
+        : configuredConnections;
+
+    // HLS：Dart 多连接拉分片 + 本地 ffmpeg 解密。
+    //
+    // 绝对不能再回退到「ffmpeg 直接拉网络」：ffmpeg 遇到失败分片会
+    // 跳过并返回成功，产出残缺文件（实测跑到第 2048 片后 DNS 失败）。
+    // AES 也不能交给 yt-dlp：它的纯 Python AES 实测只有 ~130 KB/s，
+    // 16 个 2 秒分片要 22 秒，且 -N 加到 16 也没有提升。
+    if (isHls) {
+      try {
+        final result = await HlsDownloader.download(
+          url: url,
+          headers: headers,
+          connections: hlsConnections,
+          proxy: proxy,
+          shouldCancel: request.shouldCancel,
+          onProgress: (done, total, bytes, speed) {
+            request.onProgress(DownloadProgress(
+              downloadedBytes: bytes,
+              speed: speed,
+              percent: total > 0 ? done / total : null,
+              stage: DownloadStage.downloading,
+              detail: 'HLS 分片 $done/$total',
+            ));
+          },
+        );
+        request.onProgress(const DownloadProgress(
+          downloadedBytes: 0,
+          speed: 0,
+          percent: 1,
+          stage: DownloadStage.merging,
+          detail: '解密并合并 HLS',
+        ));
+        try {
+          return await FFmpegRunner.remuxHls(
+            playlistPath: result.playlistPath,
+            outputPath: request.outputPath,
+          );
+        } on FFmpegException catch (e) {
+          throw SitePluginException(
+            'HLS 合并失败: ${e.message}',
+            retryable: false,
+          );
+        } finally {
+          await result.cleanup();
+        }
+      } on HlsCancelledException {
+        throw const SitePluginException('已取消', retryable: false);
+      } on HlsUnsupportedException catch (e) {
+        debugPrint('[GenericWeb] HLS 不支持，回退 yt-dlp: ${e.message}');
+      } on HlsDownloadException catch (e) {
+        throw SitePluginException('HLS 下载失败: ${e.message}', retryable: true);
+      }
+
+      // 直播 / BYTERANGE / 独立音轨等少数情况交给 yt-dlp。
       try {
         return await YtDlpRunner.download(
           url: url,
@@ -108,16 +172,38 @@ class GenericWebPlugin extends SitePlugin {
           forceNativeFragments: true,
           connections: request.task.connections,
           throttleKbps: request.task.throttleKbps,
+          logPath: await _taskLogPath(request.task.id),
         );
       } on YtDlpException catch (e) {
-        debugPrint('[GenericWeb] yt-dlp 分片下载失败，回退 ffmpeg: ${e.message}');
+        throw SitePluginException(e.message, retryable: false);
+      }
+    }
+
+    if (isDash) {
+      try {
+        return await YtDlpRunner.download(
+          url: url,
+          formatId: 'best',
+          outputPath: request.outputPath,
+          onProgress: request.onProgress,
+          shouldCancel: request.shouldCancel,
+          referer: referer,
+          userAgent: userAgent,
+          cookieHeader: cookie,
+          passCookies: false,
+          forceNativeFragments: true,
+          connections: request.task.connections,
+          throttleKbps: request.task.throttleKbps,
+          logPath: await _taskLogPath(request.task.id),
+        );
+      } on YtDlpException catch (e) {
+        throw SitePluginException(e.message, retryable: false);
       }
     }
 
     // 直链 MP4/FLV：用多连接 Range 下载。CDN 常按单连接限速，4 连接能
     // 把速度拉回正常水平；服务器不支持 Range 时抛异常并回退 ffmpeg。
     if (!isHls && !isDash) {
-      final settings = SettingsStorage.instance.current;
       final connectionCount = request.task.connections > 0
           ? request.task.connections
           : settings.connectionsPerDownload;
@@ -126,11 +212,7 @@ class GenericWebPlugin extends SitePlugin {
         await ChunkedHttpDownloader.download(
           url: url,
           outputPath: request.outputPath,
-          headers: {
-            if (referer != null && referer.isNotEmpty) 'Referer': referer,
-            'User-Agent': userAgent,
-            if (cookie != null && cookie.isNotEmpty) 'Cookie': cookie,
-          },
+          headers: headers,
           connections: connectionCount,
           chunkSizeBytes: chunkMb * 1024 * 1024,
           proxy: proxy,
@@ -169,6 +251,15 @@ class GenericWebPlugin extends SitePlugin {
       );
     } on FFmpegException catch (e) {
       throw SitePluginException(e.message, retryable: false);
+    }
+  }
+
+  Future<String?> _taskLogPath(String taskId) async {
+    try {
+      final dir = await SettingsStorage.getStorageDir();
+      return '${dir.path}/logs/task_$taskId.log';
+    } catch (_) {
+      return null;
     }
   }
 

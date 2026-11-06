@@ -162,16 +162,22 @@ class YtDlpRunner {
       }
     }
     final proxy = await _resolveProxy();
-    // 使用 --dump-json 输出单行 JSON
-    final result = await _runCommand([
-      '--dump-json',
-      '--no-warnings',
-      '--no-playlist',
-      if (proxy.isNotEmpty) ...['--proxy', proxy],
-      ...await _youtubeArgs(url),
-      ..._cookieArgs(cookiePaths, url: url),
-      url,
-    ]);
+    // 使用 --dump-json 输出单行 JSON。
+    // 不支持的长尾页面会卡到网络超时；这里最多等 15 秒，让 UI 尽快
+    // 提示「用户自定义提取」，而不是一直转圈。
+    final result = await _runCommand(
+      [
+        '--dump-json',
+        '--no-warnings',
+        '--no-playlist',
+        '--socket-timeout', '8',
+        if (proxy.isNotEmpty) ...['--proxy', proxy],
+        ...await _youtubeArgs(url),
+        ..._cookieArgs(cookiePaths, url: url),
+        url,
+      ],
+      timeout: const Duration(seconds: 15),
+    );
 
     if (result.exitCode != 0) {
       throw YtDlpException(
@@ -441,6 +447,7 @@ class YtDlpRunner {
       '--newline', // 每行一个进度，便于解析
       '--no-warnings',
       '--no-playlist',
+      '--socket-timeout', '15',
       if (proxy.isNotEmpty) ...['--proxy', proxy],
       '-f', formatId,
       '-o', outputPath,
@@ -501,7 +508,10 @@ class YtDlpRunner {
       try {
         logFile = File(logPath);
         await logFile.parent.create(recursive: true);
-        await logFile.writeAsString('[cmd] $ytDlpPath ${args.join(' ')}\n');
+        await logFile.writeAsString(
+          '[cmd] $ytDlpPath ${args.join(' ')}\n',
+          mode: FileMode.append,
+        );
       } catch (_) {
         logFile = null;
       }
@@ -1000,16 +1010,46 @@ class YtDlpRunner {
     'PYTHONDONTWRITEBYTECODE': '1',
   };
 
-  /// 执行 yt-dlp 命令并等待完成
+  /// 执行 yt-dlp 命令并等待完成。
+  ///
+  /// [timeout] 到期后先 SIGTERM，2 秒后仍在则 SIGKILL；返回 exitCode=-1。
   static Future<({int exitCode, String stdout, String stderr})> _runCommand(
-    List<String> args,
-  ) async {
+    List<String> args, {
+    Duration? timeout,
+  }) async {
     final ytDlpPath = await BinaryLocator.getYtDlpPath();
-    final result = await Process.run(ytDlpPath, args, environment: _processEnv);
+    final process = await Process.start(
+      ytDlpPath,
+      args,
+      environment: _processEnv,
+    );
+    final stdoutFuture = process.stdout.transform(utf8.decoder).join();
+    final stderrFuture = process.stderr.transform(utf8.decoder).join();
+
+    var timedOut = false;
+    Timer? timer;
+    Timer? killTimer;
+    if (timeout != null) {
+      timer = Timer(timeout, () {
+        timedOut = true;
+        process.kill(ProcessSignal.sigterm);
+        killTimer = Timer(const Duration(seconds: 2), () {
+          process.kill(ProcessSignal.sigkill);
+        });
+      });
+    }
+
+    final exitCode = await process.exitCode;
+    timer?.cancel();
+    killTimer?.cancel();
+    final stdout = await stdoutFuture;
+    final stderr = await stderrFuture;
     return (
-      exitCode: result.exitCode,
-      stdout: result.stdout.toString(),
-      stderr: result.stderr.toString(),
+      exitCode: timedOut ? -1 : exitCode,
+      stdout: stdout,
+      stderr: timedOut
+          ? '$stderr\n解析超时（${timeout!.inSeconds}s）'
+          : stderr,
     );
   }
 

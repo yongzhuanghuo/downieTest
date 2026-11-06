@@ -120,6 +120,37 @@ class FFmpegRunner {
     return outputPath;
   }
 
+  /// 用本地 HLS 清单（分片/key 已下载到临时目录）解密并 remux。
+  ///
+  /// 网络下载交给 [HlsDownloader]（多连接）；这里只读本地文件，
+  /// ffmpeg 用系统原生 AES 解密，速度远快于 yt-dlp 的 Python 实现。
+  static Future<String> remuxHls({
+    required String playlistPath,
+    required String outputPath,
+  }) async {
+    final ffmpegPath = await BinaryLocator.getFFmpegPath();
+    final lower = outputPath.toLowerCase();
+    final isMp4 = lower.endsWith('.mp4') || lower.endsWith('.m4v');
+    final args = <String>[
+      '-y',
+      '-hide_banner',
+      '-loglevel', 'error',
+      '-allowed_extensions', 'ALL',
+      '-i', playlistPath,
+      '-c', 'copy',
+      if (isMp4) ...['-f', 'mp4'],
+      outputPath,
+    ];
+    final result = await Process.run(ffmpegPath, args);
+    if (result.exitCode != 0) {
+      throw FFmpegException(
+        'HLS 合并失败: ${result.stderr}',
+        exitCode: result.exitCode,
+      );
+    }
+    return outputPath;
+  }
+
   /// 转换音频为 MP3
   ///
   /// [inputPath] 输入文件（任何音视频格式）
