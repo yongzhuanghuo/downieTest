@@ -34,6 +34,7 @@ class TrialBody(BaseModel):
     device_name: Optional[str] = None
     platform: Optional[str] = None
     email: Optional[str] = None
+    product: Optional[str] = None
 
 
 class ActivateBody(BaseModel):
@@ -41,22 +42,26 @@ class ActivateBody(BaseModel):
     device_fp: str
     device_name: Optional[str] = None
     email: Optional[str] = None
+    product: Optional[str] = None
 
 
 class UnbindBody(BaseModel):
     code: str
     device_fp: str
+    product: Optional[str] = None
 
 
 class HeartbeatBody(BaseModel):
     code: str
     device_fp: str
     device_name: Optional[str] = None
+    product: Optional[str] = None
 
 
 class VerifyBody(BaseModel):
     code: str
     device_fp: str
+    product: Optional[str] = None
 
 
 def _raise(e: service.LicenseError):
@@ -87,6 +92,7 @@ async def trial_start(
             body.device_name,
             body.platform,
             body.email,
+            body.product,
         )
     except service.LicenseError as e:
         _raise(e)
@@ -96,11 +102,12 @@ async def trial_start(
 async def trial_status(
     device_fp: str,
     request: Request,
+    product: Optional[str] = None,
     session: AsyncSession = Depends(get_session),
 ):
     _rate_limit(request, "trial-status", limit=120, window_seconds=60)
     try:
-        return await service.trial_status(session, device_fp)
+        return await service.trial_status(session, device_fp, product)
     except service.LicenseError as e:
         _raise(e)
 
@@ -119,6 +126,7 @@ async def activate(
             body.device_fp,
             body.device_name,
             body.email,
+            body.product,
         )
     except service.LicenseError as e:
         _raise(e)
@@ -132,7 +140,7 @@ async def unbind(
 ):
     _rate_limit(request, "unbind", limit=30, window_seconds=600)
     try:
-        return await service.unbind(session, body.code, body.device_fp)
+        return await service.unbind(session, body.code, body.device_fp, body.product)
     except service.LicenseError as e:
         _raise(e)
 
@@ -142,11 +150,12 @@ async def status(
     code: str,
     request: Request,
     device_fp: Optional[str] = None,
+    product: Optional[str] = None,
     session: AsyncSession = Depends(get_session),
 ):
     _rate_limit(request, "status", limit=60, window_seconds=60)
     try:
-        return await service.status(session, code, device_fp)
+        return await service.status(session, code, device_fp, product)
     except service.LicenseError as e:
         _raise(e)
 
@@ -159,7 +168,7 @@ async def heartbeat(
 ):
     _rate_limit(request, "heartbeat", limit=120, window_seconds=60)
     try:
-        return await service.heartbeat(session, body.code, body.device_fp, body.device_name)
+        return await service.heartbeat(session, body.code, body.device_fp, body.device_name, body.product)
     except service.LicenseError as e:
         _raise(e)
 
@@ -172,6 +181,6 @@ async def verify(
 ):
     _rate_limit(request, "verify", limit=120, window_seconds=60)
     try:
-        return await service.verify(session, body.code, body.device_fp)
+        return await service.verify(session, body.code, body.device_fp, body.product)
     except service.LicenseError as e:
         _raise(e)

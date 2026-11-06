@@ -1,27 +1,50 @@
 -- Downie 授权后端 MySQL 建表语句
 -- 字符集统一 utf8mb4，存储引擎 InnoDB
 
+CREATE TABLE IF NOT EXISTS products (
+  id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  code                VARCHAR(32)  NOT NULL,
+  name                VARCHAR(64)  NOT NULL,
+  trial_days          INT          NOT NULL DEFAULT 14,
+  default_max_devices INT          NOT NULL DEFAULT 1,
+  purchase_url        VARCHAR(512) NOT NULL DEFAULT '',
+  support_email       VARCHAR(255) NOT NULL DEFAULT '',
+  status              TINYINT      NOT NULL DEFAULT 1,
+  created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_products_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO products
+  (id, code, name, trial_days, default_max_devices, purchase_url, support_email, status)
+VALUES
+  (1, 'downie6', 'Downie6', 14, 4, '', 'huoyongzhuang@qq.com', 1),
+  (2, 'launch',  'launch',  14, 1, '', 'huoyongzhuang@qq.com', 1);
+
 CREATE TABLE IF NOT EXISTS licenses (
   code        VARCHAR(20)  NOT NULL PRIMARY KEY,
+  product_id  BIGINT UNSIGNED NOT NULL DEFAULT 1,
   type        ENUM('free','perpetual') NOT NULL DEFAULT 'perpetual',
   max_devices INT          NOT NULL DEFAULT 4,
   email       VARCHAR(255) NULL,
   expire_at   BIGINT       NULL,
   status      ENUM('unused','activated','revoked') NOT NULL DEFAULT 'unused',
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_licenses_email (email)
+  KEY idx_licenses_email (email),
+  KEY idx_licenses_product_status (product_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS device_bindings (
   id          CHAR(36)     NOT NULL PRIMARY KEY,
   code        VARCHAR(20)  NOT NULL,
+  product_id  BIGINT UNSIGNED NOT NULL DEFAULT 1,
   device_fp   VARCHAR(64)  NOT NULL,
   device_name VARCHAR(255) NULL,
   bound_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_seen   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   status      ENUM('active','unbound') NOT NULL DEFAULT 'active',
   UNIQUE KEY uq_code_fp (code, device_fp),
-  KEY idx_code_status (code, status)
+  KEY idx_code_status (code, status),
+  KEY idx_dev_product_fp (product_id, device_fp)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS unbind_log (
@@ -44,6 +67,41 @@ CREATE TABLE IF NOT EXISTS trial_devices (
   email       VARCHAR(255) NULL,
   status      ENUM('active','expired','converted','revoked') NOT NULL DEFAULT 'active',
   last_seen   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS trials (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  product_id  BIGINT UNSIGNED NOT NULL,
+  device_fp   VARCHAR(64)  NOT NULL,
+  device_name VARCHAR(255) NULL,
+  platform    VARCHAR(20)  NULL,
+  first_seen  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  trial_start DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  trial_end   DATETIME     NOT NULL,
+  email       VARCHAR(255) NULL,
+  status      ENUM('active','expired','converted','revoked') NOT NULL DEFAULT 'active',
+  last_seen   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_trial_product_device (product_id, device_fp),
+  KEY idx_trial_product_status_end (product_id, status, trial_end)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS releases (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  product_id      BIGINT UNSIGNED NOT NULL,
+  platform        VARCHAR(20)  NOT NULL DEFAULT 'macos',
+  version         VARCHAR(32)  NOT NULL,
+  build           INT          NOT NULL,
+  artifact_url    VARCHAR(1024) NOT NULL,
+  artifact_sha256 CHAR(64)     NOT NULL DEFAULT '',
+  artifact_size   BIGINT       NOT NULL DEFAULT 0,
+  dmg_url         VARCHAR(1024) NULL,
+  changelog       TEXT         NULL,
+  force_update    TINYINT      NOT NULL DEFAULT 0,
+  status          ENUM('draft','published','revoked') NOT NULL DEFAULT 'published',
+  published_at    DATETIME     NULL,
+  created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_release_build (product_id, platform, build),
+  KEY idx_release_latest (product_id, platform, status, build)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================

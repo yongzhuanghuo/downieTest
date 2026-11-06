@@ -15,7 +15,7 @@ from fastapi import HTTPException
 
 from app.config import settings
 from app.modules.admin.models import SysRole, SysUser
-from app.modules.license.models import DeviceBinding, License
+from app.modules.license.models import DeviceBinding, License, Product
 from app.modules.license import service
 from app.ratelimit import InMemoryRateLimiter
 import app.security as security
@@ -65,6 +65,17 @@ def _token(**extra) -> str:
     payload = {"user_id": 1, "username": "admin", "type": "access", "exp": int(time.time()) + 60}
     payload.update(extra)
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+
+
+def _product() -> Product:
+    return Product(
+        id=1,
+        code="downie6",
+        name="Downie6",
+        trial_days=14,
+        default_max_devices=4,
+        status=1,
+    )
 
 
 def _license(**extra) -> License:
@@ -126,7 +137,7 @@ def test_require_license_rejects_expired():
 
 
 def test_status_requires_bound_device():
-    session = _FakeSession([_license(), None])
+    session = _FakeSession([_product(), _license(), None])
 
     with pytest.raises(service.LicenseError) as exc:
         asyncio.run(service.status(session, "ABCDEABCDEABCDEABCDE", "fp"))
@@ -136,7 +147,7 @@ def test_status_requires_bound_device():
 
 
 def test_heartbeat_rejects_revoked_license():
-    session = _FakeSession([_license(status="revoked")])
+    session = _FakeSession([_product(), _license(status="revoked")])
 
     with pytest.raises(service.LicenseError) as exc:
         asyncio.run(service.heartbeat(session, "ABCDEABCDEABCDEABCDE", "fp", "dev"))
@@ -153,7 +164,7 @@ def test_verify_revoked_is_not_pro():
         device_name="dev",
         status="active",
     )
-    session = _FakeSession([_license(status="revoked"), binding])
+    session = _FakeSession([_product(), _license(status="revoked"), binding])
 
     result = asyncio.run(service.verify(session, "ABCDEABCDEABCDEABCDE", "fp"))
 

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.modules.license.codes import format_code, generate_code
-from app.modules.license.models import DeviceBinding, License
+from app.modules.license.models import DeviceBinding, License, Product
 from ..serialize import ok
 from .auth import get_current_user
 
@@ -28,11 +28,13 @@ class CardQuery(BaseModel):
     type: Optional[str] = None
     has_email: bool = False
     has_devices: bool = False
+    product: Optional[str] = None
     page: int = 1
     pageSize: int = 20
 
 
 class CardGenerate(BaseModel):
+    product: Optional[str] = None
     type: str = "perpetual"
     count: int = 10
     devices: Optional[int] = None
@@ -71,10 +73,34 @@ def _fmt(v) -> str:
     return v.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _license_dict(lic: License, bound_count: int = 0) -> dict:
+async def _resolve_product(session: AsyncSession, product: Optional[str]) -> Product:
+    code = (product or "downie6").strip().lower()
+    row = await session.scalar(select(Product).where(Product.code == code))
+    if row is None or not row.status:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": 400, "message": "产品不存在或已停用"},
+        )
+    return row
+
+
+async def _product_id_or_none(session: AsyncSession, product: Optional[str]) -> Optional[int]:
+    if (product or "").strip().lower() == "all":
+        return None
+    return (await _resolve_product(session, product)).id
+
+
+def _license_dict(
+    lic: License,
+    bound_count: int = 0,
+    product: Optional[Product] = None,
+) -> dict:
     return {
         "code": lic.code,
         "formatted": format_code(lic.code),
+        "product_id": lic.product_id,
+        "product": product.code if product else "",
+        "product_name": product.name if product else "",
         "type": lic.type,
         "max_devices": lic.max_devices,
         "email": lic.email or "",
@@ -87,6 +113,7 @@ def _license_dict(lic: License, bound_count: int = 0) -> dict:
 
 async def _insert_one(
     session: AsyncSession,
+    product_id: int,
     type_: str,
     max_devices: int,
     expire_at: Optional[int],
@@ -98,6 +125,7 @@ async def _insert_one(
             session.add(
                 License(
                     code=raw,
+                    product_id=product_id,
                     type=type_,
                     max_devices=max_devices,
                     expire_at=expire_at,
@@ -121,8 +149,11 @@ def _card_conds(
     type: Optional[str] = None,
     has_email: bool = False,
     has_devices: bool = False,
+    product_id: Optional[int] = None,
 ) -> list:
     conds = []
+    if product_id is not None:
+        conds.append(License.product_id == product_id)
     if search:
         term = search.strip()
         conds.append(
@@ -139,16 +170,20 @@ def _card_conds(
         conds.append(License.email.isnot(None))
         conds.append(License.email != "")
     if has_devices:
-        conds.append(
-            License.code.in_(
-                select(DeviceBinding.code).where(DeviceBinding.status == "active")
-            )
-        )
+        dev_q = select(DeviceBinding.code).where(DeviceBinding.status == "active")
+        if product_id is not None:
+            dev_q = dev_q.where(DeviceBinding.product_id == product_id)
+        conds.append(License.code.in_(dev_q))
     return conds
 
 
 @router.post("/card/stats", dependencies=[Depends(get_current_user)])
-async def card_stats(session: AsyncSession = Depends(get_session)):
+async def card_stats(
+    product: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+):
+    product_id = await _product_id_or_none(session, product)
+    conds = [License.product_id == product_id] if product_id is not None else []
     row = (
         await session.execute(
             select(
@@ -167,10 +202,13 @@ async def card_stats(session: AsyncSession = Depends(get_session)):
                         else_=0,
                     )
                 ).label("with_email"),
-            )
+            ).where(*conds)
         )
     ).one()
-    dev = await session.scalar(select(func.count(DeviceBinding.id)).where(DeviceBinding.status == "active"))
+    dev_conds = [DeviceBinding.status == "active"]
+    if product_id is not None:
+        dev_conds.append(DeviceBinding.product_id == product_id)
+    dev = await session.scalar(select(func.count(DeviceBinding.id)).where(*dev_conds))
     return ok(
         {
             "total": row.total or 0,
@@ -187,7 +225,8 @@ async def card_stats(session: AsyncSession = Depends(get_session)):
 
 @router.post("/card/list", dependencies=[Depends(get_current_user)])
 async def card_list(q: CardQuery, session: AsyncSession = Depends(get_session)):
-    conds = _card_conds(q.search, q.status, q.type, q.has_email, q.has_devices)
+    product_id = await _product_id_or_none(session, q.product)
+    conds = _card_conds(q.search, q.status, q.type, q.has_email, q.has_devices, product_id)
 
     total = await session.scalar(select(func.count(License.code)).where(*conds)) or 0
     bound_sub = (
@@ -204,9 +243,10 @@ async def card_list(q: CardQuery, session: AsyncSession = Depends(get_session)):
             .limit(q.pageSize)
         )
     ).all()
+    products = {p.id: p for p in (await session.scalars(select(Product))).all()}
     return ok(
         {
-            "list": [_license_dict(lic, bc or 0) for lic, bc in rows],
+            "list": [_license_dict(lic, bc or 0, products.get(lic.product_id)) for lic, bc in rows],
             "total": total,
             "page": q.page,
             "pageSize": q.pageSize,
@@ -216,19 +256,27 @@ async def card_list(q: CardQuery, session: AsyncSession = Depends(get_session)):
 
 @router.post("/card/generate", dependencies=[Depends(get_current_user)])
 async def card_generate(body: CardGenerate, session: AsyncSession = Depends(get_session)):
+    product = await _resolve_product(session, body.product)
     t = "free" if body.type == "free" else "perpetual"
-    max_devices = body.devices if body.devices is not None else (4 if t == "perpetual" else 1)
+    if body.devices is not None:
+        max_devices = body.devices
+    elif t == "perpetual":
+        max_devices = product.default_max_devices
+    else:
+        max_devices = 1
     expire_at = None if body.expire_days <= 0 else int(time.time() * 1000) + body.expire_days * 86400 * 1000
     n = min(1000, max(1, body.count))
     email = _clean_email(body.email)
 
     raws = []
     for _ in range(n):
-        raws.append(await _insert_one(session, t, max_devices, expire_at, email))
+        raws.append(await _insert_one(session, product.id, t, max_devices, expire_at, email))
     await session.commit()
     return ok(
         {
             "count": len(raws),
+            "product": product.code,
+            "product_name": product.name,
             "type": t,
             "max_devices": max_devices,
             "email": email or "",
@@ -244,25 +292,30 @@ async def card_export(
     type: Optional[str] = None,
     has_email: bool = False,
     has_devices: bool = False,
+    product: Optional[str] = None,
     page: Optional[int] = None,
     pageSize: Optional[int] = None,
     session: AsyncSession = Depends(get_session),
 ):
-    conds = _card_conds(search, status, type, has_email, has_devices)
+    product_id = await _product_id_or_none(session, product)
+    conds = _card_conds(search, status, type, has_email, has_devices, product_id)
 
     stmt = select(License).where(*conds).order_by(License.created_at.desc())
     if page and pageSize:
         stmt = stmt.offset((page - 1) * pageSize).limit(pageSize)
     rows = list((await session.scalars(stmt)).all())
+    products = {p.id: p for p in (await session.scalars(select(Product))).all()}
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["激活码", "类型", "设备数", "状态", "邮箱", "过期时间", "创建时间"])
+    writer.writerow(["激活码", "产品", "类型", "设备数", "状态", "邮箱", "过期时间", "创建时间"])
     for r in rows:
         expire = _fmt(r.expire_at) if r.expire_at else "永久"
+        p = products.get(r.product_id)
         writer.writerow(
             [
                 format_code(r.code),
+                p.name if p else "",
                 _TYPE_MAP.get(r.type, r.type),
                 r.max_devices,
                 _STATUS_MAP.get(r.status, r.status),
@@ -283,12 +336,13 @@ async def card_detail(code: str, session: AsyncSession = Depends(get_session)):
     lic = await session.scalar(select(License).where(License.code == code))
     if not lic:
         raise HTTPException(status_code=404, detail={"code": 404, "message": "卡密不存在"})
+    product = await session.get(Product, lic.product_id)
     devices = list(
         (await session.scalars(select(DeviceBinding).where(DeviceBinding.code == code).order_by(DeviceBinding.bound_at.desc()))).all()
     )
     return ok(
         {
-            "license": _license_dict(lic),
+            "license": _license_dict(lic, product=product),
             "devices": [
                 {"id": d.id, "device_name": d.device_name, "device_fp": d.device_fp, "last_seen": _fmt(d.last_seen), "status": d.status}
                 for d in devices

@@ -123,11 +123,7 @@ class LicenseInfo {
   final int maxDevices;
   final int? expireAt;
 
-  LicenseInfo({
-    required this.type,
-    required this.maxDevices,
-    this.expireAt,
-  });
+  LicenseInfo({required this.type, required this.maxDevices, this.expireAt});
 
   factory LicenseInfo.fromJson(Map<String, dynamic> j) {
     return LicenseInfo(
@@ -240,8 +236,10 @@ class LicenseClient {
   }
 
   /// GET 请求（直连后端）
-  Future<http.Response> _get(String path,
-      [Map<String, String>? queryParams]) async {
+  Future<http.Response> _get(
+    String path, [
+    Map<String, String>? queryParams,
+  ]) async {
     var uri = Uri.parse('$kApiBase$path');
     if (queryParams != null) {
       uri = uri.replace(queryParameters: queryParams);
@@ -257,6 +255,7 @@ class LicenseClient {
   }) async {
     try {
       final resp = await _post('/api/license/trial/start', {
+        'product': 'downie6',
         'device_fp': deviceFp,
         'device_name': deviceName ?? Platform.localHostname,
         'platform': platform ?? (Platform.isMacOS ? 'macos' : 'windows'),
@@ -286,17 +285,24 @@ class LicenseClient {
   }) async {
     try {
       final resp = await _post('/api/license/activate', {
+        'product': 'downie6',
         'code': code,
         'device_fp': deviceFp,
         'device_name': deviceName ?? Platform.localHostname,
         if (email != null && email.isNotEmpty) 'email': email,
       });
       final bodyStr = resp.body;
-      final preview = bodyStr.length > 200 ? bodyStr.substring(0, 200) : bodyStr;
-      debugPrint('[LicenseClient] 激活响应: status=${resp.statusCode}, body=$preview');
+      final preview = bodyStr.length > 200
+          ? bodyStr.substring(0, 200)
+          : bodyStr;
+      debugPrint(
+        '[LicenseClient] 激活响应: status=${resp.statusCode}, body=$preview',
+      );
       final j = jsonDecode(resp.body) as Map<String, dynamic>;
       final result = ActivateResult.fromJson(j);
-      debugPrint('[LicenseClient] 激活结果: ok=${result.ok}, error=${result.error}');
+      debugPrint(
+        '[LicenseClient] 激活结果: ok=${result.ok}, error=${result.error}',
+      );
       return result;
     } catch (e) {
       debugPrint('[LicenseClient] 激活异常: ${e.runtimeType}: $e');
@@ -315,6 +321,7 @@ class LicenseClient {
   }) async {
     try {
       final resp = await _post('/api/license/unbind', {
+        'product': 'downie6',
         'code': code,
         'device_fp': deviceFp,
       });
@@ -330,12 +337,9 @@ class LicenseClient {
   }
 
   /// 查询状态（设备列表 + 剩余名额 + 解绑次数）
-  Future<StatusResult?> status({
-    required String code,
-    String? deviceFp,
-  }) async {
+  Future<StatusResult?> status({required String code, String? deviceFp}) async {
     try {
-      final params = <String, String>{'code': code};
+      final params = <String, String>{'product': 'downie6', 'code': code};
       if (deviceFp != null) params['device_fp'] = deviceFp;
       final resp = await _get('/api/license/status', params);
 
@@ -357,6 +361,7 @@ class LicenseClient {
   }) async {
     try {
       final resp = await _post('/api/license/verify', {
+        'product': 'downie6',
         'code': code,
         'device_fp': deviceFp,
       });
@@ -375,6 +380,7 @@ class LicenseClient {
   }) async {
     try {
       final resp = await _post('/api/license/heartbeat', {
+        'product': 'downie6',
         'code': code,
         'device_fp': deviceFp,
         'device_name': deviceName ?? Platform.localHostname,

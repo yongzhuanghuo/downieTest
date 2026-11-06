@@ -28,6 +28,7 @@ MENUS = [
     ("/system/role", "角色管理", "SystemRole", "system/role/index", "ri:admin-fill", 2, "/system"),
     ("/system/menu", "菜单管理", "SystemMenu", "system/menu/index", "ep:menu", 3, "/system"),
     ("/system/dept", "部门管理", "SystemDept", "system/dept/index", "ri:git-branch-line", 4, "/system"),
+    ("/product", "产品管理", "Product", "product/index", "ri:apps-2-line", 2, None),
     ("/card", "卡密管理", "Card", "card/index", "ri:coupon-3-line", 2, None),
     ("/task", "任务管理", "Task", "task/index", "ri:list-check-2", 3, None),
     ("/member", "会员管理", "Member", "member/index", "ri:vip-crown-line", 4, None),

@@ -6,8 +6,10 @@ type Result = {
   data?: any;
 };
 
-export const getCardStats = () => {
-  return http.request<Result>("post", "/card/stats");
+export const getCardStats = (product?: string) => {
+  return http.request<Result>("post", "/card/stats", {
+    params: product ? { product } : undefined
+  });
 };
 
 export const getCardList = (data?: object) => {

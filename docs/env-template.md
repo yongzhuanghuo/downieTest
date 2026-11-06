@@ -71,9 +71,10 @@ SMTP_SSL=true
 SMTP_STARTTLS=false
 
 # ============ App 版本推送（桌面端启动查 /api/version/latest）============
-# 发新版：CI 打 tag 自动把固定名安装包覆盖传 OSS（.github/workflows/build.yml），
-# 这里改 LATEST_VERSION / LATEST_BUILD / CHANGELOG 后 pm2 restart api 即生效；
-# DOWNLOAD_URL_* 指向 OSS 固定地址，配一次不用再动
+# 发新版：CI 打 tag 自动上传 OSS + 调用 /api/internal/releases/publish 写 releases 表；
+# 下面的 LATEST_* 仅作为数据库无记录时的旧版回退。
+# RELEASE_TOKEN 给 CI 发布接口用，必须和 GitHub Secrets 里的值一致；为空时接口拒绝所有请求。
+RELEASE_TOKEN=
 LATEST_VERSION=2.0.0
 LATEST_BUILD=1
 DOWNLOAD_URL_MACOS=https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com/releases/Downie6.dmg

@@ -24,8 +24,9 @@ class BinaryInitializer {
       await _syncYtDlpBuild();
 
       // node + 抖音签名 JS 与 yt-dlp/ffmpeg 独立，任何时候都要提取（幂等），
-      // 不能放进下面的「已就绪则跳过」分支，否则老用户升级后 node 永远不落盘
-      await _extractBinaryOrSkip(BinaryLocator.nodeFileName);
+      // 不能放进下面的「已就绪则跳过」分支，否则老用户升级后 node 永远不落盘。
+      // macOS universal 包同时带 node_arm64 / node_x86_64，按当前架构提取成 node。
+      await _syncNodeBuild();
       await _extractDouyinSign();
 
       final ready = await BinaryLocator.isReady();
@@ -114,6 +115,35 @@ class BinaryInitializer {
     } catch (e) {
       // 同步失败不阻断启动；后续 isReady() 会继续走系统 PATH/旧二进制
       debugPrint('[BinaryInit] 同步 yt-dlp 构建失败：$e');
+    }
+  }
+
+  /// 按当前架构同步 node：universal 包里 `node_arm64` / `node_x86_64`
+  /// 共用同一个运行时文件名 `node`。构建标识变化时强制重新提取。
+  static Future<void> _syncNodeBuild() async {
+    try {
+      final binDir = await BinaryLocator.getBinDirectory();
+      final assetName = BinaryLocator.nodeAssetName;
+      final marker = File('${binDir.path}/.node-build');
+      final buildId = '$assetName:${BinaryLocator.ytDlpBuildId}';
+      if (marker.existsSync() && marker.readAsStringSync().trim() == buildId) {
+        return;
+      }
+
+      final target = File('${binDir.path}/${BinaryLocator.nodeFileName}');
+      if (target.existsSync()) {
+        await target.delete();
+      }
+      try {
+        await _extractBinary(BinaryLocator.nodeFileName, assetName: assetName);
+      } catch (e) {
+        debugPrint('[BinaryInit] $assetName 不可用，回退 node：$e');
+        await _extractBinary(BinaryLocator.nodeFileName);
+      }
+      await marker.writeAsString(buildId);
+    } catch (e) {
+      // 开发态 assets 为空时就是这里；不阻断启动，后续走系统 PATH
+      debugPrint('[BinaryInit] 同步 node 失败：$e');
     }
   }
 

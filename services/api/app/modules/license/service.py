@@ -1,6 +1,7 @@
 """授权业务逻辑（移植自 Node 版 src/routes/license.js）。
 
 契约严格对齐：路径、字段名、错误码、HTTP 状态码都保持不变。
+多产品扩展：所有入口的 product 参数可选，缺省为 downie6；旧客户端无感。
 关键移植点：
   - SELECT ... FOR UPDATE 防超绑（必须与写操作在同一事务、同一连接上）
   - ON DUPLICATE KEY UPDATE 复用解绑后的旧行，避免唯一键冲突
@@ -11,14 +12,14 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 from .codes import normalize_code
-from .models import DeviceBinding, License, TrialDevice, UnbindLog
+from .models import DeviceBinding, License, Product, Trial, UnbindLog
 
-TRIAL_DAYS = 14
+DEFAULT_PRODUCT_CODE = "downie6"
 
 
 class LicenseError(Exception):
@@ -32,12 +33,25 @@ class LicenseError(Exception):
         self.extra = extra or {}
 
 
-async def _get_license(session: AsyncSession, code: str) -> License | None:
-    return await session.scalar(select(License).where(License.code == code))
+async def _get_product(session: AsyncSession, product_code: str | None = None) -> Product:
+    code = (product_code or DEFAULT_PRODUCT_CODE).strip().lower()
+    product = await session.scalar(select(Product).where(Product.code == code))
+    if product is None or not product.status:
+        raise LicenseError(400, "INVALID_PRODUCT", "产品不存在或已停用")
+    return product
 
 
-def _license_payload(lic: License) -> dict:
-    return {"type": lic.type, "max_devices": lic.max_devices, "expire_at": lic.expire_at}
+async def _get_license(session: AsyncSession, code: str, product_id: int) -> License | None:
+    return await session.scalar(
+        select(License).where(License.code == code, License.product_id == product_id)
+    )
+
+
+def _license_payload(lic: License, product_code: str | None = None) -> dict:
+    payload = {"type": lic.type, "max_devices": lic.max_devices, "expire_at": lic.expire_at}
+    if product_code:
+        payload["product"] = product_code
+    return payload
 
 
 def _device_dict(d: DeviceBinding) -> dict:
@@ -57,11 +71,11 @@ def _to_epoch_ms(value: datetime) -> int:
     return int(value.replace(tzinfo=timezone.utc).timestamp() * 1000)
 
 
-def _trial_payload(row: TrialDevice, now: datetime) -> dict[str, Any]:
+def _trial_payload(row: Trial, now: datetime, trial_days: int) -> dict[str, Any]:
     active = row.status == "active" and row.trial_end > now
     seconds = max(0.0, (row.trial_end - now).total_seconds())
     # 防止 MySQL DATETIME 秒级精度把 13d23h59m59.9s 向上取整成 15 天
-    days = min(TRIAL_DAYS, max(0, math.ceil(seconds / 86400.0))) if active else 0
+    days = min(trial_days, max(0, math.ceil(seconds / 86400.0))) if active else 0
     return {
         "ok": True,
         "trial": {
@@ -79,20 +93,25 @@ async def start_trial(
     device_name: str | None = None,
     platform: str | None = None,
     email: str | None = None,
+    product_code: str | None = None,
 ) -> dict[str, Any]:
     if not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
     now = datetime.utcnow().replace(microsecond=0)
     async with session.begin():
-        row = await session.get(TrialDevice, device_fp)
+        product = await _get_product(session, product_code)
+        row = await session.scalar(
+            select(Trial).where(Trial.product_id == product.id, Trial.device_fp == device_fp)
+        )
         if row is None:
-            row = TrialDevice(
+            row = Trial(
+                product_id=product.id,
                 device_fp=device_fp,
                 device_name=device_name,
                 platform=platform,
                 first_seen=now,
                 trial_start=now,
-                trial_end=now + timedelta(days=TRIAL_DAYS),
+                trial_end=now + timedelta(days=product.trial_days),
                 email=email,
                 status="active",
                 last_seen=now,
@@ -108,22 +127,30 @@ async def start_trial(
                 row.email = email
             if row.status == "active" and row.trial_end <= now:
                 row.status = "expired"
-        payload = _trial_payload(row, now)
+        payload = _trial_payload(row, now, product.trial_days)
+    payload["product"] = product.code
     return payload
 
 
-async def trial_status(session: AsyncSession, device_fp: str) -> dict[str, Any]:
+async def trial_status(
+    session: AsyncSession,
+    device_fp: str,
+    product_code: str | None = None,
+) -> dict[str, Any]:
     if not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
-    row = await session.get(TrialDevice, device_fp)
-    if row is None:
-        return {"ok": True, "trial": None, "can_download": False}
     now = datetime.utcnow().replace(microsecond=0)
-    if row.status == "active" and row.trial_end <= now:
-        row.status = "expired"
-    payload = _trial_payload(row, now)
-    if row.status == "expired":
-        await session.commit()
+    async with session.begin():
+        product = await _get_product(session, product_code)
+        row = await session.scalar(
+            select(Trial).where(Trial.product_id == product.id, Trial.device_fp == device_fp)
+        )
+        if row is None:
+            return {"ok": True, "trial": None, "can_download": False, "product": product.code}
+        if row.status == "active" and row.trial_end <= now:
+            row.status = "expired"
+        payload = _trial_payload(row, now, product.trial_days)
+    payload["product"] = product.code
     return payload
 
 
@@ -133,14 +160,21 @@ async def activate(
     device_fp: str,
     device_name: str | None,
     email: str | None = None,
+    product_code: str | None = None,
 ) -> dict[str, Any]:
     normalized = normalize_code(code)
     if not normalized or not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
 
     async with session.begin():
-        lic = await session.scalar(select(License).where(License.code == normalized).with_for_update())
+        product = await _get_product(session, product_code)
+        lic = await session.scalar(
+            select(License)
+            .where(License.code == normalized, License.product_id == product.id)
+            .with_for_update()
+        )
         if lic is None:
+            # 卡密存在但属于另一个产品时也返回 INVALID_CODE，避免泄露卡密存在性
             raise LicenseError(400, "INVALID_CODE", "激活码无效")
         if lic.status == "revoked":
             raise LicenseError(403, "LICENSE_REVOKED", "该激活码已被吊销")
@@ -167,10 +201,14 @@ async def activate(
 
         bound = (
             await session.scalars(
-                select(DeviceBinding).where(DeviceBinding.code == normalized, DeviceBinding.status == "active")
+                select(DeviceBinding).where(
+                    DeviceBinding.code == normalized,
+                    DeviceBinding.product_id == product.id,
+                    DeviceBinding.status == "active",
+                )
             )
         ).all()
-        payload = _license_payload(lic)
+        payload = _license_payload(lic, product.code)
 
         # 幂等：本设备已绑定，直接返回成功
         existing = next((d for d in bound if d.device_fp == device_fp), None)
@@ -181,6 +219,7 @@ async def activate(
                 "device": _device_dict(existing),
                 "bound_count": len(bound),
                 "remaining_slots": max(0, lic.max_devices - len(bound)),
+                "product": product.code,
             }
 
         # 设备数检查
@@ -196,9 +235,15 @@ async def activate(
         bid = str(uuid.uuid4())
         name = device_name or "Unknown"
         stmt = mysql_insert(DeviceBinding).values(
-            id=bid, code=normalized, device_fp=device_fp, device_name=name, status="active"
+            id=bid,
+            code=normalized,
+            product_id=product.id,
+            device_fp=device_fp,
+            device_name=name,
+            status="active",
         )
         stmt = stmt.on_duplicate_key_update(
+            product_id=product.id,
             status="active",
             device_name=name,
             bound_at=func.now(),
@@ -215,25 +260,38 @@ async def activate(
     return {
         "ok": True,
         "license": payload,
-        "device": {"id": bid, "device_fp": device_fp, "device_name": name, "bound_at": datetime.now(timezone.utc).isoformat()},
+        "device": {
+            "id": bid,
+            "device_fp": device_fp,
+            "device_name": name,
+            "bound_at": datetime.now(timezone.utc).isoformat(),
+        },
         "bound_count": len(bound) + 1,
         "remaining_slots": max(0, lic.max_devices - len(bound) - 1),
+        "product": product.code,
     }
 
 
-async def unbind(session: AsyncSession, code: str, device_fp: str) -> dict[str, Any]:
+async def unbind(
+    session: AsyncSession,
+    code: str,
+    device_fp: str,
+    product_code: str | None = None,
+) -> dict[str, Any]:
     normalized = normalize_code(code)
     if not normalized or not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
 
     async with session.begin():
+        product = await _get_product(session, product_code)
         # 必须在事务内查询：SQLAlchemy 2.0 autobegin 后不能再 begin()。
-        lic = await _get_license(session, normalized)
+        lic = await _get_license(session, normalized, product.id)
         if lic is None:
             raise LicenseError(400, "INVALID_CODE", "激活码无效")
         dev = await session.scalar(
             select(DeviceBinding).where(
                 DeviceBinding.code == normalized,
+                DeviceBinding.product_id == product.id,
                 DeviceBinding.device_fp == device_fp,
                 DeviceBinding.status == "active",
             )
@@ -244,6 +302,7 @@ async def unbind(session: AsyncSession, code: str, device_fp: str) -> dict[str, 
             update(DeviceBinding)
             .where(
                 DeviceBinding.code == normalized,
+                DeviceBinding.product_id == product.id,
                 DeviceBinding.device_fp == device_fp,
                 DeviceBinding.status == "active",
             )
@@ -255,13 +314,27 @@ async def unbind(session: AsyncSession, code: str, device_fp: str) -> dict[str, 
 
     remaining = (
         await session.scalars(
-            select(DeviceBinding).where(DeviceBinding.code == normalized, DeviceBinding.status == "active")
+            select(DeviceBinding).where(
+                DeviceBinding.code == normalized,
+                DeviceBinding.product_id == product.id,
+                DeviceBinding.status == "active",
+            )
         )
     ).all()
-    return {"ok": True, "message": "设备已解绑", "remaining_slots": max(0, lic.max_devices - len(remaining))}
+    return {
+        "ok": True,
+        "message": "设备已解绑",
+        "remaining_slots": max(0, lic.max_devices - len(remaining)),
+        "product": product.code,
+    }
 
 
-async def status(session: AsyncSession, code: str, device_fp: str | None) -> dict[str, Any]:
+async def status(
+    session: AsyncSession,
+    code: str,
+    device_fp: str | None,
+    product_code: str | None = None,
+) -> dict[str, Any]:
     normalized = normalize_code(code)
     if not normalized:
         raise LicenseError(400, "MISSING_CODE")
@@ -269,13 +342,15 @@ async def status(session: AsyncSession, code: str, device_fp: str | None) -> dic
     if not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
 
-    lic = await _get_license(session, normalized)
+    product = await _get_product(session, product_code)
+    lic = await _get_license(session, normalized, product.id)
     if lic is None:
         raise LicenseError(404, "NOT_FOUND")
 
     current = await session.scalar(
         select(DeviceBinding).where(
             DeviceBinding.code == normalized,
+            DeviceBinding.product_id == product.id,
             DeviceBinding.device_fp == device_fp,
             DeviceBinding.status == "active",
         )
@@ -286,7 +361,11 @@ async def status(session: AsyncSession, code: str, device_fp: str | None) -> dic
     devices = (
         await session.scalars(
             select(DeviceBinding)
-            .where(DeviceBinding.code == normalized, DeviceBinding.status == "active")
+            .where(
+                DeviceBinding.code == normalized,
+                DeviceBinding.product_id == product.id,
+                DeviceBinding.status == "active",
+            )
             .order_by(DeviceBinding.bound_at)
         )
     ).all()
@@ -295,18 +374,26 @@ async def status(session: AsyncSession, code: str, device_fp: str | None) -> dic
     ]
     return {
         "ok": True,
-        "license": _license_payload(lic),
+        "license": _license_payload(lic, product.code),
         "bound_devices": bound_devices,
         "remaining_slots": max(0, lic.max_devices - len(devices)),
+        "product": product.code,
     }
 
 
-async def heartbeat(session: AsyncSession, code: str, device_fp: str, device_name: str | None) -> dict[str, Any]:
+async def heartbeat(
+    session: AsyncSession,
+    code: str,
+    device_fp: str,
+    device_name: str | None,
+    product_code: str | None = None,
+) -> dict[str, Any]:
     normalized = normalize_code(code)
     if not normalized or not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
 
-    lic = await _get_license(session, normalized)
+    product = await _get_product(session, product_code)
+    lic = await _get_license(session, normalized, product.id)
     if lic is None:
         raise LicenseError(404, "NOT_FOUND")
     if lic.status == "revoked":
@@ -320,6 +407,7 @@ async def heartbeat(session: AsyncSession, code: str, device_fp: str, device_nam
         update(DeviceBinding)
         .where(
             DeviceBinding.code == normalized,
+            DeviceBinding.product_id == product.id,
             DeviceBinding.device_fp == device_fp,
             DeviceBinding.status == "active",
         )
@@ -328,31 +416,38 @@ async def heartbeat(session: AsyncSession, code: str, device_fp: str, device_nam
     await session.commit()
     if result.rowcount == 0:
         raise LicenseError(404, "NOT_FOUND")
-    return {"ok": True, "next_heartbeat_hours": 24}
+    return {"ok": True, "next_heartbeat_hours": 24, "product": product.code}
 
 
-async def verify(session: AsyncSession, code: str, device_fp: str) -> dict[str, Any]:
+async def verify(
+    session: AsyncSession,
+    code: str,
+    device_fp: str,
+    product_code: str | None = None,
+) -> dict[str, Any]:
     normalized = normalize_code(code)
     if not normalized or not device_fp:
         raise LicenseError(400, "MISSING_PARAMS")
 
-    lic = await _get_license(session, normalized)
+    product = await _get_product(session, product_code)
+    lic = await _get_license(session, normalized, product.id)
     if lic is None:
-        return {"ok": True, "valid": False, "reason": "INVALID_CODE"}
+        return {"ok": True, "valid": False, "reason": "INVALID_CODE", "product": product.code}
     if lic.expire_at is not None and lic.expire_at <= int(
         datetime.now(timezone.utc).timestamp() * 1000
     ):
-        return {"ok": True, "valid": False, "reason": "LICENSE_EXPIRED"}
+        return {"ok": True, "valid": False, "reason": "LICENSE_EXPIRED", "product": product.code}
 
     bound = await session.scalar(
         select(DeviceBinding).where(
             DeviceBinding.code == normalized,
+            DeviceBinding.product_id == product.id,
             DeviceBinding.device_fp == device_fp,
             DeviceBinding.status == "active",
         )
     )
     if bound is None:
-        return {"ok": True, "valid": False, "reason": "DEVICE_NOT_BOUND"}
+        return {"ok": True, "valid": False, "reason": "DEVICE_NOT_BOUND", "product": product.code}
 
     valid = lic.status != "revoked"
     return {
@@ -361,4 +456,5 @@ async def verify(session: AsyncSession, code: str, device_fp: str) -> dict[str, 
         "is_pro": valid,
         "device_active": True,
         "reason": None if valid else "LICENSE_REVOKED",
+        "product": product.code,
     }

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 
 from app.security import require_admin
 
-from .routers import auth, cards, depts, menus, roles, tasks, users
+from .routers import auth, cards, depts, menus, products, roles, tasks, users
 
 router = APIRouter()
 # 登录 / 刷新 / 动态菜单不要求 admin 角色（普通账号也能登录看菜单）；
@@ -18,4 +18,5 @@ router.include_router(roles.router, dependencies=[Depends(require_admin)])
 router.include_router(menus.router, dependencies=[Depends(require_admin)])
 router.include_router(depts.router, dependencies=[Depends(require_admin)])
 router.include_router(cards.router, dependencies=[Depends(require_admin)])
+router.include_router(products.router, dependencies=[Depends(require_admin)])
 router.include_router(tasks.router, dependencies=[Depends(require_admin)])

@@ -11,6 +11,7 @@ import {
   restoreCard,
   revokeCard
 } from "@/api/card";
+import { getProducts } from "@/api/product";
 
 const typeMap: Record<string, string> = { free: "免费版", perpetual: "永久版" };
 const statusMap: Record<string, string> = { unused: "未激活", activated: "已激活", revoked: "已吊销" };
@@ -20,7 +21,9 @@ const stats = ref<any>({});
 const list = ref<any[]>([]);
 const total = ref(0);
 const loading = ref(false);
+const products = ref<any[]>([]);
 const query = reactive({
+  product: "downie6",
   search: "",
   status: "",
   type: "",
@@ -32,6 +35,7 @@ const query = reactive({
 
 const genVisible = ref(false);
 const gen = reactive({
+  product: "downie6",
   type: "perpetual",
   count: 10,
   devices: 4,
@@ -98,10 +102,19 @@ function onStatClick(key: StatKey) {
   applyStat(activeStat.value === key && key !== "all" ? "all" : key);
 }
 
+async function loadProducts() {
+  const res: any = await getProducts();
+  products.value = res.data.list || [];
+}
+
 async function load() {
   loading.value = true;
   try {
-    const params: Record<string, any> = { page: query.page, pageSize: query.pageSize };
+    const params: Record<string, any> = {
+      product: query.product,
+      page: query.page,
+      pageSize: query.pageSize
+    };
     if (query.search) params.search = query.search;
     if (query.status) params.status = query.status;
     if (query.type) params.type = query.type;
@@ -116,8 +129,30 @@ async function load() {
 }
 
 async function loadStats() {
-  const res: any = await getCardStats();
+  const res: any = await getCardStats(query.product);
   stats.value = res.data;
+}
+
+function onProductChange() {
+  query.page = 1;
+  query.search = "";
+  query.status = "";
+  query.type = "";
+  query.hasEmail = false;
+  query.hasDevices = false;
+  load();
+  loadStats();
+}
+
+function syncGenDevices() {
+  const p = products.value.find(item => item.code === gen.product);
+  if (p) gen.devices = p.default_max_devices || 1;
+}
+
+function openGenerate() {
+  gen.product = query.product === "all" ? "downie6" : query.product || "downie6";
+  syncGenDevices();
+  genVisible.value = true;
 }
 
 async function onGenerate() {
@@ -209,7 +244,7 @@ async function onBindEmail(lic: any) {
 }
 
 async function onExport(scope: string) {
-  const params: Record<string, any> = {};
+  const params: Record<string, any> = { product: query.product };
   if (scope === "filter") {
     if (query.search) params.search = query.search;
     if (query.status) params.status = query.status;
@@ -227,7 +262,8 @@ async function onExport(scope: string) {
   URL.revokeObjectURL(url);
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadProducts();
   load();
   loadStats();
 });
@@ -249,6 +285,20 @@ onMounted(() => {
     </el-row>
 
     <div class="mb-4 flex flex-wrap gap-3">
+      <el-select
+        v-model="query.product"
+        placeholder="产品"
+        class="w-40"
+        @change="onProductChange"
+      >
+        <el-option label="全部" value="all" />
+        <el-option
+          v-for="p in products"
+          :key="p.code"
+          :label="p.name"
+          :value="p.code"
+        />
+      </el-select>
       <el-input
         v-model="query.search"
         placeholder="搜索激活码/邮箱"
@@ -277,7 +327,7 @@ onMounted(() => {
         <el-option label="免费版" value="free" />
         <el-option label="永久版" value="perpetual" />
       </el-select>
-      <el-button type="primary" @click="genVisible = true">生成卡密</el-button>
+      <el-button type="primary" @click="openGenerate">生成卡密</el-button>
       <el-dropdown @command="onExport">
         <el-button>导出 CSV</el-button>
         <template #dropdown>
@@ -292,6 +342,9 @@ onMounted(() => {
 
     <el-table v-loading="loading" :data="list" border>
       <el-table-column prop="formatted" label="激活码" width="220" />
+      <el-table-column label="产品" width="110">
+        <template #default="{ row }">{{ row.product_name || row.product }}</template>
+      </el-table-column>
       <el-table-column prop="email" label="绑定邮箱" width="200" show-overflow-tooltip />
       <el-table-column label="类型" width="90">
         <template #default="{ row }">{{ typeMap[row.type] }}</template>
@@ -324,6 +377,16 @@ onMounted(() => {
 
     <el-dialog v-model="genVisible" title="生成卡密" width="480">
       <el-form label-width="90px">
+        <el-form-item label="产品">
+          <el-select v-model="gen.product" placeholder="请选择产品" class="w-full" @change="syncGenDevices">
+            <el-option
+              v-for="p in products"
+              :key="p.code"
+              :label="p.name"
+              :value="p.code"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="类型">
           <el-radio-group v-model="gen.type">
             <el-radio value="perpetual">永久版</el-radio>
@@ -354,6 +417,7 @@ onMounted(() => {
     <el-dialog v-model="detailVisible" title="卡密详情" width="600">
       <el-descriptions v-if="detail" :column="2" border>
         <el-descriptions-item label="激活码">{{ detail.license.formatted }}</el-descriptions-item>
+        <el-descriptions-item label="产品">{{ detail.license.product_name || detail.license.product }}</el-descriptions-item>
         <el-descriptions-item label="类型">{{ typeMap[detail.license.type] }}</el-descriptions-item>
         <el-descriptions-item label="设备数">{{ detail.license.max_devices }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ statusMap[detail.license.status] }}</el-descriptions-item>

@@ -1,35 +1,53 @@
 -- ============================================================
 -- 4KDownle 统一服务端：完整建表 + 种子数据（单文件，幂等可重复跑）
 --
--- 包含：10 张表（4 授权 + 6 后台 RBAC）+ 默认角色/菜单
+-- 包含：products / licenses / device_bindings / unbind_log /
+--       trial_devices / trials / releases + 6 张后台 RBAC 表 + 默认角色/菜单/产品
 -- 管理员账号由 scripts/init_db.py 创建（随机密码或 ADMIN_PASSWORD），不在本文件里写死
 --
 -- 用法（在服务器上，容器外执行）：
 --   docker exec -i <容器名> mysql -uroot -p <数据库名> < init_all.sql
 -- ============================================================
 
--- ---------- 授权四张表 ----------
+-- ---------- 产品 + 授权表 ----------
+CREATE TABLE IF NOT EXISTS products (
+  id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  code                VARCHAR(32)  NOT NULL,
+  name                VARCHAR(64)  NOT NULL,
+  trial_days          INT          NOT NULL DEFAULT 14,
+  default_max_devices INT          NOT NULL DEFAULT 1,
+  purchase_url        VARCHAR(512) NOT NULL DEFAULT '',
+  support_email       VARCHAR(255) NOT NULL DEFAULT '',
+  status              TINYINT      NOT NULL DEFAULT 1,
+  created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_products_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS licenses (
   code        VARCHAR(20)  NOT NULL PRIMARY KEY,
+  product_id  BIGINT UNSIGNED NOT NULL DEFAULT 1,
   type        ENUM('free','perpetual') NOT NULL DEFAULT 'perpetual',
   max_devices INT          NOT NULL DEFAULT 4,
   email       VARCHAR(255) NULL,
   expire_at   BIGINT       NULL,
   status      ENUM('unused','activated','revoked') NOT NULL DEFAULT 'unused',
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_licenses_email (email)
+  KEY idx_licenses_email (email),
+  KEY idx_licenses_product_status (product_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS device_bindings (
   id          CHAR(36)     NOT NULL PRIMARY KEY,
   code        VARCHAR(20)  NOT NULL,
+  product_id  BIGINT UNSIGNED NOT NULL DEFAULT 1,
   device_fp   VARCHAR(64)  NOT NULL,
   device_name VARCHAR(255) NULL,
   bound_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_seen   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   status      ENUM('active','unbound') NOT NULL DEFAULT 'active',
   UNIQUE KEY uq_code_fp (code, device_fp),
-  KEY idx_code_status (code, status)
+  KEY idx_code_status (code, status),
+  KEY idx_dev_product_fp (product_id, device_fp)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS unbind_log (
@@ -52,6 +70,41 @@ CREATE TABLE IF NOT EXISTS trial_devices (
   email       VARCHAR(255) NULL,
   status      ENUM('active','expired','converted','revoked') NOT NULL DEFAULT 'active',
   last_seen   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS trials (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  product_id  BIGINT UNSIGNED NOT NULL,
+  device_fp   VARCHAR(64)  NOT NULL,
+  device_name VARCHAR(255) NULL,
+  platform    VARCHAR(20)  NULL,
+  first_seen  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  trial_start DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  trial_end   DATETIME     NOT NULL,
+  email       VARCHAR(255) NULL,
+  status      ENUM('active','expired','converted','revoked') NOT NULL DEFAULT 'active',
+  last_seen   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_trial_product_device (product_id, device_fp),
+  KEY idx_trial_product_status_end (product_id, status, trial_end)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS releases (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  product_id      BIGINT UNSIGNED NOT NULL,
+  platform        VARCHAR(20)  NOT NULL DEFAULT 'macos',
+  version         VARCHAR(32)  NOT NULL,
+  build           INT          NOT NULL,
+  artifact_url    VARCHAR(1024) NOT NULL,
+  artifact_sha256 CHAR(64)     NOT NULL DEFAULT '',
+  artifact_size   BIGINT       NOT NULL DEFAULT 0,
+  dmg_url         VARCHAR(1024) NULL,
+  changelog       TEXT         NULL,
+  force_update    TINYINT      NOT NULL DEFAULT 0,
+  status          ENUM('draft','published','revoked') NOT NULL DEFAULT 'published',
+  published_at    DATETIME     NULL,
+  created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_release_build (product_id, platform, build),
+  KEY idx_release_latest (product_id, platform, status, build)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------- 后台 RBAC 六张表 ----------
@@ -138,6 +191,13 @@ CREATE TABLE IF NOT EXISTS sys_user_roles (
 -- 种子数据（INSERT IGNORE 幂等，重复跑不报错、不覆盖已有改动）
 -- ============================================================
 
+-- 产品种子（后续新增产品直接 INSERT，不改代码）
+INSERT IGNORE INTO products
+  (id, code, name, trial_days, default_max_devices, purchase_url, support_email, status)
+VALUES
+  (1, 'downie6', 'Downie6', 14, 4, '', 'huoyongzhuang@qq.com', 1),
+  (2, 'launch',  'launch',  14, 1, '', 'huoyongzhuang@qq.com', 1);
+
 -- 超级管理员角色
 INSERT IGNORE INTO sys_roles (id, name, code, status, remark) VALUES
 (1, '超级管理员', 'admin', 1, '内置超管角色');
@@ -151,11 +211,12 @@ INSERT IGNORE INTO sys_menus (id, parent_id, menu_type, title, name, path, compo
 (5, 1, 0, '部门管理', 'SystemDept', '/system/dept', 'system/dept/index', 4, 'ri:git-branch-line'),
 (6, 0, 0, '卡密管理', 'Card', '/card', 'card/index', 2, 'ri:coupon-3-line'),
 (7, 0, 0, '任务管理', 'Task', '/task', 'task/index', 3, 'ri:list-check-2'),
-(8, 0, 0, '会员管理', 'Member', '/member', 'member/index', 4, 'ri:vip-crown-line');
+(8, 0, 0, '会员管理', 'Member', '/member', 'member/index', 4, 'ri:vip-crown-line'),
+(9, 0, 0, '产品管理', 'Product', '/product', 'product/index', 2, 'ri:apps-2-line');
 
 -- 超管角色授权全部菜单
 INSERT IGNORE INTO sys_role_menus (role_id, menu_id) VALUES
-(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8);
+(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9);
 
 -- 默认账号不在这里创建：避免仓库里出现固定密码。
 -- 建表后执行 `python scripts/init_db.py`：

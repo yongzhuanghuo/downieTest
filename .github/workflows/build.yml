@@ -51,6 +51,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 导入 Developer ID 证书（可选）
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          BUILD_CERTIFICATE_PASSWORD: ${{ secrets.BUILD_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          if [ -z "$BUILD_CERTIFICATE_BASE64" ]; then
+            echo "BUILD_CERTIFICATE_BASE64 未配置，跳过 Developer ID 签名"
+            exit 0
+          fi
+          echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > /tmp/build-certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import /tmp/build-certificate.p12 -k build.keychain \
+            -P "$BUILD_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm -f /tmp/build-certificate.p12
+
+      - name: 配置公证凭据（可选）
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_ID" ] || [ -z "$APP_SPECIFIC_PASSWORD" ]; then
+            echo "APPLE_ID/APP_SPECIFIC_PASSWORD 未配置，跳过公证"
+            exit 0
+          fi
+          xcrun notarytool store-credentials "4kdownle-notary" \
+            --apple-id "$APPLE_ID" \
+            --team-id "${APPLE_TEAM_ID:-D4KD8XCCL6}" \
+            --password "$APP_SPECIFIC_PASSWORD"
+
       - name: 安装 Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -91,14 +126,25 @@ jobs:
           if [ "$ARCH" = "x86_64" ]; then OUT=assets/bin/macos/yt-dlp_x86_64; else OUT=assets/bin/macos/yt-dlp_arm64; fi
           python tools/build_sabr_ytdlp.py --output "$OUT"
 
-      - name: 下载 node（抖音 a_bogus 签名用）
+      - name: 校验 SABR yt-dlp 双架构都存在
+        # x64 job 失败时这里会明确失败，避免 Intel 用户静默丢掉 YouTube 1080p
         run: |
-          ARCH=$(uname -m)
-          [ "$ARCH" = "x86_64" ] && NODE_ARCH=x64 || NODE_ARCH=arm64
-          curl -fL --retry 3 --retry-delay 2 -o /tmp/node.tar.gz \
-            https://nodejs.org/dist/v22.13.1/node-v22.13.1-darwin-${NODE_ARCH}.tar.gz
-          tar -xzf /tmp/node.tar.gz -C /tmp
-          cp /tmp/node-v22.13.1-darwin-${NODE_ARCH}/bin/node assets/bin/macos/node
+          test -s assets/bin/macos/yt-dlp_arm64 || { echo "::error::缺少 yt-dlp_arm64"; exit 1; }
+          test -s assets/bin/macos/yt-dlp_x86_64 || { echo "::error::缺少 yt-dlp_x86_64"; exit 1; }
+
+      - name: 下载 node（抖音 a_bogus 签名用，双架构）
+        run: |
+          NODE_VERSION=v22.13.1
+          for NODE_ARCH in arm64 x64; do
+            curl -fL --retry 3 --retry-delay 2 -o "/tmp/node-${NODE_ARCH}.tar.gz" \
+              "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-${NODE_ARCH}.tar.gz"
+            tar -xzf "/tmp/node-${NODE_ARCH}.tar.gz" -C /tmp
+            if [ "$NODE_ARCH" = "x64" ]; then OUT=node_x86_64; else OUT=node_arm64; fi
+            cp "/tmp/node-${NODE_VERSION}-darwin-${NODE_ARCH}/bin/node" "assets/bin/macos/${OUT}"
+            chmod +x "assets/bin/macos/${OUT}"
+          done
+          # 旧构建/开发态兜底：host 架构（runner 是 arm64）
+          cp assets/bin/macos/node_arm64 assets/bin/macos/node
           chmod +x assets/bin/macos/node
 
       - name: 安装依赖
@@ -123,6 +169,9 @@ jobs:
           set -o pipefail
           flutter build macos --release --dart-define=API_BASE=http://8.153.99.239:3000 --dart-define=YTDLP_BUILD=sabr-b7685f0-ejs-${{ github.sha }} 2>&1 | tee build_macos.log
 
+      - name: 校验 macOS 双架构（Intel + Apple Silicon）
+        run: bash tools/verify_macos_archs.sh build/macos/Build/Products/Release/4KDownle.app
+
       - name: macOS 构建失败注解
         if: failure()
         run: |
@@ -131,6 +180,16 @@ jobs:
               echo "::error::$line"
             done
           fi || true
+
+      - name: Developer ID 签名 app（可选）
+        env:
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: |
+          if [ -z "$DEVELOPER_ID_APPLICATION" ]; then
+            echo "DEVELOPER_ID_APPLICATION 未配置，跳过签名"
+            exit 0
+          fi
+          tools/sign-and-notarize-macos.sh build/macos/Build/Products/Release/4KDownle.app
 
       - name: 组装 DMG（.app + 安装说明）
         run: |
@@ -167,6 +226,21 @@ jobs:
               echo "::error::$line"
             done
           fi || true
+
+      - name: 签名/公证 DMG（可选）
+        env:
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+        run: |
+          if [ -z "$DEVELOPER_ID_APPLICATION" ]; then
+            echo "DEVELOPER_ID_APPLICATION 未配置，跳过 DMG 签名/公证"
+            exit 0
+          fi
+          tools/sign-and-notarize-macos.sh \
+            build/macos/Build/Products/Release/4KDownle.app \
+            Downie6.dmg
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
@@ -318,9 +392,37 @@ jobs:
     needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
+
+      - name: 读取版本与构建号
+        id: ver
+        run: |
+          VERSION=$(sed -nE 's/^version:[[:space:]]*([^+]+)\+.*/\1/p' apps/desktop/pubspec.yaml | head -1)
+          BUILD=$(sed -nE 's/^version:[[:space:]]*[^+]+\+([0-9]+).*/\1/p' apps/desktop/pubspec.yaml | head -1)
+          test -n "$VERSION" && test -n "$BUILD"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$TAG_VERSION" != "$VERSION" ]; then
+            echo "::error::tag $TAG_VERSION 与 pubspec version $VERSION 不一致"
+            exit 1
+          fi
+          CHANGELOG=$(git log -1 --pretty=%s)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "changelog=$CHANGELOG" >> "$GITHUB_OUTPUT"
+
+      - name: 计算安装包 SHA256/大小
+        id: sums
+        run: |
+          DMG=dist/Downie6-pro-macos/Downie6.dmg
+          EXE=dist/Downie6-pro-windows-setup/Downie6-Windows-Setup.exe
+          echo "dmg_sha=$(shasum -a 256 "$DMG" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "dmg_size=$(stat -c%s "$DMG")" >> "$GITHUB_OUTPUT"
+          echo "exe_sha=$(shasum -a 256 "$EXE" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "exe_size=$(stat -c%s "$EXE")" >> "$GITHUB_OUTPUT"
 
       - name: 安装 ossutil
         # 不用官方 install.sh：它往 /usr/bin 拷贝不带 sudo，GitHub runner 上必挂
@@ -329,15 +431,72 @@ jobs:
           unzip -o /tmp/ossutil.zip -d /tmp/ossutil_bin
           echo "/tmp/ossutil_bin/ossutil-linux-amd64" >> "$GITHUB_PATH"
 
-      - name: 上传安装包到 OSS
+      - name: 上传安装包到 OSS 固定地址
         env:
           OSS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
           OSS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
         run: |
           # bucket 实际区域为上海（已实测，hangzhou endpoint 会拒绝）
           # 注意 ossutil v2 密钥短选项是 -k（-s 是 shortFormat，cp 不支持会直接报错）
-          OSS_ARGS=(-i "$OSS_KEY_ID" -k "$OSS_KEY_SECRET" -e oss-cn-shanghai.aliyuncs.com -f --meta Cache-Control:no-cache)
+          LATEST=(-i "$OSS_KEY_ID" -k "$OSS_KEY_SECRET" -e oss-cn-shanghai.aliyuncs.com -f --meta Cache-Control:no-cache)
+
+          # 固定下载地址，保持长期不变
           ossutil cp dist/Downie6-pro-macos/Downie6.dmg \
-            oss://4kdownlebucket/releases/Downie6.dmg "${OSS_ARGS[@]}"
+            oss://4kdownlebucket/releases/Downie6.dmg "${LATEST[@]}"
           ossutil cp dist/Downie6-pro-windows-setup/Downie6-Windows-Setup.exe \
-            oss://4kdownlebucket/releases/Downie6-Windows-Setup.exe "${OSS_ARGS[@]}"
+            oss://4kdownlebucket/releases/Downie6-Windows-Setup.exe "${LATEST[@]}"
+
+      - name: 通知服务端发布版本
+        env:
+          API_BASE: ${{ secrets.API_BASE }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          BUILD: ${{ steps.ver.outputs.build }}
+          CHANGELOG: ${{ steps.ver.outputs.changelog }}
+          DMG_SHA: ${{ steps.sums.outputs.dmg_sha }}
+          DMG_SIZE: ${{ steps.sums.outputs.dmg_size }}
+          EXE_SHA: ${{ steps.sums.outputs.exe_sha }}
+          EXE_SIZE: ${{ steps.sums.outputs.exe_size }}
+        run: |
+          test -n "$RELEASE_TOKEN" || { echo "::error::缺少 RELEASE_TOKEN secret"; exit 1; }
+          API_BASE="${API_BASE:-http://8.153.99.239:3000}"
+          BASE="https://4kdownlebucket.oss-cn-shanghai.aliyuncs.com"
+          MACOS_URL="${BASE}/releases/Downie6.dmg"
+          WINDOWS_URL="${BASE}/releases/Downie6-Windows-Setup.exe"
+          export MACOS_URL WINDOWS_URL
+          python3 - <<'PY'
+          import json
+          import os
+
+          common = {
+              "product": "downie6",
+              "version": os.environ["VERSION"],
+              "build": int(os.environ["BUILD"]),
+              "changelog": os.environ.get("CHANGELOG", ""),
+              "force": False,
+          }
+          macos = {
+              **common,
+              "platform": "macos",
+              "url": os.environ["MACOS_URL"],
+              "sha256": os.environ["DMG_SHA"],
+              "size": int(os.environ["DMG_SIZE"]),
+              "dmg_url": os.environ["MACOS_URL"],
+          }
+          windows = {
+              **common,
+              "platform": "windows",
+              "url": os.environ["WINDOWS_URL"],
+              "sha256": os.environ["EXE_SHA"],
+              "size": int(os.environ["EXE_SIZE"]),
+              "dmg_url": None,
+          }
+          open("/tmp/publish-macos.json", "w", encoding="utf-8").write(json.dumps(macos))
+          open("/tmp/publish-windows.json", "w", encoding="utf-8").write(json.dumps(windows))
+          PY
+          for payload in /tmp/publish-macos.json /tmp/publish-windows.json; do
+            curl -fsS -X POST "$API_BASE/api/internal/releases/publish" \
+              -H "Content-Type: application/json" \
+              -H "X-Release-Token: $RELEASE_TOKEN" \
+              --data-binary "@$payload"
+          done

@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     download_sha256_windows: str = ""
     changelog: str = ""
     force_update: bool = False
+    # CI 发布内部接口令牌；为空时 /api/internal/releases/publish 拒绝所有请求
+    release_token: str = ""
     # yt-dlp cookies 文件路径（Netscape 格式）。B站机房 IP 无 cookie 会被风控 412，填这个绕过
     ytdlp_cookies: str = ""
     # ---- 联系支持（客户端提交，服务端 SMTP 转发）----

@@ -39,7 +39,11 @@ Future<UpdateInfo?> checkForUpdate() async {
   final platform = Platform.isMacOS ? 'macos' : 'windows';
 
   final resp = await http
-      .get(Uri.parse('$kApiBase/api/version/latest?platform=$platform'))
+      .get(
+        Uri.parse(
+          '$kApiBase/api/version/latest?product=downie6&platform=$platform',
+        ),
+      )
       .timeout(const Duration(seconds: 15));
   if (resp.statusCode != 200) return null;
   final j = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -133,10 +137,7 @@ Future<void> showUpdateDialog(UpdateInfo info) async {
   await showDialog<void>(
     context: ctx,
     barrierDismissible: !info.force,
-    builder: (_) => _UpdateDialog(
-      info: info,
-      currentVersion: currentVersion,
-    ),
+    builder: (_) => _UpdateDialog(info: info, currentVersion: currentVersion),
   );
 }
 

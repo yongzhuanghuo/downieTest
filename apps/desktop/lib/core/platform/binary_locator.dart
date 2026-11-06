@@ -45,6 +45,24 @@ class BinaryLocator {
     return ytDlpFileName;
   }
 
+  /// 当前架构对应的 node asset 名。
+  ///
+  /// Node 官方 macOS 包是单架构的；universal App 里必须同时带
+  /// `node_arm64` / `node_x86_64`，运行时再按架构提取成 `node`。
+  static String get nodeAssetName {
+    if (Platform.isMacOS) {
+      switch (Abi.current()) {
+        case Abi.macosArm64:
+          return 'node_arm64';
+        case Abi.macosX64:
+          return 'node_x86_64';
+        default:
+          break;
+      }
+    }
+    return nodeFileName;
+  }
+
   /// 本次构建使用的 yt-dlp 构建标识（CI 通过 --dart-define 传入）。
   /// 为空表示开发态/旧构建，不强制替换已提取的二进制。
   static const String ytDlpBuildId = String.fromEnvironment(
