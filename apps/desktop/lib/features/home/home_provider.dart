@@ -131,6 +131,9 @@ class ParseNotifier extends StateNotifier<ParseState> {
       try {
         final info = await plugin.parse(target);
         state = ParseState(status: ParseStatus.success, videoInfo: info);
+        // 插件成功就是最终结果，不能再落到下面的通用 HTML / yt-dlp 兜底，
+        // 否则兜底超时会覆盖掉已经成功的解析（B 站 2026-11 的回归）。
+        return;
       } on SitePluginException catch (e) {
         if (!e.fallbackToYtDlp) {
           debugPrint('[解析] ${plugin.displayName}失败: ${e.message}');
