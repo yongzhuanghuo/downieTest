@@ -6,6 +6,7 @@
   - SELECT ... FOR UPDATE 防超绑（必须与写操作在同一事务、同一连接上）
   - ON DUPLICATE KEY UPDATE 复用解绑后的旧行，避免唯一键冲突
 """
+import logging
 import math
 import re
 import uuid
@@ -16,8 +17,12 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
-from .codes import normalize_code
+from ... import mailer
+from ...config import settings
+from .codes import format_code, normalize_code
 from .models import DeviceBinding, License, Product, Trial, UnbindLog
+
+log = logging.getLogger("app.license")
 
 DEFAULT_PRODUCT_CODE = "downie6"
 
@@ -458,3 +463,77 @@ async def verify(
         "reason": None if valid else "LICENSE_REVOKED",
         "product": product.code,
     }
+
+
+_EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+
+
+def _recovery_body(email: str, product_name: str, rows: list[License]) -> str:
+    lines = [
+        "您好，",
+        "",
+        f"您正在找回 {product_name} 的许可证代码。绑定到 {email} 的许可证如下：",
+        "",
+    ]
+    for i, lic in enumerate(rows, 1):
+        status = {"unused": "未激活", "activated": "已激活", "revoked": "已吊销"}.get(
+            lic.status, lic.status
+        )
+        kind = {"free": "免费版", "perpetual": "永久授权"}.get(lic.type, lic.type)
+        lines += [
+            f"{i}. {format_code(lic.code)}",
+            f"   类型：{kind} · 状态：{status} · 最多 {lic.max_devices} 台设备",
+            "",
+        ]
+    lines += [
+        f"请妥善保管，不要转发给他人。如需帮助，请联系 {settings.support_email_to}。",
+        "",
+        "如果这不是您本人的操作，请忽略此邮件。",
+    ]
+    return "\n".join(lines)
+
+
+async def recover_by_email(
+    session: AsyncSession,
+    email: str,
+    product_code: str | None = None,
+) -> bool:
+    """按邮箱查卡密并发到该邮箱。
+
+    返回 True 表示命中并已发送；False 表示该邮箱下没有许可证。
+    未命中不发信，避免服务端被当成任意邮箱的垃圾邮件出口。
+    """
+    email = (email or "").strip()
+    if len(email) > 255 or not _EMAIL_RE.fullmatch(email):
+        raise LicenseError(400, "INVALID_EMAIL", "邮箱格式不正确")
+    if not settings.smtp_host:
+        raise LicenseError(503, "MAIL_NOT_CONFIGURED", "服务端未配置邮件服务，请联系支持")
+
+    product = await _get_product(session, product_code)
+    rows = (
+        await session.scalars(
+            select(License)
+            .where(
+                func.lower(License.email) == email.lower(),
+                License.product_id == product.id,
+                License.status != "revoked",
+            )
+            .order_by(License.created_at)
+        )
+    ).all()
+    if not rows:
+        return False
+
+    try:
+        await mailer.send_text(
+            email,
+            f"[{product.name}] 许可证代码找回",
+            _recovery_body(email, product.name, rows),
+            from_name=product.name,
+        )
+    except Exception as e:  # noqa: BLE001
+        log.exception("许可证找回邮件发送失败: %s", e)
+        raise LicenseError(502, "MAIL_FAILED", "邮件发送失败，请稍后重试或联系支持") from e
+
+    log.info("许可证找回邮件已发送: %s -> %s 条", email, len(rows))
+    return True

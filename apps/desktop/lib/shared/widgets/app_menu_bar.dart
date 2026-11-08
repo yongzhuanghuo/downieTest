@@ -91,7 +91,7 @@ class AppMenuBar extends ConsumerWidget {
               onSelected: _openActivation,
             ),
             PlatformMenuItem(
-              label: '恢复许可证代码…',
+              label: '找回许可证代码…',
               onSelected: _openRecovery,
             ),
           ],

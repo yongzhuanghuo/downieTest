@@ -72,6 +72,7 @@
 | GET | `/api/license/status` | 设备列表 + 剩余名额 |
 | POST | `/api/license/heartbeat` | 更新 `last_seen` |
 | POST | `/api/license/verify` | 离线降级验证 |
+| POST | `/api/license/recover` | 按邮箱把许可证代码发到该邮箱（自助找回） |
 
 **安全模型**：客户端只发 `code + device_fp`，完全信任服务端返回的负载，本地无验签、无密钥。安全边界全在服务端。
 

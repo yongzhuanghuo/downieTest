@@ -64,6 +64,11 @@ class VerifyBody(BaseModel):
     product: Optional[str] = None
 
 
+class RecoverBody(BaseModel):
+    email: str
+    product: Optional[str] = None
+
+
 def _raise(e: service.LicenseError):
     body = {"ok": False, "error": e.error}
     if e.message:
@@ -184,3 +189,50 @@ async def verify(
         return await service.verify(session, body.code, body.device_fp, body.product)
     except service.LicenseError as e:
         _raise(e)
+
+
+@router.post("/api/license/recover")
+async def recover(
+    body: RecoverBody,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    """按邮箱把许可证代码发到该邮箱。
+
+    未命中时明确返回 found=false（对应 Downie 的 211「no purchase records」），
+    让用户立即知道邮箱是否填错；IP/邮箱双重限流抵消枚举风险。
+    """
+    _rate_limit(request, "recover-ip", limit=10, window_seconds=3600)
+    email = body.email.strip()
+    if len(email) > 255 or "@" not in email:
+        raise HTTPException(
+            status_code=400,
+            detail={"ok": False, "error": "INVALID_EMAIL", "message": "邮箱格式不正确"},
+        )
+    # 邮箱维度：每小时 3 封 + 60 秒冷却，防止把服务端当垃圾邮件出口
+    key = f"recover-email:{email.lower()}"
+    if not _limiter.allow(key, limit=3, window_seconds=3600) or not _limiter.allow(
+        f"{key}:cooldown", limit=1, window_seconds=60
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail={"ok": False, "error": "RATE_LIMITED", "message": "发送过于频繁，请稍后再试"},
+        )
+    try:
+        found = await service.recover_by_email(session, email, body.product)
+    except service.LicenseError as e:
+        _raise(e)
+    # 与 Downie 一致：明确告诉用户该邮箱下有没有购买记录。
+    # 有 IP/邮箱双重限流，枚举成本远高于收益。
+    if not found:
+        return {
+            "ok": True,
+            "found": False,
+            "message": "该邮箱下没有找到许可证，请确认是激活时填写的邮箱",
+        }
+    return {
+        "ok": True,
+        "found": True,
+        "message": "许可证代码已发送到该邮箱",
+        "retry_after": 60,
+    }

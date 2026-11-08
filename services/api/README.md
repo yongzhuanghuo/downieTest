@@ -25,7 +25,7 @@ uvicorn app.main:app --reload         # http://127.0.0.1:3000
 
 | MODULES 值 | 挂载内容 |
 |---|---|
-| `license` | `/api/license/*` 授权接口 |
+| `license` | `/api/license/*` 授权接口（含 `/recover` 邮箱找回） |
 | `admin` | `/admin/api/*` 管理后台 API + `/admin` 静态页 |
 | `media` | `/api/parse` `/api/download` `/api/delogo/*` `/api/*/process` 视频处理 + `/files` `/tmp` 静态 |
 | 始终挂载 | `/api/support/report` 联系支持，服务端 SMTP 转发 |
@@ -40,6 +40,7 @@ app/
 ├── config.py       环境变量（DB / REDIS / ADMIN / JWT / 媒体路径）
 ├── db.py           SQLAlchemy async engine + session
 ├── security.py     管理端 JWT + admin 角色校验 + 客户端授权校验 + 签名 URL
+├── mailer.py       通用 SMTP 发信（联系支持 / 许可证找回）
 ├── limits.py       并发信号量 / 上传大小 / 磁盘清理
 ├── schemas.py      媒体请求/响应模型
 └── modules/
@@ -48,7 +49,7 @@ app/
     ├── support/    联系支持（HTTPS 提交 + SMTP 转发）
     └── media/      视频处理（routers / services / tasks）
 sql/schema.sql      授权四张表（licenses / device_bindings / unbind_log / trial_devices）
-scripts/            init_db.py / generate_licenses.py / test_support_smtp.py
+scripts/            init_db.py / generate_licenses.py / test_support_smtp.py / test_recovery_smtp.py
 ```
 
 ## 环境变量
@@ -59,7 +60,7 @@ scripts/            init_db.py / generate_licenses.py / test_support_smtp.py
 - `REDIS_*`：Redis 连接
 - `ADMIN_PASSWORD`（仅首次建号用）/ `JWT_SECRET`（必填，管理端 JWT + 签名 URL）：管理后台
 - `PUBLIC_BASE_URL` / `MAX_UPLOAD_SIZE` / `YTDLP_PROXY` / `MEDIA_CONCURRENCY` / `SIGNED_URLS`：媒体
-- `SUPPORT_EMAIL_TO` / `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SSL` / `SMTP_STARTTLS`：联系支持（QQ 邮箱用 `smtp.qq.com:465` + 授权码）
+- `SUPPORT_EMAIL_TO` / `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SSL` / `SMTP_STARTTLS`：联系支持 + 许可证找回发信（QQ 邮箱用 `smtp.qq.com:465` + 授权码）
 
 ## 已知限制
 

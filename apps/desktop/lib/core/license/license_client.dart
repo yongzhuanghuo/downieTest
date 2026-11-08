@@ -193,6 +193,34 @@ class StatusResult {
   }
 }
 
+/// /api/license/recover 结果
+class RecoverResult {
+  final bool ok;
+  final bool found;
+  final String? error;
+  final String? message;
+  final int retryAfter;
+
+  const RecoverResult({
+    required this.ok,
+    this.found = false,
+    this.error,
+    this.message,
+    this.retryAfter = 60,
+  });
+
+  factory RecoverResult.fromJson(Map<String, dynamic> raw) {
+    final j = flattenLicenseError(raw);
+    return RecoverResult(
+      ok: j['ok'] == true,
+      found: j['found'] == true,
+      error: j['error'] as String?,
+      message: j['message'] as String?,
+      retryAfter: (j['retry_after'] as num?)?.toInt() ?? 60,
+    );
+  }
+}
+
 /// 14 天试用状态（服务端权威）
 class TrialInfo {
   final String status;
@@ -227,12 +255,16 @@ class LicenseClient {
   static final instance = LicenseClient._();
 
   /// POST 请求（直连后端）
-  Future<http.Response> _post(String path, Map<String, dynamic> body) async {
+  Future<http.Response> _post(
+    String path,
+    Map<String, dynamic> body, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
     final uri = Uri.parse('$kApiBase$path');
     final headers = {'Content-Type': 'application/json'};
     return http
         .post(uri, headers: headers, body: jsonEncode(body))
-        .timeout(const Duration(seconds: 15));
+        .timeout(timeout);
   }
 
   /// GET 请求（直连后端）
@@ -369,6 +401,25 @@ class LicenseClient {
       return VerifyResult.fromJson(j);
     } catch (_) {
       return null;
+    }
+  }
+
+  /// 找回许可证代码：服务端把卡密发送到绑定的邮箱（响应不含卡密）。
+  Future<RecoverResult> recoverLicense({required String email}) async {
+    try {
+      final resp = await _post(
+        '/api/license/recover',
+        {'product': 'downie6', 'email': email},
+        timeout: const Duration(seconds: 40),
+      );
+      final j = jsonDecode(resp.body) as Map<String, dynamic>;
+      return RecoverResult.fromJson(j);
+    } catch (e) {
+      return const RecoverResult(
+        ok: false,
+        error: 'NETWORK_ERROR',
+        message: '无法连接服务器，请检查网络或代理设置后重试',
+      );
     }
   }
 

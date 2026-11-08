@@ -9,6 +9,7 @@ import '../../shared/theme/design_tokens.dart';
 import '../../shared/widgets/window_panel.dart';
 import '../help/support_dialog.dart';
 import 'license_provider.dart';
+import 'recover_dialog.dart';
 
 /// Downie 式试用窗口。
 ///
@@ -105,11 +106,18 @@ class _TrialWindowState extends ConsumerState<TrialWindow> {
     await SupportDialog.show(ctx);
   }
 
-  Future<void> _openRecovery() {
-    return showRecoverLicenseDialog(
+  Future<void> _openRecovery() async {
+    final email = await showRecoverLicenseDialog(
       context,
       email: _emailController.text.trim(),
     );
+    if (email == null || !mounted) return;
+    // 用户已从邮件拿到卡密：回填邮箱并展开激活表单。
+    setState(() {
+      _emailController.text = email;
+      _showActivation = true;
+      _message = null;
+    });
   }
 
   @override
@@ -441,51 +449,5 @@ class _FormRow extends StatelessWidget {
         Expanded(child: child),
       ],
     );
-  }
-}
-
-/// 「许可证代码丢失了?」：按用户选择走邮件联系支持，不做服务端找回。
-Future<void> showRecoverLicenseDialog(
-  BuildContext context, {
-  String? email,
-}) async {
-  final proceed = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('许可证代码丢失了？'),
-      content: const Text(
-        '请使用购买时使用的电子邮箱地址联系支持，'
-        '我们会在核实后重新发送许可证代码。',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(true),
-          child: const Text('联系支持'),
-        ),
-      ],
-    ),
-  );
-  if (proceed != true) return;
-
-  final body = StringBuffer('我的许可证代码丢失了，请协助找回。');
-  if (email != null && email.isNotEmpty) {
-    body.write('\n购买邮箱：$email');
-  }
-  final uri = Uri(
-    scheme: 'mailto',
-    path: AppBrand.supportEmail,
-    queryParameters: {
-      'subject': '${AppBrand.name} 许可证代码找回',
-      'body': body.toString(),
-    },
-  );
-  try {
-    await launchUrl(uri);
-  } catch (e) {
-    debugPrint('[授权] 打开邮件客户端失败: $e');
   }
 }

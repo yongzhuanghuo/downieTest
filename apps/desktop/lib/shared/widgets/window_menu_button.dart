@@ -191,7 +191,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
                 unawaited(showLicenseFlow(context, activation: true)),
           ),
           _item(
-            '恢复许可证代码…',
+            '找回许可证代码…',
             icon: Icons.help_outline,
             onTap: () => unawaited(showRecoverLicenseDialog(context)),
           ),

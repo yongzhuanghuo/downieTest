@@ -6,7 +6,7 @@ import 'license_provider.dart';
 import 'registered_window.dart';
 import 'trial_window.dart';
 
-export 'trial_window.dart' show showRecoverLicenseDialog;
+export 'recover_dialog.dart' show showRecoverLicenseDialog;
 
 /// 统一的「授权」入口：
 /// - 已授权 → 感谢注册信息窗

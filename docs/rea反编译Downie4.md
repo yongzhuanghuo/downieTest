@@ -84,7 +84,7 @@ rea analyze "/Applications/Downie 4.app"
 | 登录/网络 | Cookie/登录助手、代理、本地 HTTP 服务、IP 转发 | WebView 登录 + cookie、浏览器 cookie 读取、代理、本地 8765 接收端口/书签/Chrome 扩展已完成 |
 | UX | 浏览器扩展、剪贴板/拖拽、通知、外观、导入 | Downie 风格主界面、粘贴/多链接/文件导入、系统通知、Chrome 扩展/书签、原生链接/文本拖拽已完成 |
 | 高级 | 自定义集成（Registry/提交/控制台/JS 执行）、快速预览 | 未开始 |
-| 授权 | 14 天试用、邮箱绑定、4 设备、反激活、找回、撤销 | 14 天试用、邮箱绑定、4 设备、反激活、6h 复验/心跳已上线；管理端 RBAC/限流/随机初始密码已加固；OTP/自动找回/签名令牌/HTTPS/安全存储未做 |
+| 授权 | 14 天试用、邮箱绑定、4 设备、反激活、找回、撤销 | 14 天试用、邮箱绑定、4 设备、反激活、6h 复验/心跳、邮箱自助找回（按邮箱发卡密，与 Downie 的 `/recover/` 同构）已上线；管理端 RBAC/限流/随机初始密码已加固；OTP/签名令牌/HTTPS/安全存储未做 |
 | 发布 | macOS/Windows 安装包、更新提示、OTA/OSS | DMG + EXE + OSS + 版本接口 + 应用内下载安装已完成；签名/公证按用户决定不做；HTTPS 未做 |
 
 ### 2.2 明确不做
@@ -265,7 +265,7 @@ Downie 二进制中的证据：
 
 - **HTTPS**：客户端发布包仍硬编码 HTTP IP；Nginx 模板已补（`services/api/nginx.conf.example`），需要域名/证书后切换。
 - **签名令牌 + 安全存储**：无 Ed25519 离线验签，PRO 仍存明文 Hive（未接 Keychain/DPAPI）。
-- **账号与撤销闭环**：邮箱 OTP / 自动找回（当前 mailto）、卡密哈希存储、撤销心跳下发（目前靠 6h verify）、管理端试用/设备/撤销页面。
+- **账号与撤销闭环**：邮箱自助找回已完成（`POST /api/license/recover`，按邮箱发卡密，无 OTP）；卡密哈希存储、撤销心跳下发（目前靠 6h verify）、管理端试用/设备/撤销页面未做。
 - **媒体鉴权**：`/files` `/tmp` 默认无签名 URL、CORS 默认 `*`、`require_license` 无头放行。
 
 详细设计见 `~/re/downie4/reports/licensing-v2-design.md`。
@@ -478,6 +478,8 @@ Downie 主窗口不是主 nib 构建的，Help Book 截图是当前最可靠的�
 ### 12.7 授权：14 天试用 + 去每日额度
 
 **Downie 证据**：`Licensing.framework` 有 `CMTrialHeaderView`、`CMTrialProgressBar`、`%i days`、`Continue Trial`、`Enter License Code…`、`Lost License Code?`、`Deactivate License Code…`；帮助写明默认激活次数 3。只借鉴用户可见流程，不复用 Paddle 协议/密钥/授权码格式。
+
+**找回实现（2026-11-08 反编译补充）**：点「Lost License Code?」→ 应用内 `NSAlert` 输入邮箱（预填激活表单里的邮箱）→ `POST https://licensing.charliemonroe.net/recover/`，`Content-Type: application/x-www-form-urlencoded`，body 只有 `email=...`，超时 60s。200 → 系统通知「Recovery Email Sent」，不解析响应体、不显示卡密；211 → 弹「There were no purchase records found under this email address.」；其他状态 → 通用错误 +「Get Support...」。没有浏览器、没有 WKWebView、没有 `mailto:`、没有验证码。4KDownle 已按同构实现：`POST /api/license/recover`，命中把卡密发到邮箱，未命中返回 `found: false`。
 
 #### 产品规则
 
